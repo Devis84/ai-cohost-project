@@ -1,0 +1,28 @@
+{
+  "malta": {
+    "learned": [
+      {
+        "category": "info",
+        "content": "There is a great restaurant called Mario's near the apartment."
+      },
+      {
+        "category": "general",
+        "content": "There is a great restaurant called Mario's near the apartment"
+      },
+      {
+        "category": "general",
+        "content": "Any restaurants nearby?"
+      },
+      {
+        "category": "restaurant",
+        "content": "There is a great restaurant called Mario's near the apartment",
+        "timestamp": "2026-04-09T08:26:03.724Z"
+      },
+      {
+        "category": "restaurant",
+        "content": "“There is a great sushi restaurant called Zen near the apartment”",
+        "timestamp": "2026-04-09T11:22:38.285Z"
+      }
+    ]
+  }
+}
