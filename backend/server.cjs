@@ -1,81 +1,68 @@
-const express = require("express");
-const cors = require("cors");
-const { createClient } = require("@supabase/supabase-js");
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔑 CONFIG SUPABASE
-const supabase = createClient(
-  "https://YOUR_PROJECT.supabase.co",
-  "YOUR_ANON_KEY"
-);
+const OpenAI = require("openai");
 
-// ============================
-// GET PROPERTIES
-// ============================
-app.get("/properties", async (req, res) => {
-  const { data, error } = await supabase
-    .from("properties")
-    .select("id, property_name");
-
-  if (error) return res.status(500).json(error);
-
-  res.json(data);
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
-// ============================
-// GET PROPERTY DATA
-// ============================
-app.get("/property/:id", async (req, res) => {
-  const { id } = req.params;
 
-  const { data, error } = await supabase
-    .from("property_info")
-    .select("*")
-    .eq("property_id", id)
-    .single();
-
-  if (error && error.code !== "PGRST116") {
-    return res.status(500).json(error);
-  }
-
-  res.json(data || {});
+// HEALTH CHECK
+app.get('/', (req, res) => {
+  res.send('Backend OK');
 });
 
-// ============================
-// SAVE PROPERTY DATA
-// ============================
-app.post("/property/:id", async (req, res) => {
-  const { id } = req.params;
-  const payload = req.body;
 
-  const { error } = await supabase
-    .from("property_info")
-    .upsert({
-      property_id: id,
-      name: payload.name || "",
-      wifi_name: payload.wifiName || "",
-      wifi_password: payload.wifiPass || "",
-      checkin: payload.checkin || "",
-      checkout: payload.checkout || "",
-      ai_notes: payload.ai || "",
-      rules: payload.rules || [],
-      contacts: payload.contacts || []
+// 🔥 AI PARSER ENDPOINT
+app.post('/ai/parse-description', async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content: `
+Extract structured property data from Airbnb description.
+
+Return ONLY JSON with:
+
+{
+  "wifi": true/false,
+  "air_conditioning": true/false,
+  "washing_machine": true/false,
+  "parking": true/false,
+  "workspace": true/false,
+  "kitchen": true/false,
+  "tv": true/false,
+  "notes": "short summary"
+}
+          `
+        },
+        {
+          role: "user",
+          content: text
+        }
+      ]
     });
 
-  if (error) return res.status(500).json(error);
+    const reply = completion.choices[0].message.content;
 
-  res.json({ success: true });
+    res.json({ result: reply });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'AI failed' });
+  }
 });
 
-// ============================
-// HEALTH CHECK
-// ============================
-app.get("/", (req, res) => {
-  res.send("Backend OK");
-});
 
 app.listen(3001, () => {
   console.log("🚀 Backend running on 3001");
