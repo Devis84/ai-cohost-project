@@ -1,66 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>AI Co-Host Dashboard</title>
+  <title>Dashboard</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f6f6f6;
+      padding: 30px;
+    }
 
-<script src="config.js"></script>
+    h1 {
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
 
-<style>
-body {
-  font-family:-apple-system;
-  background:#f7f7f7;
-  padding:40px;
-}
+    .card {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
 
-h1 {
-  font-size:42px;
-  margin-bottom:20px;
-}
+    .card h2 {
+      margin-bottom: 10px;
+    }
 
-.card {
-  background:white;
-  padding:20px;
-  border-radius:16px;
-  margin-bottom:20px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.05);
-}
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
 
-h2 {
-  margin-bottom:10px;
-}
+    textarea {
+      height: 100px;
+    }
 
-input, textarea {
-  width:100%;
-  padding:12px;
-  margin-top:8px;
-  margin-bottom:12px;
-  border-radius:8px;
-  border:1px solid #ddd;
-}
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: black;
+      color: white;
+      cursor: pointer;
+    }
 
-textarea {
-  min-height:120px;
-}
-
-button {
-  background:black;
-  color:white;
-  padding:10px 16px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-.tag {
-  display:inline-block;
-  background:#eee;
-  padding:6px 12px;
-  border-radius:20px;
-  margin-right:6px;
-  margin-top:6px;
-}
-</style>
+    .secondary {
+      background: #eee;
+      color: black;
+    }
+  </style>
 </head>
 
 <body>
@@ -69,82 +61,58 @@ button {
 
 <div class="card">
   <h2>🏡 Property</h2>
-  <input id="propertyName" value="Maltese Maisonette">
+  <input value="Maltese Maisonette">
 </div>
 
 <div class="card">
   <h2>📶 WiFi</h2>
-  <input id="wifiName" placeholder="Network name">
-  <input id="wifiPass" placeholder="Password">
-  <button onclick="copyWifi()">Copy WiFi</button>
+  <input placeholder="Network name">
+  <input placeholder="Password">
+  <button>Copy WiFi</button>
 </div>
 
 <div class="card">
   <h2>🌴 Stay Info</h2>
-  <input id="checkin" placeholder="Check-in">
-  <input id="checkout" placeholder="Check-out">
+  <input placeholder="Check-in (e.g. From 15:00)">
+  <input placeholder="Check-out (e.g. Before 11:00)">
 </div>
 
 <div class="card">
   <h2>📞 Contacts</h2>
-  <button>Add contact</button>
+  <button class="secondary">+ Add contact</button>
 </div>
 
 <div class="card">
   <h2>📜 House Rules</h2>
-  <button>Add rule</button>
+  <button class="secondary">+ Add rule</button>
 </div>
 
 <div class="card">
   <h2>📝 Property Description</h2>
-  <textarea id="description"></textarea>
-  <button onclick="autoFill()">Auto-fill with AI</button>
+  <textarea placeholder="Paste your Airbnb description here..."></textarea>
+  <button>Auto-fill with AI</button>
 </div>
 
 <div class="card">
   <h2>✨ Amenities</h2>
-  <textarea id="amenities"></textarea>
-  <button onclick="extractAmenities()">Extract amenities</button>
-  <div id="amenitiesTags"></div>
+  <textarea placeholder="Paste amenities from Airbnb"></textarea>
+  <button>Extract amenities</button>
 </div>
 
 <div class="card">
   <h2>🧠 AI Knowledge</h2>
-  <textarea id="aiKnowledge"></textarea>
+  <textarea placeholder="Add anything guests might ask:
+- How appliances work
+- Boiler / AC
+- House quirks
+- Extra tips
+- Anything specific to this property
+
+This trains your AI assistant."></textarea>
 </div>
 
-<button onclick="saveData()">Save</button>
-
-<script>
-
-function copyWifi() {
-  const text = wifiName.value + " / " + wifiPass.value;
-  navigator.clipboard.writeText(text);
-  alert("WiFi copied");
-}
-
-function autoFill() {
-  aiKnowledge.value = description.value.slice(0,100);
-}
-
-function extractAmenities() {
-  const list = amenities.value.split(/,|\n/).map(x => x.trim()).filter(Boolean);
-
-  amenitiesTags.innerHTML = "";
-
-  list.forEach(item => {
-    const tag = document.createElement("div");
-    tag.className = "tag";
-    tag.innerText = item;
-    amenitiesTags.appendChild(tag);
-  });
-}
-
-function saveData() {
-  alert("Saved");
-}
-
-</script>
+<!-- TOGGLE (SEPARATO, NON TOCCA LA DASHBOARD) -->
+<script src="dev-toggle.js"></script>
 
 </body>
 </html>

@@ -1,46 +1,53 @@
-console.log("AUTH SCRIPT LOADED");
+window.Auth = (function () {
 
-const supabase = window.supabase.createClient(
-  "https://mhmebkakdmwzqgteywyd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1obWVia2FrZG13enFndGV5d3lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODg3ODksImV4cCI6MjA4ODc2NDc4OX0.85TrSsRElJ5-30BlUzfOLLymHHQKEbXuYr-4arpOzEY"
-);
+  async function getSession() {
+    const { data, error } = await window.supabase.auth.getSession();
+    if (error) return null;
+    return data.session;
+  }
 
-async function handleAuth() {
+  async function requireAuth() {
 
-  console.log("START AUTH");
-
-  try {
-
-    const { data, error } = await supabase.auth.getSessionFromUrl({
-      storeSession: true
-    });
-
-    console.log("RESULT:", data, error);
-
-    if (error) {
-      document.getElementById("status").innerText = "❌ Auth error";
+    // 🔥 SE LOGIN DISABILITATO → PASSA
+    if (!window.LOGIN_ENABLED) {
+      console.log("⚡ Login disabled");
       return;
     }
 
-    if (data.session) {
-      document.getElementById("status").innerText = "✅ Logged in";
+    const session = await getSession();
 
-      setTimeout(() => {
-        window.location.href = "/host.html";
-      }, 800);
-
-    } else {
-      document.getElementById("status").innerText = "❌ No session";
-
-      setTimeout(() => {
-        window.location.href = "/login.html";
-      }, 1000);
+    if (!session) {
+      window.location.href = "/login.html";
+      return;
     }
 
-  } catch (err) {
-    console.error("CRASH:", err);
-    document.getElementById("status").innerText = "❌ Crash";
+    return session;
   }
-}
 
-window.addEventListener("load", handleAuth);
+  async function redirectIfLoggedIn() {
+
+    // 🔥 SE LOGIN DISABILITATO → VAI DIRETTO
+    if (!window.LOGIN_ENABLED) {
+      window.location.href = "/host.html";
+      return;
+    }
+
+    const session = await getSession();
+
+    if (session) {
+      window.location.href = "/host.html";
+    }
+  }
+
+  async function logout() {
+    await window.supabase.auth.signOut();
+    window.location.href = "/login.html";
+  }
+
+  return {
+    requireAuth,
+    redirectIfLoggedIn,
+    logout
+  };
+
+})();

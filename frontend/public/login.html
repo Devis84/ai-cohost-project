@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+// 🔥 BYPASS LOGIN
+if (!window.APP_CONFIG.AUTH_ENABLED) {
+  window.location.href = "/host.html";
+}
+</script>
 
 <style>
 body {
@@ -20,21 +28,14 @@ body {
   padding:30px;
   border-radius:16px;
   width:320px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.08);
   text-align:center;
-}
-
-h2 {
-  margin-bottom:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.08);
 }
 
 input {
   width:100%;
   padding:12px;
-  border-radius:10px;
-  border:1px solid #ddd;
-  margin-bottom:12px;
-  font-size:14px;
+  margin-bottom:10px;
 }
 
 button {
@@ -44,41 +45,6 @@ button {
   color:white;
   border:none;
   border-radius:10px;
-  font-weight:600;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-button:disabled {
-  opacity:0.6;
-}
-
-.status {
-  margin-top:15px;
-  font-size:14px;
-}
-
-.success {
-  color:green;
-}
-
-.error {
-  color:red;
-}
-
-.loader {
-  display:inline-block;
-  width:14px;
-  height:14px;
-  border:2px solid #ccc;
-  border-top:2px solid black;
-  border-radius:50%;
-  animation:spin 1s linear infinite;
-  margin-right:6px;
-}
-
-@keyframes spin {
-  100% { transform: rotate(360deg); }
 }
 </style>
 </head>
@@ -87,54 +53,35 @@ button:disabled {
 
 <div class="card">
   <h2>Login</h2>
-
   <input id="email" placeholder="Email" />
-
-  <button id="btn" onclick="login()">Send Magic Link</button>
-
-  <div id="status" class="status"></div>
+  <button onclick="login()">Send Magic Link</button>
+  <p id="status"></p>
 </div>
 
 <script>
-const supabaseClient = window.supabase.createClient(
+const supabase = window.supabase.createClient(
   "https://mhmebkakdmwzqgteywyd.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1obWVia2FrZG13enFndGV5d3lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxODg3ODksImV4cCI6MjA4ODc2NDc4OX0.85TrSsRElJ5-30BlUzfOLLymHHQKEbXuYr-4arpOzEY"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 );
 
 async function login() {
   const email = document.getElementById("email").value;
-  const status = document.getElementById("status");
-  const btn = document.getElementById("btn");
+  document.getElementById("status").innerText = "Sending...";
 
-  status.innerHTML = '<span class="loader"></span>Sending...';
-  status.className = "status";
-
-  btn.disabled = true;
-
-  const { error } = await supabaseClient.auth.signInWithOtp({
+  await supabase.auth.signInWithOtp({
     email,
     options: {
       emailRedirectTo: "http://localhost:3000/login.html"
     }
   });
 
-  if (error) {
-    status.innerHTML = "❌ " + error.message;
-    status.className = "status error";
-    btn.disabled = false;
-  } else {
-    status.innerHTML = "✅ Email sent (check spam)";
-    status.className = "status success";
-  }
+  document.getElementById("status").innerText = "Email sent";
 }
 
-// 🔥 LOGIN AUTO
-supabaseClient.auth.onAuthStateChange((event, session) => {
-
+supabase.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_IN") {
     window.location.href = "/host.html";
   }
-
 });
 </script>
 
