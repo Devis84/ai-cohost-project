@@ -1,4 +1,16 @@
 (function () {
+  const STORAGE_KEY = "LOGIN_ENABLED";
+
+  function getState() {
+    const val = localStorage.getItem(STORAGE_KEY);
+    return val === null ? true : val === "true";
+  }
+
+  function setState(val) {
+    localStorage.setItem(STORAGE_KEY, val);
+    window.LOGIN_ENABLED = val;
+  }
+
   const box = document.createElement("div");
   box.style.position = "fixed";
   box.style.top = "20px";
@@ -11,21 +23,29 @@
   box.style.zIndex = "9999";
 
   const label = document.createElement("span");
-  label.innerText = "Login: ";
 
   const btnOn = document.createElement("button");
   btnOn.innerText = "ON";
-  btnOn.onclick = () => {
-    window.LOGIN_ENABLED = true;
-    alert("Login ON");
-  };
 
   const btnOff = document.createElement("button");
   btnOff.innerText = "OFF";
   btnOff.style.marginLeft = "5px";
+
+  function updateUI() {
+    const state = getState();
+    label.innerText = "Login: " + (state ? "ON" : "OFF");
+    btnOn.style.opacity = state ? "1" : "0.5";
+    btnOff.style.opacity = !state ? "1" : "0.5";
+  }
+
+  btnOn.onclick = () => {
+    setState(true);
+    updateUI();
+  };
+
   btnOff.onclick = () => {
-    window.LOGIN_ENABLED = false;
-    alert("Login OFF");
+    setState(false);
+    updateUI();
   };
 
   box.appendChild(label);
@@ -33,6 +53,8 @@
   box.appendChild(btnOff);
 
   document.addEventListener("DOMContentLoaded", () => {
+    setState(getState());
+    updateUI();
     document.body.appendChild(box);
   });
 })();

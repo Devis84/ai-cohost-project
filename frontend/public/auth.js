@@ -1,17 +1,28 @@
 window.Auth = (function () {
 
+  function isLoginEnabled() {
+    const val = localStorage.getItem("LOGIN_ENABLED");
+    return val === null ? true : val === "true";
+  }
+
   async function getSession() {
+    if (!window.supabase) return null;
+
     const { data, error } = await window.supabase.auth.getSession();
-    if (error) return null;
+
+    if (error) {
+      console.error("Session error:", error);
+      return null;
+    }
+
     return data.session;
   }
 
   async function requireAuth() {
-
-    // 🔥 SE LOGIN DISABILITATO → PASSA
-    if (!window.LOGIN_ENABLED) {
-      console.log("⚡ Login disabled");
-      return;
+    // 🔥 QUI IL TOGGLE
+    if (!isLoginEnabled()) {
+      console.log("Auth bypassed (login OFF)");
+      return null;
     }
 
     const session = await getSession();
@@ -25,12 +36,7 @@ window.Auth = (function () {
   }
 
   async function redirectIfLoggedIn() {
-
-    // 🔥 SE LOGIN DISABILITATO → VAI DIRETTO
-    if (!window.LOGIN_ENABLED) {
-      window.location.href = "/host.html";
-      return;
-    }
+    if (!isLoginEnabled()) return;
 
     const session = await getSession();
 
@@ -39,15 +45,9 @@ window.Auth = (function () {
     }
   }
 
-  async function logout() {
-    await window.supabase.auth.signOut();
-    window.location.href = "/login.html";
-  }
-
   return {
     requireAuth,
     redirectIfLoggedIn,
-    logout
+    getSession
   };
-
 })();
