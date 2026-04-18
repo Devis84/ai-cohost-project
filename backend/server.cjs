@@ -1,68 +1,101 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+require("dotenv").config();
+
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-const OpenAI = require("openai");
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// ================= SAVE =================
+app.post("/save-property", async (req, res) => {
 
-
-// HEALTH CHECK
-app.get('/', (req, res) => {
-  res.send('Backend OK');
-});
-
-
-// 🔥 AI PARSER ENDPOINT
-app.post('/ai/parse-description', async (req, res) => {
   try {
-    const { text } = req.body;
 
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-Extract structured property data from Airbnb description.
+    const { property, data } = req.body;
+    const clean = property.trim().toLowerCase();
 
-Return ONLY JSON with:
+    const { error } = await supabase
+      .from("properties")
+      .upsert({
+        property_name: clean,
+        data: data
+      });
 
-{
-  "wifi": true/false,
-  "air_conditioning": true/false,
-  "washing_machine": true/false,
-  "parking": true/false,
-  "workspace": true/false,
-  "kitchen": true/false,
-  "tv": true/false,
-  "notes": "short summary"
-}
-          `
-        },
-        {
-          role: "user",
-          content: text
-        }
-      ]
-    });
+    if (error) {
+      console.log("SAVE ERROR:", error);
+      return res.status(500).json({ error });
+    }
 
-    const reply = completion.choices[0].message.content;
+    console.log("Saved:", clean);
 
-    res.json({ result: reply });
+    res.json({ success: true });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'AI failed' });
+    console.log("SERVER ERROR:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
+// ================= LOAD =================
+app.get("/load-property/:name", async (req, res) => {
+
+  try {
+
+    const clean = req.params.name.trim().toLowerCase();
+
+    const { data, error } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("property_name", clean);
+
+    if (error) {
+      console.log("LOAD ERROR:", error);
+      return res.status(500).json({ error });
+    }
+
+    if (!data || data.length === 0) {
+      return res.json({ data: null });
+    }
+
+    console.log("Loaded:", clean);
+
+    res.json(data[0]);
+
+  } catch (err) {
+    console.log("SERVER ERROR:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================= AI =================
+app.post("/ai/parse-description", async (req, res) => {
+
+  try {
+
+    const text = req.body.text.toLowerCase();
+
+    const result = {
+      wifi: text.includes("wifi"),
+      kitchen: text.includes("kitchen"),
+      air_conditioning: text.includes("air"),
+      washing_machine: text.includes("washing"),
+      notes: text.slice(0, 200)
+    };
+
+    res.json({ result: JSON.stringify(result) });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.listen(3001, () => {
   console.log("🚀 Backend running on 3001");

@@ -4,53 +4,61 @@
 <meta charset="UTF-8">
 <title>AI Co-Host Dashboard</title>
 
+<script src="config.js"></script>
+
 <style>
-body { font-family:-apple-system; background:#f7f7f7; padding:40px; }
-h1 { font-size:48px; }
+body {
+  font-family:-apple-system;
+  background:#f7f7f7;
+  padding:40px;
+}
+
+h1 {
+  font-size:42px;
+  margin-bottom:20px;
+}
 
 .card {
   background:white;
-  padding:25px;
+  padding:20px;
   border-radius:16px;
-  margin-bottom:25px;
+  margin-bottom:20px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.05);
 }
 
-.title {
-  font-size:22px;
-  font-weight:bold;
-  margin-bottom:15px;
-}
-
-input, textarea, select {
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:1px solid #ddd;
+h2 {
   margin-bottom:10px;
 }
 
-textarea { height:140px; }
+input, textarea {
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  margin-bottom:12px;
+  border-radius:8px;
+  border:1px solid #ddd;
+}
+
+textarea {
+  min-height:120px;
+}
 
 button {
   background:black;
   color:white;
+  padding:10px 16px;
   border:none;
-  padding:10px 18px;
-  border-radius:10px;
+  border-radius:8px;
   cursor:pointer;
 }
 
-.small-btn {
-  background:#eee;
-  color:black;
-}
-
-.chip {
+.tag {
   display:inline-block;
   background:#eee;
   padding:6px 12px;
   border-radius:20px;
-  margin:4px;
+  margin-right:6px;
+  margin-top:6px;
 }
 </style>
 </head>
@@ -59,111 +67,81 @@ button {
 
 <h1>Dashboard</h1>
 
-<!-- PROPERTY -->
 <div class="card">
-  <div class="title">🏡 Property</div>
-  <select>
-    <option>Maltese Maisonette</option>
-    <option>Bali Villa</option>
-    <option>Lake House</option>
-  </select>
+  <h2>🏡 Property</h2>
+  <input id="propertyName" value="Maltese Maisonette">
 </div>
 
-<!-- WIFI -->
 <div class="card">
-  <div class="title">📶 WiFi</div>
-  <input placeholder="Network name">
-  <input placeholder="Password">
-  <button>Copy WiFi</button>
+  <h2>📶 WiFi</h2>
+  <input id="wifiName" placeholder="Network name">
+  <input id="wifiPass" placeholder="Password">
+  <button onclick="copyWifi()">Copy WiFi</button>
 </div>
 
-<!-- STAY INFO -->
 <div class="card">
-  <div class="title">🌴 Stay Info</div>
-  <input placeholder="Check-in (e.g. From 15:00)">
-  <input placeholder="Check-out (e.g. Before 11:00)">
+  <h2>🌴 Stay Info</h2>
+  <input id="checkin" placeholder="Check-in">
+  <input id="checkout" placeholder="Check-out">
 </div>
 
-<!-- CONTACTS -->
 <div class="card">
-  <div class="title">📞 Contacts</div>
-  <button class="small-btn">+ Add contact</button>
+  <h2>📞 Contacts</h2>
+  <button>Add contact</button>
 </div>
 
-<!-- HOUSE RULES -->
 <div class="card">
-  <div class="title">📜 House Rules</div>
-  <button class="small-btn">+ Add rule</button>
+  <h2>📜 House Rules</h2>
+  <button>Add rule</button>
 </div>
 
-<!-- 🔥 NEW: PROPERTY DESCRIPTION -->
 <div class="card">
-  <div class="title">📝 Property Description</div>
-
-  <textarea id="descriptionInput"
-  placeholder="Paste your Airbnb description here..."></textarea>
-
-  <button onclick="runAI()">Auto-fill with AI</button>
-
-  <pre id="aiOutput"></pre>
+  <h2>📝 Property Description</h2>
+  <textarea id="description"></textarea>
+  <button onclick="autoFill()">Auto-fill with AI</button>
 </div>
 
-<!-- 🔥 NEW: AMENITIES -->
 <div class="card">
-  <div class="title">✨ Amenities</div>
-
-  <textarea id="amenitiesInput"
-  placeholder="Paste amenities from Airbnb"></textarea>
-
+  <h2>✨ Amenities</h2>
+  <textarea id="amenities"></textarea>
   <button onclick="extractAmenities()">Extract amenities</button>
-
-  <div id="amenitiesOutput"></div>
+  <div id="amenitiesTags"></div>
 </div>
 
-<!-- AI KNOWLEDGE -->
 <div class="card">
-  <div class="title">🧠 AI Knowledge</div>
-
-  <textarea placeholder="Add anything guests might ask:
-- How appliances work
-- Boiler / AC
-- House quirks
-- Extra tips
-- Anything specific to this property
-
-This trains your AI assistant."></textarea>
+  <h2>🧠 AI Knowledge</h2>
+  <textarea id="aiKnowledge"></textarea>
 </div>
+
+<button onclick="saveData()">Save</button>
 
 <script>
 
+function copyWifi() {
+  const text = wifiName.value + " / " + wifiPass.value;
+  navigator.clipboard.writeText(text);
+  alert("WiFi copied");
+}
+
+function autoFill() {
+  aiKnowledge.value = description.value.slice(0,100);
+}
+
 function extractAmenities() {
-  const input = document.getElementById("amenitiesInput").value;
-  const output = document.getElementById("amenitiesOutput");
-  output.innerHTML = "";
+  const list = amenities.value.split(/,|\n/).map(x => x.trim()).filter(Boolean);
 
-  input.split(/\n|,/).forEach(item => {
-    const clean = item.trim();
-    if (!clean) return;
+  amenitiesTags.innerHTML = "";
 
-    const chip = document.createElement("div");
-    chip.className = "chip";
-    chip.innerText = clean;
-    output.appendChild(chip);
+  list.forEach(item => {
+    const tag = document.createElement("div");
+    tag.className = "tag";
+    tag.innerText = item;
+    amenitiesTags.appendChild(tag);
   });
 }
 
-async function runAI() {
-  const text = document.getElementById("descriptionInput").value;
-
-  const res = await fetch("http://localhost:3001/ai/parse-description", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ text })
-  });
-
-  const data = await res.json();
-
-  document.getElementById("aiOutput").innerText = data.result;
+function saveData() {
+  alert("Saved");
 }
 
 </script>
