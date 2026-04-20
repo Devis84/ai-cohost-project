@@ -1,50 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
+  <meta charset="UTF-8">
   <title>Dashboard</title>
+
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f6f6f6;
-      padding: 30px;
+      background: #f5f5f5;
+      padding: 20px;
     }
 
     h1 {
-      font-size: 36px;
+      font-size: 32px;
       margin-bottom: 20px;
     }
 
     .card {
-      background: #ffffff;
+      background: white;
       padding: 20px;
-      border-radius: 16px;
+      border-radius: 12px;
       margin-bottom: 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
-    .card h2 {
-      margin-bottom: 10px;
-    }
-
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 10px;
       margin-top: 8px;
+      margin-bottom: 10px;
       border-radius: 8px;
       border: 1px solid #ddd;
     }
 
-    textarea {
-      height: 100px;
-    }
-
     button {
-      margin-top: 10px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: none;
       background: black;
       color: white;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
       cursor: pointer;
     }
 
@@ -52,67 +46,138 @@
       background: #eee;
       color: black;
     }
-  </style>
-</head>
 
+    .top-right {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: white;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+
+</head>
 <body>
 
 <h1>Dashboard</h1>
 
-<div class="card">
-  <h2>🏡 Property</h2>
-  <input value="Maltese Maisonette">
+<div class="top-right">
+  Login:
+  <button class="secondary">ON</button>
+  <button class="secondary">OFF</button>
 </div>
 
 <div class="card">
-  <h2>📶 WiFi</h2>
-  <input placeholder="Network name">
-  <input placeholder="Password">
-  <button>Copy WiFi</button>
+  <h3>🏡 Property</h3>
+
+  <select id="propertySelect">
+    <option>Maltese Maisonette</option>
+    <option>Bali Villa Sunset</option>
+  </select>
+
+  <input id="newProperty" placeholder="Add property">
+  <button class="secondary" onclick="addProperty()">+ Add property</button>
 </div>
 
 <div class="card">
-  <h2>🌴 Stay Info</h2>
-  <input placeholder="Check-in (e.g. From 15:00)">
-  <input placeholder="Check-out (e.g. Before 11:00)">
+  <h3>📶 WiFi</h3>
+
+  <input id="wifiName" placeholder="Network name">
+  <input id="wifiPass" placeholder="Password">
+
+  <button onclick="copyWiFi()">Copy WiFi</button>
 </div>
 
 <div class="card">
-  <h2>📞 Contacts</h2>
-  <button class="secondary">+ Add contact</button>
+  <h3>🌴 Stay Info</h3>
+
+  <label>Check-in</label>
+  <input id="checkin" placeholder="e.g. From 15:00">
+
+  <label>Check-out</label>
+  <input id="checkout" placeholder="e.g. Before 11:00">
+
+  <div id="extraInfo"></div>
+
+  <button class="secondary" onclick="addInfo()">+ Add info</button>
 </div>
 
 <div class="card">
-  <h2>📜 House Rules</h2>
-  <button class="secondary">+ Add rule</button>
+  <h3>📞 Contacts</h3>
+
+  <div id="contacts"></div>
+
+  <button class="secondary" onclick="addContact()">+ Add contact</button>
 </div>
 
 <div class="card">
-  <h2>📝 Property Description</h2>
-  <textarea placeholder="Paste your Airbnb description here..."></textarea>
-  <button>Auto-fill with AI</button>
+  <h3>📜 House Rules</h3>
+
+  <div id="rules"></div>
+
+  <button class="secondary" onclick="addRule()">+ Add rule</button>
 </div>
 
 <div class="card">
-  <h2>✨ Amenities</h2>
-  <textarea placeholder="Paste amenities from Airbnb"></textarea>
-  <button>Extract amenities</button>
+  <h3>✏️ Property Description</h3>
+
+  <textarea id="description" placeholder="Paste your Airbnb description here..."></textarea>
 </div>
 
 <div class="card">
-  <h2>🧠 AI Knowledge</h2>
-  <textarea placeholder="Add anything guests might ask:
-- How appliances work
-- Boiler / AC
-- House quirks
-- Extra tips
-- Anything specific to this property
+  <h3>✨ Amenities</h3>
 
-This trains your AI assistant."></textarea>
+  <textarea id="amenities" placeholder="Paste amenities from Airbnb"></textarea>
+
+  <button class="secondary">Extract amenities</button>
 </div>
 
-<!-- TOGGLE (SEPARATO, NON TOCCA LA DASHBOARD) -->
-<script src="dev-toggle.js"></script>
+<button onclick="saveData()">💾 Save</button>
+
+<script>
+
+function addProperty(){
+  const val = document.getElementById("newProperty").value;
+  if(!val) return;
+
+  const opt = document.createElement("option");
+  opt.textContent = val;
+  document.getElementById("propertySelect").appendChild(opt);
+}
+
+function copyWiFi(){
+  const text =
+    document.getElementById("wifiName").value + " " +
+    document.getElementById("wifiPass").value;
+
+  navigator.clipboard.writeText(text);
+}
+
+function addContact(){
+  const input = document.createElement("input");
+  input.placeholder = "Contact";
+  document.getElementById("contacts").appendChild(input);
+}
+
+function addRule(){
+  const input = document.createElement("input");
+  input.placeholder = "Rule";
+  document.getElementById("rules").appendChild(input);
+}
+
+function addInfo(){
+  const input = document.createElement("input");
+  input.placeholder = "Extra info";
+  document.getElementById("extraInfo").appendChild(input);
+}
+
+function saveData(){
+  alert("Saved (UI only)");
+}
+
+</script>
 
 </body>
 </html>
