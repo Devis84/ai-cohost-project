@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -13,7 +13,7 @@ export default function Dashboard() {
   // LOGIN
   const [loginEnabled, setLoginEnabled] = useState(false)
 
-  // PROPERTY (multi)
+  // PROPERTY
   const [properties, setProperties] = useState<string[]>([])
   const [selectedProperty, setSelectedProperty] = useState('')
   const [newProperty, setNewProperty] = useState('')
@@ -30,26 +30,52 @@ export default function Dashboard() {
   const [aiKnowledge, setAiKnowledge] = useState('')
   const [contacts, setContacts] = useState<string[]>([])
 
+  // LOAD PROPERTIES
+  useEffect(() => {
+    loadProperties()
+  }, [])
+
+  const loadProperties = async () => {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('property_name')
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    const names = [...new Set(data.map((p: any) => p.property_name))]
+    setProperties(names)
+  }
+
   // CONTACTS
-  const addContact = () => setContacts([...contacts, ''])
+  const addContact = () => {
+    setContacts([...contacts, ''])
+  }
+
   const updateContact = (i: number, val: string) => {
     const copy = [...contacts]
     copy[i] = val
     setContacts(copy)
   }
 
-  // PROPERTY
+  // ADD PROPERTY
   const addProperty = () => {
     if (!newProperty) return
+
     setProperties([...properties, newProperty])
     setSelectedProperty(newProperty)
     setNewProperty('')
   }
 
-  // WIFI COPY
+  // COPY WIFI
   const copyWifi = () => {
-    navigator.clipboard.writeText(`Network: ${wifiName} | Password: ${wifiPassword}`)
-    alert('WiFi copiato')
+    navigator.clipboard.writeText(
+      `Network: ${wifiName} | Password: ${wifiPassword}`
+    )
+
+    alert('WiFi copied')
   }
 
   // SAVE
@@ -71,161 +97,248 @@ export default function Dashboard() {
 
     if (error) {
       console.error(error)
-      alert('Errore salvataggio')
+      alert('Error saving')
     } else {
-      alert('Salvato correttamente')
+      alert('Saved successfully')
+      loadProperties()
     }
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: 'auto', padding: 20 }}>
+    <div className="min-h-screen bg-gray-100 py-10 px-4">
+      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-8">
 
-      <h1>Dashboard</h1>
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">
+            🏡 AI Co-Host Dashboard
+          </h1>
 
-      {/* LOGIN */}
-      <div style={{ marginBottom: 20 }}>
-        <strong>Login:</strong>
-        <button
-          style={{ marginLeft: 10, background: loginEnabled ? 'black' : 'lightgray', color: loginEnabled ? 'white' : 'black' }}
-          onClick={() => setLoginEnabled(true)}
-        >
-          ON
-        </button>
-        <button
-          style={{ marginLeft: 5, background: !loginEnabled ? 'black' : 'lightgray', color: !loginEnabled ? 'white' : 'black' }}
-          onClick={() => setLoginEnabled(false)}
-        >
-          OFF
-        </button>
-      </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">
+              Login
+            </span>
 
-      {/* PROPERTY */}
-      <h3>🏡 Property</h3>
+            <button
+              className={`px-4 py-2 rounded-lg text-white ${
+                loginEnabled ? 'bg-black' : 'bg-gray-400'
+              }`}
+              onClick={() => setLoginEnabled(true)}
+            >
+              ON
+            </button>
 
-      <select
-        value={selectedProperty}
-        onChange={(e) => setSelectedProperty(e.target.value)}
-      >
-        <option value="">Select property</option>
-        {properties.map((p, i) => (
-          <option key={i}>{p}</option>
-        ))}
-      </select>
+            <button
+              className={`px-4 py-2 rounded-lg text-white ${
+                !loginEnabled ? 'bg-black' : 'bg-gray-400'
+              }`}
+              onClick={() => setLoginEnabled(false)}
+            >
+              OFF
+            </button>
+          </div>
+        </div>
 
-      <br /><br />
+        {/* PROPERTY */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            🏡 Property
+          </h2>
 
-      <input
-        placeholder="Add new property"
-        value={newProperty}
-        onChange={(e) => setNewProperty(e.target.value)}
-      />
-      <button onClick={addProperty}>+ Add property</button>
+          <select
+            className="w-full border rounded-lg p-3"
+            value={selectedProperty}
+            onChange={(e) => setSelectedProperty(e.target.value)}
+          >
+            <option value="">
+              Select property
+            </option>
 
-      {/* WIFI */}
-      <h3>📶 WiFi</h3>
+            {properties.map((p, i) => (
+              <option key={i}>
+                {p}
+              </option>
+            ))}
+          </select>
 
-      <input
-        placeholder="Network name"
-        value={wifiName}
-        onChange={(e) => setWifiName(e.target.value)}
-      />
+          <div className="flex gap-2">
+            <input
+              className="flex-1 border rounded-lg p-3"
+              placeholder="Add new property"
+              value={newProperty}
+              onChange={(e) => setNewProperty(e.target.value)}
+            />
 
-      <input
-        placeholder="Password"
-        value={wifiPassword}
-        onChange={(e) => setWifiPassword(e.target.value)}
-      />
+            <button
+              className="bg-black text-white px-4 rounded-lg"
+              onClick={addProperty}
+            >
+              + Add
+            </button>
+          </div>
+        </section>
 
-      <br />
-      <button onClick={copyWifi}>Copy WiFi</button>
+        {/* WIFI */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            📶 WiFi
+          </h2>
 
-      {/* STAY INFO */}
-      <h3>🌴 Stay Info</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              className="border rounded-lg p-3"
+              placeholder="Network name"
+              value={wifiName}
+              onChange={(e) => setWifiName(e.target.value)}
+            />
 
-      <label>Check-in time</label><br />
-      <input
-        placeholder="e.g. 15:00"
-        value={checkin}
-        onChange={(e) => setCheckin(e.target.value)}
-      />
+            <input
+              className="border rounded-lg p-3"
+              placeholder="Password"
+              value={wifiPassword}
+              onChange={(e) => setWifiPassword(e.target.value)}
+            />
+          </div>
 
-      <br />
+          <button
+            className="bg-gray-800 text-white px-4 py-2 rounded-lg"
+            onClick={copyWifi}
+          >
+            Copy WiFi
+          </button>
+        </section>
 
-      <label>Check-out time</label><br />
-      <input
-        placeholder="e.g. 11:00"
-        value={checkout}
-        onChange={(e) => setCheckout(e.target.value)}
-      />
+        {/* STAY INFO */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            🌴 Stay Info
+          </h2>
 
-      <br />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              className="border rounded-lg p-3"
+              placeholder="Check-in time"
+              value={checkin}
+              onChange={(e) => setCheckin(e.target.value)}
+            />
 
-      <textarea
-        placeholder="Additional notes (self check-in, instructions...)"
-        value={checkinNotes}
-        onChange={(e) => setCheckinNotes(e.target.value)}
-      />
+            <input
+              className="border rounded-lg p-3"
+              placeholder="Check-out time"
+              value={checkout}
+              onChange={(e) => setCheckout(e.target.value)}
+            />
+          </div>
 
-      {/* CONTACTS */}
-      <h3>📞 Contacts</h3>
+          <textarea
+            className="w-full border rounded-lg p-3 min-h-[120px]"
+            placeholder="Additional notes..."
+            value={checkinNotes}
+            onChange={(e) => setCheckinNotes(e.target.value)}
+          />
+        </section>
 
-      {contacts.map((c, i) => (
-        <input
-          key={i}
-          placeholder="Contact (e.g. police, cleaner, owner...)"
-          value={c}
-          onChange={(e) => updateContact(i, e.target.value)}
-        />
-      ))}
+        {/* CONTACTS */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            📞 Contacts
+          </h2>
 
-      <button onClick={addContact}>+ Add contact</button>
+          {contacts.map((c, i) => (
+            <input
+              key={i}
+              className="w-full border rounded-lg p-3"
+              placeholder="Contact"
+              value={c}
+              onChange={(e) => updateContact(i, e.target.value)}
+            />
+          ))}
 
-      {/* RULES */}
-      <h3>📜 House Rules</h3>
-      <textarea
-        placeholder="Rules..."
-        value={rules}
-        onChange={(e) => setRules(e.target.value)}
-      />
+          <button
+            className="bg-black text-white px-4 py-2 rounded-lg"
+            onClick={addContact}
+          >
+            + Add contact
+          </button>
+        </section>
 
-      {/* DESCRIPTION */}
-      <h3>✏️ Description</h3>
-      <textarea
-        placeholder="Paste from Airbnb / Booking listing"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
+        {/* RULES */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            📜 House Rules
+          </h2>
 
-      {/* AMENITIES */}
-      <h3>✨ Amenities</h3>
-      <textarea
-        placeholder="Paste amenities from Airbnb"
-        value={amenities}
-        onChange={(e) => setAmenities(e.target.value)}
-      />
+          <textarea
+            className="w-full border rounded-lg p-3 min-h-[120px]"
+            placeholder="Rules..."
+            value={rules}
+            onChange={(e) => setRules(e.target.value)}
+          />
+        </section>
 
-      <br />
-      <button>Extract amenities</button>
+        {/* DESCRIPTION */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            ✏️ Description
+          </h2>
 
-      {/* AI */}
-      <h3>🧠 AI Knowledge</h3>
-      <textarea
-        placeholder={`Add everything guests might ask:
+          <textarea
+            className="w-full border rounded-lg p-3 min-h-[160px]"
+            placeholder="Paste from Airbnb / Booking listing"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </section>
+
+        {/* AMENITIES */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            ✨ Amenities
+          </h2>
+
+          <textarea
+            className="w-full border rounded-lg p-3 min-h-[120px]"
+            placeholder="Paste amenities from Airbnb"
+            value={amenities}
+            onChange={(e) => setAmenities(e.target.value)}
+          />
+
+          <button className="bg-gray-800 text-white px-4 py-2 rounded-lg">
+            Extract amenities
+          </button>
+        </section>
+
+        {/* AI KNOWLEDGE */}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">
+            🧠 AI Knowledge
+          </h2>
+
+          <textarea
+            className="w-full border rounded-lg p-3 min-h-[220px]"
+            placeholder={`Add everything guests might ask:
+
 - How appliances work
 - Boiler / AC
 - House quirks
-- Extra tips
-- Anything specific
+- Tips
+- Emergency info
 
 This trains your AI assistant.`}
-        value={aiKnowledge}
-        onChange={(e) => setAiKnowledge(e.target.value)}
-      />
+            value={aiKnowledge}
+            onChange={(e) => setAiKnowledge(e.target.value)}
+          />
+        </section>
 
-      <br /><br />
+        {/* SAVE */}
+        <button
+          className="w-full bg-black text-white py-4 rounded-xl text-lg font-semibold hover:opacity-90 transition"
+          onClick={save}
+        >
+          💾 Save Property
+        </button>
 
-      <button onClick={save}>💾 Save</button>
-
+      </div>
     </div>
   )
 }
