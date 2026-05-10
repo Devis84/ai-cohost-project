@@ -1,6 +1,8 @@
-import OpenAI from "openai";
+ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
+import { buildKnowledgePrompt } from "@/lib/buildKnowledgePrompt";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
@@ -12,31 +14,56 @@ const supabase = createClient(
 );
 
 export async function POST(req: Request) {
+
   try {
-    // 🔥 DEBUG ENV
-    console.log("SERVICE KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-    const { message } = await req.json();
+    const { message, propertySlug } = await req.json();
 
-    // 🔥 SALVA USER MESSAGE
-    const { data: userData, error: userError } = await supabase
+    // LOAD PROPERTY
+
+    const { data: property, error: propertyError } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("slug", propertySlug)
+      .single();
+
+    if (propertyError || !property) {
+
+      console.error(propertyError);
+
+      return NextResponse.json(
+        { error: "Property not found" },
+        { status: 404 }
+      );
+    }
+
+    // BUILD AI SYSTEM PROMPT
+
+    const systemPrompt = buildKnowledgePrompt(property);
+
+    // SAVE USER MESSAGE
+
+    await supabase
       .from("messages")
       .insert({
         role: "user",
         content: message,
-      })
-      .select();
+        property_id: property.id,
+      });
 
-    console.log("USER INSERT:", userData, userError);
+    // OPENAI
 
     const completion = await openai.chat.completions.create({
+
       model: "gpt-4o-mini",
+
       messages: [
+
         {
           role: "system",
-          content:
-            "You are an Airbnb co-host assistant. Answer clearly and helpfully.",
+          content: systemPrompt,
         },
+
         {
           role: "user",
           content: message,
@@ -44,22 +71,27 @@ export async function POST(req: Request) {
       ],
     });
 
-    const reply = completion.choices[0].message.content;
+    const reply =
+      completion.choices[0].message.content || "";
 
-    // 🔥 SALVA AI RESPONSE
-    const { data: aiData, error: aiError } = await supabase
+    // SAVE AI MESSAGE
+
+    await supabase
       .from("messages")
       .insert({
         role: "assistant",
         content: reply,
-      })
-      .select();
+        property_id: property.id,
+      });
 
-    console.log("AI INSERT:", aiData, aiError);
+    return NextResponse.json({
+      reply,
+    });
 
-    return NextResponse.json({ reply });
   } catch (error) {
-    console.error("API ERROR:", error);
+
+    console.error("CHAT API ERROR:", error);
+
     return NextResponse.json(
       { error: "Something went wrong" },
       { status: 500 }

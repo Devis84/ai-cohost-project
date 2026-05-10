@@ -1,103 +1,127 @@
+ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { buildKnowledgePrompt } from "@/lib/buildKnowledgePrompt";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 export async function POST(req: Request) {
+
   try {
-    const { message } = await req.json();
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    const {
+      message,
+      propertySlug,
+      conversationId,
+    } = await req.json();
 
-    // 📥 PROPERTY
-    const { data: property } = await supabase
-      .from("property_info")
+    // LOAD PROPERTY
+
+    const { data: property, error: propertyError } = await supabase
+      .from("properties")
       .select("*")
-      .limit(1)
+      .eq("slug", propertySlug)
       .single();
 
-    // 📥 MEMORY
-    const { data: messages } = await supabase
+    if (propertyError || !property) {
+
+      console.error(propertyError);
+
+      return NextResponse.json(
+        { error: "Property not found" },
+        { status: 404 }
+      );
+    }
+
+    // LOAD MEMORY
+
+    const { data: previousMessages } = await supabase
       .from("messages")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true })
+      .limit(20);
 
     const history =
-      messages?.reverse().map((m) => ({
+      previousMessages?.map((m) => ({
         role: m.role,
         content: m.content,
       })) || [];
 
-    // 💾 save user message
-    await supabase.from("messages").insert({
-      role: "user",
-      content: message,
-    });
+    // BUILD PROMPT
 
-    // 🤖 AI
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const systemPrompt =
+      buildKnowledgePrompt(property);
+
+    // SAVE USER MESSAGE
+
+    await supabase
+      .from("messages")
+      .insert({
+        property_id: property.id,
+        conversation_id: conversationId,
+        role: "user",
+        content: message,
+      });
+
+    // OPENAI
+
+    const completion =
+      await openai.chat.completions.create({
+
         model: "gpt-4o-mini",
+
         temperature: 0.2,
+
         messages: [
+
           {
             role: "system",
-            content: `
-You are an Airbnb host assistant.
-
-STRICT RULES:
-- Use ONLY the provided data
-- DO NOT assume or invent anything
-- If something is not explicitly written, say you don’t know
-- Keep answers short, natural, and helpful
-- Use conversation context
-
-PROPERTY DATA:
-WiFi: ${property.wifi}
-Check-in: ${property.checkin}
-Check-out: ${property.checkout}
-Parking: ${property.parking}
-Transport: ${property.transport}
-Restaurants: ${property.restaurants}
-Rules: ${property.house_rules}
-Emergency: ${property.emergency_contact}
-Description: ${property.description}
-Location: ${property.location_info}
-Extra: ${property.extra_notes}
-            `,
+            content: systemPrompt,
           },
+
           ...history,
+
           {
             role: "user",
             content: message,
           },
         ],
-      }),
-    });
-
-    const aiData = await aiRes.json();
+      });
 
     const reply =
-      aiData.choices?.[0]?.message?.content ||
-      "Sorry, something went wrong.";
+      completion.choices[0].message.content || "";
 
-    // 💾 save AI reply
-    await supabase.from("messages").insert({
-      role: "assistant",
-      content: reply,
-    });
+    // SAVE AI MESSAGE
 
-    return NextResponse.json({ reply });
-  } catch (err) {
+    await supabase
+      .from("messages")
+      .insert({
+        property_id: property.id,
+        conversation_id: conversationId,
+        role: "assistant",
+        content: reply,
+      });
+
     return NextResponse.json({
-      reply: "Server error.",
+      reply,
     });
+
+  } catch (error) {
+
+    console.error("CHAT API ERROR:", error);
+
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
+    );
   }
 }

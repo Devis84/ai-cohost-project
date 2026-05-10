@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import { supabase } from "@/lib/supabase"
-import { detectIntent } from "@/lib/intent-router"
+import { detectIntent } from "@/lib/ai/intent-router"
 import { createIssue } from "@/lib/issue-service"
 
 const openai = new OpenAI({

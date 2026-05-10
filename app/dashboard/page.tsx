@@ -8,6 +8,32 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+const emptyKnowledgeBase = {
+  welcome_book: {
+    description: '',
+    amenities: '',
+    house_rules: '',
+    parking: '',
+    trash: '',
+    ac: '',
+    boiler: '',
+    restaurants: '',
+    transport: '',
+    local_guide: '',
+    emergency: '',
+    checkout_notes: '',
+    extra_notes: ''
+  },
+
+  ai_training: {
+    faq: '',
+    troubleshooting: '',
+    guest_style: '',
+    hidden_notes: '',
+    additional_notes: ''
+  }
+}
+
 export default function Dashboard() {
 
   // NAVIGATION
@@ -40,26 +66,7 @@ export default function Dashboard() {
 
   // KNOWLEDGE BASE
 
-  const [knowledgeBase, setKnowledgeBase] = useState({
-
-    welcome_book: {
-      description: '',
-      amenities: '',
-      house_rules: '',
-      parking: '',
-      local_guide: '',
-      checkout_notes: ''
-    },
-
-    ai_training: {
-      faq: '',
-      troubleshooting: '',
-      guest_style: '',
-      hidden_notes: '',
-      additional_notes: ''
-    }
-
-  })
+  const [knowledgeBase, setKnowledgeBase] = useState(emptyKnowledgeBase)
 
   // MODULES
 
@@ -129,28 +136,19 @@ export default function Dashboard() {
 
     // KNOWLEDGE BASE
 
-    setKnowledgeBase(
-      data.knowledge_base || {
+    const savedKnowledgeBase = data.knowledge_base || {}
 
-        welcome_book: {
-          description: '',
-          amenities: '',
-          house_rules: '',
-          parking: '',
-          local_guide: '',
-          checkout_notes: ''
-        },
+    setKnowledgeBase({
+      welcome_book: {
+        ...emptyKnowledgeBase.welcome_book,
+        ...(savedKnowledgeBase.welcome_book || {})
+      },
 
-        ai_training: {
-          faq: '',
-          troubleshooting: '',
-          guest_style: '',
-          hidden_notes: '',
-          additional_notes: ''
-        }
-
+      ai_training: {
+        ...emptyKnowledgeBase.ai_training,
+        ...(savedKnowledgeBase.ai_training || {})
       }
-    )
+    })
 
     // MODULES
 
@@ -777,6 +775,81 @@ export default function Dashboard() {
                     />
 
                     <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Trash and recycling instructions"
+                      value={knowledgeBase.welcome_book.trash}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            trash: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Air conditioning instructions"
+                      value={knowledgeBase.welcome_book.ac}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            ac: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Boiler / hot water instructions"
+                      value={knowledgeBase.welcome_book.boiler}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            boiler: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[160px]"
+                      placeholder="Restaurants and food recommendations"
+                      value={knowledgeBase.welcome_book.restaurants}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            restaurants: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Transport information"
+                      value={knowledgeBase.welcome_book.transport}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            transport: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
                       className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
                       placeholder="Local guide"
                       value={knowledgeBase.welcome_book.local_guide}
@@ -793,6 +866,21 @@ export default function Dashboard() {
 
                     <textarea
                       className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Emergency information visible to guests"
+                      value={knowledgeBase.welcome_book.emergency}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            emergency: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
                       placeholder="Checkout notes"
                       value={knowledgeBase.welcome_book.checkout_notes}
                       onChange={(e) =>
@@ -801,6 +889,21 @@ export default function Dashboard() {
                           welcome_book: {
                             ...knowledgeBase.welcome_book,
                             checkout_notes: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[220px]"
+                      placeholder="Extra notes for this property"
+                      value={knowledgeBase.welcome_book.extra_notes}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            extra_notes: e.target.value
                           }
                         })
                       }
