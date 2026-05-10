@@ -18,7 +18,12 @@ export default function Dashboard() {
   const [selectedProperty, setSelectedProperty] = useState('')
   const [newProperty, setNewProperty] = useState('')
 
-  // DATA
+  // LOCATION
+  const [city, setCity] = useState('')
+  const [country, setCountry] = useState('')
+  const [address, setAddress] = useState('')
+
+  // BASIC DATA
   const [wifiName, setWifiName] = useState('')
   const [wifiPassword, setWifiPassword] = useState('')
   const [checkin, setCheckin] = useState('')
@@ -30,12 +35,51 @@ export default function Dashboard() {
   const [aiKnowledge, setAiKnowledge] = useState('')
   const [contacts, setContacts] = useState<string[]>([])
 
-  // LOAD PROPERTIES
+  // CHECK-IN EXPERIENCE
+  const [lockboxCode, setLockboxCode] = useState('')
+  const [buildingAccess, setBuildingAccess] = useState('')
+  const [apartmentFloor, setApartmentFloor] = useState('')
+  const [parkingInfo, setParkingInfo] = useState('')
+
+  // LOCAL INFO
+  const [supermarketInfo, setSupermarketInfo] = useState('')
+  const [pharmacyInfo, setPharmacyInfo] = useState('')
+  const [restaurantInfo, setRestaurantInfo] = useState('')
+  const [transportInfo, setTransportInfo] = useState('')
+  const [airportInfo, setAirportInfo] = useState('')
+
+  // EMERGENCY
+  const [emergencyNumbers, setEmergencyNumbers] = useState('')
+  const [hospitalInfo, setHospitalInfo] = useState('')
+  const [policeInfo, setPoliceInfo] = useState('')
+  const [hostEmergency, setHostEmergency] = useState('')
+
+  // HOUSE MANUAL
+  const [acInfo, setAcInfo] = useState('')
+  const [boilerInfo, setBoilerInfo] = useState('')
+  const [kitchenInfo, setKitchenInfo] = useState('')
+  const [trashInfo, setTrashInfo] = useState('')
+  const [checkoutChecklist, setCheckoutChecklist] = useState('')
+
+  // MODULES
+  const [cleaningEnabled, setCleaningEnabled] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(true)
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false)
+  const [telegramEnabled, setTelegramEnabled] = useState(false)
+  const [welcomebookEnabled, setWelcomebookEnabled] = useState(true)
+
+  // LOAD PROPERTY LIST
   useEffect(() => {
     loadProperties()
   }, [])
 
+  // LOAD PROPERTY DATA
+  useEffect(() => {
+    loadPropertyData(selectedProperty)
+  }, [selectedProperty])
+
   const loadProperties = async () => {
+
     const { data, error } = await supabase
       .from('properties')
       .select('property_name')
@@ -49,19 +93,87 @@ export default function Dashboard() {
     setProperties(names)
   }
 
+  const loadPropertyData = async (propertyName: string) => {
+
+    if (!propertyName) return
+
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('property_name', propertyName)
+      .single()
+
+    if (error) {
+      console.error(error)
+      return
+    }
+
+    // LOCATION
+    setCity(data.city || '')
+    setCountry(data.country || '')
+    setAddress(data.address || '')
+
+    // BASIC
+    setWifiName(data.wifi_name || '')
+    setWifiPassword(data.wifi_password || '')
+    setCheckin(data.checkin_time || '')
+    setCheckout(data.checkout_time || '')
+    setCheckinNotes(data.checkin_instructions || '')
+    setRules(data.house_rules || '')
+    setDescription(data.description || '')
+    setAmenities(data.amenities || '')
+    setAiKnowledge(data.ai_knowledge || '')
+
+    // CHECK-IN EXPERIENCE
+    setLockboxCode(data.lockbox_code || '')
+    setBuildingAccess(data.building_access || '')
+    setApartmentFloor(data.apartment_floor || '')
+    setParkingInfo(data.parking_info || '')
+
+    // LOCAL INFO
+    setSupermarketInfo(data.supermarket_info || '')
+    setPharmacyInfo(data.pharmacy_info || '')
+    setRestaurantInfo(data.restaurant_info || '')
+    setTransportInfo(data.transport_info || '')
+    setAirportInfo(data.airport_info || '')
+
+    // EMERGENCY
+    setEmergencyNumbers(data.emergency_numbers || '')
+    setHospitalInfo(data.hospital_info || '')
+    setPoliceInfo(data.police_info || '')
+    setHostEmergency(data.host_emergency || '')
+
+    // HOUSE MANUAL
+    setAcInfo(data.ac_info || '')
+    setBoilerInfo(data.boiler_info || '')
+    setKitchenInfo(data.kitchen_info || '')
+    setTrashInfo(data.trash_info || '')
+    setCheckoutChecklist(data.checkout_checklist || '')
+
+    // MODULES
+    setCleaningEnabled(data.cleaning_enabled || false)
+    setAiEnabled(data.ai_enabled ?? true)
+    setWhatsappEnabled(data.whatsapp_enabled || false)
+    setTelegramEnabled(data.telegram_enabled || false)
+    setWelcomebookEnabled(data.welcomebook_enabled ?? true)
+  }
+
   // CONTACTS
   const addContact = () => {
     setContacts([...contacts, ''])
   }
 
   const updateContact = (i: number, val: string) => {
+
     const copy = [...contacts]
     copy[i] = val
+
     setContacts(copy)
   }
 
   // ADD PROPERTY
   const addProperty = () => {
+
     if (!newProperty) return
 
     setProperties([...properties, newProperty])
@@ -71,6 +183,7 @@ export default function Dashboard() {
 
   // COPY WIFI
   const copyWifi = () => {
+
     navigator.clipboard.writeText(
       `Network: ${wifiName} | Password: ${wifiPassword}`
     )
@@ -80,67 +193,147 @@ export default function Dashboard() {
 
   // SAVE
   const save = async () => {
-    const { error } = await supabase.from('properties').insert([
-      {
-        property_name: selectedProperty,
-        wifi_name: wifiName,
-        wifi_password: wifiPassword,
-        checkin_time: checkin,
-        checkout_time: checkout,
-        checkin_instructions: checkinNotes,
-        house_rules: rules,
-        description,
-        amenities,
-        ai_knowledge: aiKnowledge,
-      },
-    ])
+
+    if (!selectedProperty) {
+      alert('Select a property first')
+      return
+    }
+
+    const payload = {
+
+      property_name: selectedProperty,
+
+      // LOCATION
+      city,
+      country,
+      address,
+
+      // BASIC
+      wifi_name: wifiName,
+      wifi_password: wifiPassword,
+      checkin_time: checkin,
+      checkout_time: checkout,
+      checkin_instructions: checkinNotes,
+      house_rules: rules,
+      description,
+      amenities,
+      ai_knowledge: aiKnowledge,
+
+      // CHECK-IN EXPERIENCE
+      lockbox_code: lockboxCode,
+      building_access: buildingAccess,
+      apartment_floor: apartmentFloor,
+      parking_info: parkingInfo,
+
+      // LOCAL INFO
+      supermarket_info: supermarketInfo,
+      pharmacy_info: pharmacyInfo,
+      restaurant_info: restaurantInfo,
+      transport_info: transportInfo,
+      airport_info: airportInfo,
+
+      // EMERGENCY
+      emergency_numbers: emergencyNumbers,
+      hospital_info: hospitalInfo,
+      police_info: policeInfo,
+      host_emergency: hostEmergency,
+
+      // HOUSE MANUAL
+      ac_info: acInfo,
+      boiler_info: boilerInfo,
+      kitchen_info: kitchenInfo,
+      trash_info: trashInfo,
+      checkout_checklist: checkoutChecklist,
+
+      // MODULES
+      cleaning_enabled: cleaningEnabled,
+      ai_enabled: aiEnabled,
+      whatsapp_enabled: whatsappEnabled,
+      telegram_enabled: telegramEnabled,
+      welcomebook_enabled: welcomebookEnabled,
+    }
+
+    const { data: existing } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('property_name', selectedProperty)
+      .maybeSingle()
+
+    let error = null
+
+    if (existing) {
+
+      const response = await supabase
+        .from('properties')
+        .update(payload)
+        .eq('property_name', selectedProperty)
+
+      error = response.error
+
+    } else {
+
+      const response = await supabase
+        .from('properties')
+        .insert([payload])
+
+      error = response.error
+    }
 
     if (error) {
+
       console.error(error)
-      alert('Error saving')
+      alert('Error saving property')
+
     } else {
-      alert('Saved successfully')
+
+      alert('Property saved successfully')
       loadProperties()
     }
   }
 
+  // DELETE PROPERTY
+  const deleteProperty = async () => {
+
+    if (!selectedProperty) return
+
+    const confirmDelete = confirm(
+      `Delete ${selectedProperty}?`
+    )
+
+    if (!confirmDelete) return
+
+    const { error } = await supabase
+      .from('properties')
+      .delete()
+      .eq('property_name', selectedProperty)
+
+    if (error) {
+
+      console.error(error)
+      alert('Error deleting property')
+
+      return
+    }
+
+    alert('Property deleted')
+
+    setSelectedProperty('')
+    loadProperties()
+  }
+
   return (
+
     <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-8">
 
-        {/* HEADER */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">
-            🏡 AI Co-Host Dashboard
-          </h1>
+      <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-lg p-8 space-y-8">
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">
-              Login
-            </span>
-
-            <button
-              className={`px-4 py-2 rounded-lg text-white ${
-                loginEnabled ? 'bg-black' : 'bg-gray-400'
-              }`}
-              onClick={() => setLoginEnabled(true)}
-            >
-              ON
-            </button>
-
-            <button
-              className={`px-4 py-2 rounded-lg text-white ${
-                !loginEnabled ? 'bg-black' : 'bg-gray-400'
-              }`}
-              onClick={() => setLoginEnabled(false)}
-            >
-              OFF
-            </button>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold">
+          🏡 AI Co-Host Dashboard
+        </h1>
 
         {/* PROPERTY */}
         <section className="space-y-4">
+
           <h2 className="text-xl font-semibold">
             🏡 Property
           </h2>
@@ -162,6 +355,7 @@ export default function Dashboard() {
           </select>
 
           <div className="flex gap-2">
+
             <input
               className="flex-1 border rounded-lg p-3"
               placeholder="Add new property"
@@ -175,168 +369,51 @@ export default function Dashboard() {
             >
               + Add
             </button>
-          </div>
-        </section>
 
-        {/* WIFI */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            📶 WiFi
-          </h2>
+            <button
+              className="bg-red-600 text-white px-4 rounded-lg"
+              onClick={deleteProperty}
+            >
+              Delete
+            </button>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              className="border rounded-lg p-3"
-              placeholder="Network name"
-              value={wifiName}
-              onChange={(e) => setWifiName(e.target.value)}
-            />
-
-            <input
-              className="border rounded-lg p-3"
-              placeholder="Password"
-              value={wifiPassword}
-              onChange={(e) => setWifiPassword(e.target.value)}
-            />
           </div>
 
-          <button
-            className="bg-gray-800 text-white px-4 py-2 rounded-lg"
-            onClick={copyWifi}
-          >
-            Copy WiFi
-          </button>
         </section>
 
-        {/* STAY INFO */}
+        {/* LOCATION */}
         <section className="space-y-4">
+
           <h2 className="text-xl font-semibold">
-            🌴 Stay Info
+            📍 Location
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+
             <input
               className="border rounded-lg p-3"
-              placeholder="Check-in time"
-              value={checkin}
-              onChange={(e) => setCheckin(e.target.value)}
+              placeholder="City"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
             />
 
             <input
               className="border rounded-lg p-3"
-              placeholder="Check-out time"
-              value={checkout}
-              onChange={(e) => setCheckout(e.target.value)}
+              placeholder="Country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
             />
+
           </div>
 
-          <textarea
-            className="w-full border rounded-lg p-3 min-h-[120px]"
-            placeholder="Additional notes..."
-            value={checkinNotes}
-            onChange={(e) => setCheckinNotes(e.target.value)}
-          />
-        </section>
-
-        {/* CONTACTS */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            📞 Contacts
-          </h2>
-
-          {contacts.map((c, i) => (
-            <input
-              key={i}
-              className="w-full border rounded-lg p-3"
-              placeholder="Contact"
-              value={c}
-              onChange={(e) => updateContact(i, e.target.value)}
-            />
-          ))}
-
-          <button
-            className="bg-black text-white px-4 py-2 rounded-lg"
-            onClick={addContact}
-          >
-            + Add contact
-          </button>
-        </section>
-
-        {/* RULES */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            📜 House Rules
-          </h2>
-
-          <textarea
-            className="w-full border rounded-lg p-3 min-h-[120px]"
-            placeholder="Rules..."
-            value={rules}
-            onChange={(e) => setRules(e.target.value)}
-          />
-        </section>
-
-        {/* DESCRIPTION */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            ✏️ Description
-          </h2>
-
-          <textarea
-            className="w-full border rounded-lg p-3 min-h-[160px]"
-            placeholder="Paste from Airbnb / Booking listing"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </section>
-
-        {/* AMENITIES */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            ✨ Amenities
-          </h2>
-
-          <textarea
-            className="w-full border rounded-lg p-3 min-h-[120px]"
-            placeholder="Paste amenities from Airbnb"
-            value={amenities}
-            onChange={(e) => setAmenities(e.target.value)}
+          <input
+            className="w-full border rounded-lg p-3"
+            placeholder="Full address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
           />
 
-          <button className="bg-gray-800 text-white px-4 py-2 rounded-lg">
-            Extract amenities
-          </button>
         </section>
-
-        {/* AI KNOWLEDGE */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-semibold">
-            🧠 AI Knowledge
-          </h2>
-
-          <textarea
-            className="w-full border rounded-lg p-3 min-h-[220px]"
-            placeholder={`Add everything guests might ask:
-
-- How appliances work
-- Boiler / AC
-- House quirks
-- Tips
-- Emergency info
-
-This trains your AI assistant.`}
-            value={aiKnowledge}
-            onChange={(e) => setAiKnowledge(e.target.value)}
-          />
-        </section>
-
-        {/* SAVE */}
-        <button
-          className="w-full bg-black text-white py-4 rounded-xl text-lg font-semibold hover:opacity-90 transition"
-          onClick={save}
-        >
-          💾 Save Property
-        </button>
 
       </div>
     </div>
