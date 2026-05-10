@@ -41,34 +41,10 @@ export default function Dashboard() {
   // CONTACTS
   const [contacts, setContacts] = useState<string[]>([])
 
-  // CHECK-IN EXPERIENCE
+  // CHECK-IN
   const [lockboxCode, setLockboxCode] = useState('')
-  const [buildingAccess, setBuildingAccess] = useState('')
-  const [apartmentFloor, setApartmentFloor] = useState('')
-  const [parkingInfo, setParkingInfo] = useState('')
-
-  // LOCAL INFO
-  const [supermarketInfo, setSupermarketInfo] = useState('')
-  const [pharmacyInfo, setPharmacyInfo] = useState('')
-  const [restaurantInfo, setRestaurantInfo] = useState('')
-  const [transportInfo, setTransportInfo] = useState('')
-  const [airportInfo, setAirportInfo] = useState('')
-
-  // EMERGENCY
-  const [emergencyNumbers, setEmergencyNumbers] = useState('')
-  const [hospitalInfo, setHospitalInfo] = useState('')
-  const [policeInfo, setPoliceInfo] = useState('')
-  const [hostEmergency, setHostEmergency] = useState('')
-
-  // HOUSE MANUAL
-  const [acInfo, setAcInfo] = useState('')
-  const [boilerInfo, setBoilerInfo] = useState('')
-  const [kitchenInfo, setKitchenInfo] = useState('')
-  const [trashInfo, setTrashInfo] = useState('')
-  const [checkoutChecklist, setCheckoutChecklist] = useState('')
 
   // MODULES
-  const [cleaningEnabled, setCleaningEnabled] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(true)
   const [whatsappEnabled, setWhatsappEnabled] = useState(false)
   const [telegramEnabled, setTelegramEnabled] = useState(false)
@@ -136,32 +112,8 @@ export default function Dashboard() {
 
     // CHECK-IN
     setLockboxCode(data.lockbox_code || '')
-    setBuildingAccess(data.building_access || '')
-    setApartmentFloor(data.apartment_floor || '')
-    setParkingInfo(data.parking_info || '')
-
-    // LOCAL
-    setSupermarketInfo(data.supermarket_info || '')
-    setPharmacyInfo(data.pharmacy_info || '')
-    setRestaurantInfo(data.restaurant_info || '')
-    setTransportInfo(data.transport_info || '')
-    setAirportInfo(data.airport_info || '')
-
-    // EMERGENCY
-    setEmergencyNumbers(data.emergency_numbers || '')
-    setHospitalInfo(data.hospital_info || '')
-    setPoliceInfo(data.police_info || '')
-    setHostEmergency(data.host_emergency || '')
-
-    // HOUSE MANUAL
-    setAcInfo(data.ac_info || '')
-    setBoilerInfo(data.boiler_info || '')
-    setKitchenInfo(data.kitchen_info || '')
-    setTrashInfo(data.trash_info || '')
-    setCheckoutChecklist(data.checkout_checklist || '')
 
     // MODULES
-    setCleaningEnabled(data.cleaning_enabled || false)
     setAiEnabled(data.ai_enabled ?? true)
     setWhatsappEnabled(data.whatsapp_enabled || false)
     setTelegramEnabled(data.telegram_enabled || false)
@@ -228,32 +180,8 @@ export default function Dashboard() {
 
       // CHECK-IN
       lockbox_code: lockboxCode,
-      building_access: buildingAccess,
-      apartment_floor: apartmentFloor,
-      parking_info: parkingInfo,
-
-      // LOCAL
-      supermarket_info: supermarketInfo,
-      pharmacy_info: pharmacyInfo,
-      restaurant_info: restaurantInfo,
-      transport_info: transportInfo,
-      airport_info: airportInfo,
-
-      // EMERGENCY
-      emergency_numbers: emergencyNumbers,
-      hospital_info: hospitalInfo,
-      police_info: policeInfo,
-      host_emergency: hostEmergency,
-
-      // HOUSE MANUAL
-      ac_info: acInfo,
-      boiler_info: boilerInfo,
-      kitchen_info: kitchenInfo,
-      trash_info: trashInfo,
-      checkout_checklist: checkoutChecklist,
 
       // MODULES
-      cleaning_enabled: cleaningEnabled,
       ai_enabled: aiEnabled,
       whatsapp_enabled: whatsappEnabled,
       telegram_enabled: telegramEnabled,
@@ -420,28 +348,6 @@ export default function Dashboard() {
               }`}
             >
               🔑 Check-in
-            </button>
-
-            <button
-              onClick={() => setActiveTab('local')}
-              className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-                activeTab === 'local'
-                  ? 'bg-black text-white shadow-xl'
-                  : 'bg-white border border-gray-200'
-              }`}
-            >
-              📍 Local Guide
-            </button>
-
-            <button
-              onClick={() => setActiveTab('emergency')}
-              className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-                activeTab === 'emergency'
-                  ? 'bg-black text-white shadow-xl'
-                  : 'bg-white border border-gray-200'
-              }`}
-            >
-              🚨 Emergency
             </button>
 
           </aside>
@@ -632,8 +538,8 @@ export default function Dashboard() {
                   </p>
 
                   <textarea
-                    className="w-full border border-gray-200 rounded-2xl p-4 min-h-[260px]"
-                    placeholder="AI concierge knowledge, FAQs, local tips, guest support information, house details, troubleshooting steps, recommendations..."
+                    className="w-full border border-gray-200 rounded-2xl p-4 min-h-[320px]"
+                    placeholder="Paste here FAQs, parking info, house manual, AC instructions, transport information, recommendations, troubleshooting steps, emergency details, local tips and anything useful for the AI concierge."
                     value={aiKnowledge}
                     onChange={(e) => setAiKnowledge(e.target.value)}
                   />
@@ -736,6 +642,50 @@ export default function Dashboard() {
                 </section>
 
               </>
+            )}
+
+            {/* CHECK-IN */}
+
+            {activeTab === 'checkin' && (
+              <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+
+                <h2 className="text-2xl font-bold mb-6">
+                  🔑 Check-in
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+
+                  <input
+                    className="border border-gray-200 rounded-2xl p-4"
+                    placeholder="Check-in time"
+                    value={checkin}
+                    onChange={(e) => setCheckin(e.target.value)}
+                  />
+
+                  <input
+                    className="border border-gray-200 rounded-2xl p-4"
+                    placeholder="Check-out time"
+                    value={checkout}
+                    onChange={(e) => setCheckout(e.target.value)}
+                  />
+
+                </div>
+
+                <textarea
+                  className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px] mb-4"
+                  placeholder="Check-in instructions"
+                  value={checkinNotes}
+                  onChange={(e) => setCheckinNotes(e.target.value)}
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Lockbox code"
+                  value={lockboxCode}
+                  onChange={(e) => setLockboxCode(e.target.value)}
+                />
+
+              </section>
             )}
 
           </div>
