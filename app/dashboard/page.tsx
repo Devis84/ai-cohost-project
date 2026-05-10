@@ -11,51 +11,69 @@ const supabase = createClient(
 export default function Dashboard() {
 
   // NAVIGATION
+
   const [activeTab, setActiveTab] = useState('general')
 
   // PROPERTY
+
   const [properties, setProperties] = useState<string[]>([])
   const [selectedProperty, setSelectedProperty] = useState('')
   const [newProperty, setNewProperty] = useState('')
 
-  // LOCATION
+  // GENERAL
+
   const [city, setCity] = useState('')
   const [country, setCountry] = useState('')
   const [address, setAddress] = useState('')
 
-  // BASIC DATA
   const [wifiName, setWifiName] = useState('')
   const [wifiPassword, setWifiPassword] = useState('')
+
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
   const [checkinNotes, setCheckinNotes] = useState('')
-  const [rules, setRules] = useState('')
-
-  // PROPERTY CONTENT
-  const [description, setDescription] = useState('')
-  const [amenities, setAmenities] = useState('')
-
-  // AI TRAINING
-  const [aiKnowledge, setAiKnowledge] = useState('')
-
-  // CONTACTS
-  const [contacts, setContacts] = useState<string[]>([])
-
-  // CHECK-IN
   const [lockboxCode, setLockboxCode] = useState('')
 
+  const [contacts, setContacts] = useState<string[]>([])
+
+  const [emergencyNumbers, setEmergencyNumbers] = useState('')
+
+  // KNOWLEDGE BASE
+
+  const [knowledgeBase, setKnowledgeBase] = useState({
+
+    welcome_book: {
+      description: '',
+      amenities: '',
+      house_rules: '',
+      parking: '',
+      local_guide: '',
+      checkout_notes: ''
+    },
+
+    ai_training: {
+      faq: '',
+      troubleshooting: '',
+      guest_style: '',
+      hidden_notes: '',
+      additional_notes: ''
+    }
+
+  })
+
   // MODULES
+
   const [aiEnabled, setAiEnabled] = useState(true)
   const [whatsappEnabled, setWhatsappEnabled] = useState(false)
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [welcomebookEnabled, setWelcomebookEnabled] = useState(true)
 
-  // LOAD PROPERTY LIST
+  // LOAD PROPERTIES
+
   useEffect(() => {
     loadProperties()
   }, [])
 
-  // LOAD PROPERTY DATA
   useEffect(() => {
     loadPropertyData(selectedProperty)
   }, [selectedProperty])
@@ -90,40 +108,60 @@ export default function Dashboard() {
       return
     }
 
-    // LOCATION
+    // GENERAL
+
     setCity(data.city || '')
     setCountry(data.country || '')
     setAddress(data.address || '')
 
-    // BASIC
     setWifiName(data.wifi_name || '')
     setWifiPassword(data.wifi_password || '')
+
     setCheckin(data.checkin_time || '')
     setCheckout(data.checkout_time || '')
     setCheckinNotes(data.checkin_instructions || '')
-    setRules(data.house_rules || '')
 
-    // PROPERTY CONTENT
-    setDescription(data.description || '')
-    setAmenities(data.amenities || '')
-
-    // AI
-    setAiKnowledge(data.ai_knowledge || '')
-
-    // CHECK-IN
     setLockboxCode(data.lockbox_code || '')
 
+    setContacts(data.contacts || [])
+
+    setEmergencyNumbers(data.emergency_numbers || '')
+
+    // KNOWLEDGE BASE
+
+    setKnowledgeBase(
+      data.knowledge_base || {
+
+        welcome_book: {
+          description: '',
+          amenities: '',
+          house_rules: '',
+          parking: '',
+          local_guide: '',
+          checkout_notes: ''
+        },
+
+        ai_training: {
+          faq: '',
+          troubleshooting: '',
+          guest_style: '',
+          hidden_notes: '',
+          additional_notes: ''
+        }
+
+      }
+    )
+
     // MODULES
+
     setAiEnabled(data.ai_enabled ?? true)
     setWhatsappEnabled(data.whatsapp_enabled || false)
     setTelegramEnabled(data.telegram_enabled || false)
     setWelcomebookEnabled(data.welcomebook_enabled ?? true)
-
-    // CONTACTS
-    setContacts(data.contacts || [])
   }
 
   // ADD PROPERTY
+
   const addProperty = () => {
 
     if (!newProperty) return
@@ -134,6 +172,7 @@ export default function Dashboard() {
   }
 
   // COPY WIFI
+
   const copyWifi = () => {
 
     navigator.clipboard.writeText(
@@ -144,6 +183,7 @@ export default function Dashboard() {
   }
 
   // SAVE
+
   const save = async () => {
 
     if (!selectedProperty) {
@@ -155,33 +195,31 @@ export default function Dashboard() {
 
       property_name: selectedProperty,
 
-      // LOCATION
+      // GENERAL
+
       city,
       country,
       address,
 
-      // BASIC
       wifi_name: wifiName,
       wifi_password: wifiPassword,
+
       checkin_time: checkin,
       checkout_time: checkout,
       checkin_instructions: checkinNotes,
-      house_rules: rules,
 
-      // PROPERTY CONTENT
-      description,
-      amenities,
-
-      // AI
-      ai_knowledge: aiKnowledge,
-
-      // CONTACTS
-      contacts,
-
-      // CHECK-IN
       lockbox_code: lockboxCode,
 
+      contacts,
+
+      emergency_numbers: emergencyNumbers,
+
+      // KNOWLEDGE BASE
+
+      knowledge_base: knowledgeBase,
+
       // MODULES
+
       ai_enabled: aiEnabled,
       whatsapp_enabled: whatsappEnabled,
       telegram_enabled: telegramEnabled,
@@ -227,6 +265,7 @@ export default function Dashboard() {
   }
 
   // DELETE PROPERTY
+
   const deleteProperty = async () => {
 
     if (!selectedProperty) return
@@ -340,14 +379,25 @@ export default function Dashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('checkin')}
+              onClick={() => setActiveTab('welcomebook')}
               className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-                activeTab === 'checkin'
+                activeTab === 'welcomebook'
                   ? 'bg-black text-white shadow-xl'
                   : 'bg-white border border-gray-200'
               }`}
             >
-              🔑 Check-in
+              📘 Welcome Book
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ai')}
+              className={`w-full text-left px-5 py-4 rounded-2xl transition ${
+                activeTab === 'ai'
+                  ? 'bg-black text-white shadow-xl'
+                  : 'bg-white border border-gray-200'
+              }`}
+            >
+              🤖 AI Training
             </button>
 
           </aside>
@@ -492,56 +542,44 @@ export default function Dashboard() {
 
                 </section>
 
-                {/* PROPERTY CONTENT */}
+                {/* CHECK-IN */}
 
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
 
-                  <h2 className="text-2xl font-bold mb-2">
-                    🏡 Property Content
+                  <h2 className="text-2xl font-bold mb-6">
+                    🔑 Check-in
                   </h2>
 
-                  <p className="text-gray-500 mb-6">
-                    Basic listing content shown to guests.
-                  </p>
+                  <div className="grid md:grid-cols-2 gap-4 mb-4">
 
-                  <div className="space-y-5">
-
-                    <textarea
-                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
-                      placeholder="Property description (you can paste it from your listing)"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
+                    <input
+                      className="border border-gray-200 rounded-2xl p-4"
+                      placeholder="Check-in time"
+                      value={checkin}
+                      onChange={(e) => setCheckin(e.target.value)}
                     />
 
-                    <textarea
-                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
-                      placeholder="Amenities (you can paste them from your listing)"
-                      value={amenities}
-                      onChange={(e) => setAmenities(e.target.value)}
+                    <input
+                      className="border border-gray-200 rounded-2xl p-4"
+                      placeholder="Check-out time"
+                      value={checkout}
+                      onChange={(e) => setCheckout(e.target.value)}
                     />
 
                   </div>
 
-                </section>
-
-                {/* AI TRAINING */}
-
-                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-
-                  <h2 className="text-2xl font-bold mb-2">
-                    🤖 AI Training
-                  </h2>
-
-                  <p className="text-gray-500 mb-6 leading-relaxed">
-                    Everything written here will be used to train the AI concierge
-                    so it can answer guest questions more accurately during the stay.
-                  </p>
-
                   <textarea
-                    className="w-full border border-gray-200 rounded-2xl p-4 min-h-[320px]"
-                    placeholder="Paste here FAQs, parking info, house manual, AC instructions, transport information, recommendations, troubleshooting steps, emergency details, local tips and anything useful for the AI concierge."
-                    value={aiKnowledge}
-                    onChange={(e) => setAiKnowledge(e.target.value)}
+                    className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px] mb-4"
+                    placeholder="Check-in instructions"
+                    value={checkinNotes}
+                    onChange={(e) => setCheckinNotes(e.target.value)}
+                  />
+
+                  <input
+                    className="w-full border border-gray-200 rounded-2xl p-4"
+                    placeholder="Lockbox code"
+                    value={lockboxCode}
+                    onChange={(e) => setLockboxCode(e.target.value)}
                   />
 
                 </section>
@@ -584,6 +622,23 @@ export default function Dashboard() {
                     ))}
 
                   </div>
+
+                </section>
+
+                {/* EMERGENCY */}
+
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-red-100">
+
+                  <h2 className="text-2xl font-bold mb-6">
+                    🚨 Emergency Numbers
+                  </h2>
+
+                  <textarea
+                    className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                    placeholder="Emergency contacts, hospitals, police, maintenance..."
+                    value={emergencyNumbers}
+                    onChange={(e) => setEmergencyNumbers(e.target.value)}
+                  />
 
                 </section>
 
@@ -644,48 +699,217 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* CHECK-IN */}
+            {/* WELCOME BOOK */}
 
-            {activeTab === 'checkin' && (
-              <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+            {activeTab === 'welcomebook' && (
+              <>
 
-                <h2 className="text-2xl font-bold mb-6">
-                  🔑 Check-in
-                </h2>
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
 
-                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <h2 className="text-2xl font-bold mb-2">
+                    📘 Welcome Book
+                  </h2>
 
-                  <input
-                    className="border border-gray-200 rounded-2xl p-4"
-                    placeholder="Check-in time"
-                    value={checkin}
-                    onChange={(e) => setCheckin(e.target.value)}
-                  />
+                  <p className="text-gray-500 mb-6">
+                    Information visible to guests during the stay.
+                  </p>
 
-                  <input
-                    className="border border-gray-200 rounded-2xl p-4"
-                    placeholder="Check-out time"
-                    value={checkout}
-                    onChange={(e) => setCheckout(e.target.value)}
-                  />
+                  <div className="space-y-5">
 
-                </div>
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                      placeholder="Property description"
+                      value={knowledgeBase.welcome_book.description}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            description: e.target.value
+                          }
+                        })
+                      }
+                    />
 
-                <textarea
-                  className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px] mb-4"
-                  placeholder="Check-in instructions"
-                  value={checkinNotes}
-                  onChange={(e) => setCheckinNotes(e.target.value)}
-                />
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                      placeholder="Amenities"
+                      value={knowledgeBase.welcome_book.amenities}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            amenities: e.target.value
+                          }
+                        })
+                      }
+                    />
 
-                <input
-                  className="w-full border border-gray-200 rounded-2xl p-4"
-                  placeholder="Lockbox code"
-                  value={lockboxCode}
-                  onChange={(e) => setLockboxCode(e.target.value)}
-                />
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="House rules"
+                      value={knowledgeBase.welcome_book.house_rules}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            house_rules: e.target.value
+                          }
+                        })
+                      }
+                    />
 
-              </section>
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Parking information"
+                      value={knowledgeBase.welcome_book.parking}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            parking: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                      placeholder="Local guide"
+                      value={knowledgeBase.welcome_book.local_guide}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            local_guide: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Checkout notes"
+                      value={knowledgeBase.welcome_book.checkout_notes}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          welcome_book: {
+                            ...knowledgeBase.welcome_book,
+                            checkout_notes: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                  </div>
+
+                </section>
+
+              </>
+            )}
+
+            {/* AI TRAINING */}
+
+            {activeTab === 'ai' && (
+              <>
+
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+
+                  <h2 className="text-2xl font-bold mb-2">
+                    🤖 AI Training
+                  </h2>
+
+                  <p className="text-gray-500 mb-6 leading-relaxed">
+                    Internal AI knowledge used by the AI concierge.
+                  </p>
+
+                  <div className="space-y-5">
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[160px]"
+                      placeholder="FAQs"
+                      value={knowledgeBase.ai_training.faq}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          ai_training: {
+                            ...knowledgeBase.ai_training,
+                            faq: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                      placeholder="Troubleshooting & operational notes"
+                      value={knowledgeBase.ai_training.troubleshooting}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          ai_training: {
+                            ...knowledgeBase.ai_training,
+                            troubleshooting: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[140px]"
+                      placeholder="Guest communication style"
+                      value={knowledgeBase.ai_training.guest_style}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          ai_training: {
+                            ...knowledgeBase.ai_training,
+                            guest_style: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                      placeholder="Hidden operational notes"
+                      value={knowledgeBase.ai_training.hidden_notes}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          ai_training: {
+                            ...knowledgeBase.ai_training,
+                            hidden_notes: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[220px]"
+                      placeholder="Additional AI notes"
+                      value={knowledgeBase.ai_training.additional_notes}
+                      onChange={(e) =>
+                        setKnowledgeBase({
+                          ...knowledgeBase,
+                          ai_training: {
+                            ...knowledgeBase.ai_training,
+                            additional_notes: e.target.value
+                          }
+                        })
+                      }
+                    />
+
+                  </div>
+
+                </section>
+
+              </>
             )}
 
           </div>
