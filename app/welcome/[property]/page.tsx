@@ -1,8 +1,14 @@
  import { createClient } from '@supabase/supabase-js'
+import AIConciergeCard from '@/components/AIConciergeCard'
+import NearbyPlaces from '@/components/NearbyPlaces'
+import QuickActions from '@/components/QuickActions'
+import SectionTitle from '@/components/SectionTitle'
+import WifiCard from '@/components/WifiCard'
+import AccordionCard from '@/components/AccordionCard'
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 )
 
 export default async function WelcomePage({
@@ -26,16 +32,20 @@ export default async function WelcomePage({
   if (error || !propertyData) {
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-10">
+      <div className="min-h-screen flex items-center justify-center bg-[#f3f4f6] p-10">
 
-        <div className="bg-white p-8 rounded-3xl shadow-xl text-center">
+        <div className="bg-white p-10 rounded-[32px] shadow-2xl text-center max-w-md">
 
-          <h1 className="text-3xl font-bold mb-4">
+          <div className="text-6xl mb-5">
+            🏡
+          </div>
+
+          <h1 className="text-3xl font-bold mb-4 text-gray-900">
             Property not found
           </h1>
 
-          <p className="text-gray-500">
-            The requested welcome page does not exist.
+          <p className="text-gray-500 leading-relaxed">
+            The requested welcome page does not exist or is currently unavailable.
           </p>
 
         </div>
@@ -50,7 +60,7 @@ export default async function WelcomePage({
 
       {/* HERO */}
 
-      <div className="relative h-[460px] w-full overflow-hidden">
+      <div className="relative h-[520px] w-full overflow-hidden">
 
         <img
           src={
@@ -58,44 +68,82 @@ export default async function WelcomePage({
             'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85'
           }
           alt={propertyData.property_name}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover scale-[1.02]"
         />
 
         {/* OVERLAY */}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/10" />
 
-        {/* HERO CONTENT */}
+        {/* TOP BAR */}
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white">
+        <div className="absolute top-0 left-0 right-0 z-20 p-6">
 
-          <div className="flex flex-wrap gap-2 mb-5">
+          <div className="flex items-center justify-between">
 
-            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-sm">
-              ⭐ Guest Favorite
+            <div className="backdrop-blur-xl bg-white/10 border border-white/10 px-5 py-3 rounded-full text-white font-semibold shadow-xl">
+
+              🏡 AI Co-Host
+
             </div>
 
-            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-sm">
-              📶 Fast WiFi
-            </div>
+            <div className="backdrop-blur-xl bg-white/10 border border-white/10 px-4 py-2 rounded-full text-white text-sm shadow-xl">
 
-            <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-sm">
-              🤖 AI Concierge
+              ⭐ Premium Stay
+
             </div>
 
           </div>
 
-          <h1 className="text-5xl font-bold leading-tight mb-3">
+        </div>
+
+        {/* HERO CONTENT */}
+
+        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 text-white z-10">
+
+          <div className="flex flex-wrap gap-3 mb-6">
+
+            <div className="bg-white/15 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full text-sm shadow-lg">
+              ⭐ Guest Favorite
+            </div>
+
+            <div className="bg-white/15 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full text-sm shadow-lg">
+              📶 Fast WiFi
+            </div>
+
+            <div className="bg-white/15 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full text-sm shadow-lg">
+              🤖 AI Concierge
+            </div>
+
+            <div className="bg-white/15 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full text-sm shadow-lg">
+              🔑 Self Check-in
+            </div>
+
+          </div>
+
+          <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-4 max-w-3xl">
+
             {propertyData.property_name}
+
           </h1>
 
-          <p className="text-white/80 text-lg">
-            {propertyData.city || 'Unknown city'},
-            {' '}
-            {propertyData.country || 'Unknown country'}
-          </p>
+          <div className="flex flex-wrap items-center gap-4 text-white/80">
 
-          <p className="text-white/70 text-sm mt-2">
+            <p className="text-lg">
+              📍 {propertyData.city || 'Unknown city'},
+              {' '}
+              {propertyData.country || 'Unknown country'}
+            </p>
+
+            <div className="w-1 h-1 bg-white/50 rounded-full" />
+
+            <p className="text-lg">
+              🛎️ Verified Host
+            </p>
+
+          </div>
+
+          <p className="text-white/60 text-sm mt-4">
             {propertyData.address || ''}
           </p>
 
@@ -105,273 +153,143 @@ export default async function WelcomePage({
 
       {/* MAIN CONTENT */}
 
-      <div className="max-w-3xl mx-auto px-4 -mt-12 relative z-10 pb-40">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 -mt-16 relative z-20 pb-44">
 
-        {/* QUICK ACTIONS */}
+        {/* WELCOME SECTION */}
 
-        <section className="mb-8">
+        <div className="mb-10">
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white rounded-[36px] p-8 shadow-2xl border border-gray-100">
 
-            {/* MAPS */}
+            <SectionTitle
+              eyebrow="WELCOME"
+              title="Everything you need for your stay"
+              subtitle="Quick access to directions, WiFi, self check-in and instant support during your experience."
+            />
 
-            <a
-              href={`https://maps.google.com/?q=${encodeURIComponent(
-                propertyData.address || ''
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition-all duration-300"
-            >
-
-              <div className="text-4xl mb-4">
-                📍
-              </div>
-
-              <div className="font-semibold text-lg">
-                Open Maps
-              </div>
-
-              <div className="text-sm text-gray-500 mt-1">
-                Navigate to property
-              </div>
-
-            </a>
-
-            {/* WHATSAPP */}
-
-            <a
-              href={`https://wa.me/${propertyData.host_phone || ''}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white rounded-3xl p-6 shadow-xl hover:scale-[1.02] transition-all duration-300"
-            >
-
-              <div className="text-4xl mb-4">
-                💬
-              </div>
-
-              <div className="font-semibold text-lg">
-                Contact Host
-              </div>
-
-              <div className="text-sm text-gray-500 mt-1">
-                AI + WhatsApp support
-              </div>
-
-            </a>
+            <QuickActions
+              address={propertyData.address}
+              hostPhone={propertyData.host_phone}
+            />
 
           </div>
 
-        </section>
+        </div>
 
         {/* AI CONCIERGE */}
 
-        <section className="mb-8">
+        <AIConciergeCard
+          hostPhone={propertyData.host_phone}
+        />
 
-          <div className="bg-gradient-to-r from-black to-gray-800 text-white rounded-3xl p-7 shadow-2xl">
+        {/* NEARBY PLACES */}
 
-            <div className="flex items-start justify-between gap-4">
+        <NearbyPlaces />
 
-              <div>
-
-                <div className="text-sm uppercase tracking-widest text-white/60 mb-2">
-                  AI Concierge
-                </div>
-
-                <h2 className="text-3xl font-bold mb-3">
-                  Need anything during your stay?
-                </h2>
-
-                <p className="text-white/70 leading-relaxed">
-                  Ask questions, get local recommendations, receive check-in help,
-                  or contact the host instantly through WhatsApp.
-                </p>
-
-              </div>
-
-              <div className="text-5xl">
-                🤖
-              </div>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* WIFI */}
-
-        <section className="mb-6">
-
-          <div className="bg-white rounded-3xl p-7 shadow-xl">
-
-            <div className="flex items-center justify-between mb-6">
-
-              <h2 className="text-2xl font-semibold">
-                📶 WiFi
-              </h2>
-
-              <div className="bg-gray-100 px-3 py-1 rounded-full text-sm">
-                High Speed
-              </div>
-
-            </div>
-
-            <div className="space-y-4 text-gray-700">
-
-              <div>
-                <span className="font-semibold">
-                  Network:
-                </span>{' '}
-                {propertyData.wifi_name || 'N/A'}
-              </div>
-
-              <div>
-                <span className="font-semibold">
-                  Password:
-                </span>{' '}
-                {propertyData.wifi_password || 'N/A'}
-              </div>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* CHECK-IN */}
-
-        <section className="mb-6">
-
-          <div className="bg-white rounded-3xl p-7 shadow-xl">
-
-            <h2 className="text-2xl font-semibold mb-6">
-              🔑 Check-in
-            </h2>
-
-            <div className="space-y-5 text-gray-700">
-
-              <p>
-                <strong>Check-in:</strong>{' '}
-                {propertyData.checkin_time || 'N/A'}
-              </p>
-
-              <p>
-                <strong>Check-out:</strong>{' '}
-                {propertyData.checkout_time || 'N/A'}
-              </p>
-
-              <p className="whitespace-pre-line">
-                <strong>Instructions:</strong>
-                <br />
-                {propertyData.checkin_instructions || 'N/A'}
-              </p>
-
-              <p>
-                <strong>Lockbox:</strong>{' '}
-                {propertyData.lockbox_code || 'N/A'}
-              </p>
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* HOUSE RULES */}
-
-        <section className="mb-6">
-
-          <div className="bg-white rounded-3xl p-7 shadow-xl">
-
-            <h2 className="text-2xl font-semibold mb-6">
-              📜 House Rules
-            </h2>
-
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-
-              {propertyData.house_rules || 'No rules provided.'}
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* LOCAL INFO */}
-
-        <section className="mb-6">
-
-          <div className="bg-white rounded-3xl p-7 shadow-xl">
-
-            <h2 className="text-2xl font-semibold mb-6">
-              📍 Local Information
-            </h2>
-
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-
-              {propertyData.local_info || 'No local information provided.'}
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* EMERGENCY */}
-
-        <section className="mb-6">
-
-          <div className="bg-red-50 border border-red-200 rounded-3xl p-7 shadow-xl">
-
-            <h2 className="text-2xl font-semibold mb-6">
-              🚨 Emergency
-            </h2>
-
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-
-              {propertyData.emergency_info || 'No emergency information provided.'}
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* ABOUT */}
-
-        <section className="mb-6">
-
-          <div className="bg-white rounded-3xl p-7 shadow-xl">
-
-            <h2 className="text-2xl font-semibold mb-6">
-              🏡 About This Property
-            </h2>
-
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-
-              {propertyData.description || 'No description available.'}
-
-            </div>
-
-          </div>
-
-        </section>
-
-        {/* AMENITIES */}
+        {/* STAY ESSENTIALS */}
 
         <section className="mb-10">
 
-          <div className="bg-white rounded-3xl p-7 shadow-xl">
+          <SectionTitle
+            eyebrow="STAY ESSENTIALS"
+            title="Property essentials"
+            subtitle="Everything you need to comfortably access and enjoy the property."
+          />
 
-            <h2 className="text-2xl font-semibold mb-6">
-              ✨ Amenities
-            </h2>
+          <div className="grid md:grid-cols-2 gap-6">
 
-            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
+            {/* WIFI */}
 
-              {propertyData.amenities || 'No amenities listed.'}
+            <WifiCard
+              wifiName={propertyData.wifi_name}
+              wifiPassword={propertyData.wifi_password}
+            />
+
+            {/* CHECK-IN */}
+
+            <div className="bg-white rounded-[32px] p-8 shadow-xl border border-gray-100">
+
+              <div className="flex items-center gap-4 mb-8">
+
+                <div className="w-16 h-16 rounded-3xl bg-amber-50 flex items-center justify-center text-3xl">
+
+                  🔑
+
+                </div>
+
+                <div>
+
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Check-in
+                  </h2>
+
+                  <p className="text-gray-500 text-sm mt-1">
+                    Self check-in available
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="space-y-5 text-gray-700">
+
+                <div className="bg-gray-50 rounded-2xl p-5">
+
+                  <div className="text-sm text-gray-500 mb-2">
+                    Check-in Time
+                  </div>
+
+                  <div className="font-semibold text-lg text-gray-900">
+
+                    {propertyData.checkin_time || 'N/A'}
+
+                  </div>
+
+                </div>
+
+                <div className="bg-gray-50 rounded-2xl p-5">
+
+                  <div className="text-sm text-gray-500 mb-2">
+                    Check-out Time
+                  </div>
+
+                  <div className="font-semibold text-lg text-gray-900">
+
+                    {propertyData.checkout_time || 'N/A'}
+
+                  </div>
+
+                </div>
+
+                <div className="bg-gray-50 rounded-2xl p-5">
+
+                  <div className="text-sm text-gray-500 mb-3">
+                    Instructions
+                  </div>
+
+                  <div className="whitespace-pre-line leading-relaxed text-gray-800">
+
+                    {propertyData.checkin_instructions || 'N/A'}
+
+                  </div>
+
+                </div>
+
+                <div className="bg-black text-white rounded-2xl p-5">
+
+                  <div className="text-sm text-white/60 mb-2">
+                    Lockbox Code
+                  </div>
+
+                  <div className="font-semibold text-2xl tracking-widest">
+
+                    {propertyData.lockbox_code || 'N/A'}
+
+                  </div>
+
+                </div>
+
+              </div>
 
             </div>
 
@@ -379,35 +297,42 @@ export default async function WelcomePage({
 
         </section>
 
-        {/* NEED HELP */}
+        {/* PROPERTY GUIDE */}
 
-        <section>
+        <section className="mb-10">
 
-          <div className="bg-white rounded-3xl p-7 shadow-xl border border-gray-200">
+          <SectionTitle
+            eyebrow="PROPERTY GUIDE"
+            title="Important information"
+            subtitle="House rules, local recommendations and useful information for your stay."
+          />
 
-            <h2 className="text-2xl font-semibold mb-4">
-              💡 Need Help?
-            </h2>
+          <div className="space-y-6">
 
-            <p className="text-gray-600 leading-relaxed mb-6">
-              Our AI concierge is available 24/7 to help with your stay,
-              recommendations, house information, or direct host support.
-            </p>
+            {/* HOUSE RULES */}
 
-            <a
-              href={`https://wa.me/${propertyData.host_phone || ''}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-3 bg-black text-white px-6 py-4 rounded-2xl hover:opacity-90 transition"
-            >
+            <AccordionCard
+              icon="📜"
+              title="House Rules"
+              content={propertyData.house_rules}
+            />
 
-              <span className="text-xl">
-                💬
-              </span>
+            {/* LOCAL INFO */}
 
-              Chat with Concierge
+            <AccordionCard
+              icon="📍"
+              title="Local Information"
+              content={propertyData.local_info}
+            />
 
-            </a>
+            {/* EMERGENCY */}
+
+            <AccordionCard
+              icon="🚨"
+              title="Emergency Information"
+              content={propertyData.emergency_info}
+              danger
+            />
 
           </div>
 
@@ -417,13 +342,13 @@ export default async function WelcomePage({
 
       {/* FLOATING BAR */}
 
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[94%] max-w-lg bg-black/95 backdrop-blur-xl text-white rounded-3xl shadow-2xl px-6 py-4 flex items-center justify-between z-50 border border-white/10">
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[94%] max-w-xl bg-black/90 backdrop-blur-2xl text-white rounded-[28px] shadow-2xl px-7 py-4 flex items-center justify-between z-50 border border-white/10">
 
         <a
           href={`https://wa.me/${propertyData.host_phone || ''}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center text-xs"
+          className="flex flex-col items-center text-xs hover:opacity-80 transition"
         >
 
           <span className="text-xl mb-1">
@@ -440,7 +365,7 @@ export default async function WelcomePage({
           )}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center text-xs"
+          className="flex flex-col items-center text-xs hover:opacity-80 transition"
         >
 
           <span className="text-xl mb-1">
@@ -463,7 +388,7 @@ export default async function WelcomePage({
 
         <a
           href="tel:112"
-          className="flex flex-col items-center text-xs"
+          className="flex flex-col items-center text-xs hover:opacity-80 transition"
         >
 
           <span className="text-xl mb-1">
