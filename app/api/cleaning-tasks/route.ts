@@ -106,3 +106,77 @@ export async function POST(req: Request) {
     )
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json()
+
+    const {
+      id,
+      cleaner_name,
+      cleaner_contact,
+      status,
+      notes,
+    } = body
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Task id is required",
+        },
+        { status: 400 }
+      )
+    }
+
+    const updatePayload: any = {}
+
+    if (cleaner_name !== undefined) {
+      updatePayload.cleaner_name = cleaner_name || null
+    }
+
+    if (cleaner_contact !== undefined) {
+      updatePayload.cleaner_contact = cleaner_contact || null
+    }
+
+    if (status !== undefined) {
+      updatePayload.status = status
+    }
+
+    if (notes !== undefined) {
+      updatePayload.notes = notes || null
+    }
+
+    const { data, error } = await supabase
+      .from("cleaning_tasks")
+      .update(updatePayload)
+      .eq("id", id)
+      .select()
+      .single()
+
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      task: data,
+    })
+  } catch (error) {
+    console.error("CLEANING TASKS PATCH ERROR:", error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Server error",
+      },
+      { status: 500 }
+    )
+  }
+}
