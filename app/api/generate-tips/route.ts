@@ -40,12 +40,20 @@ Return ONLY valid JSON in this format:
 }
 `
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "user", content: prompt }
-    ]
-  })
+const completion = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+
+  temperature: 0.7,
+
+  max_tokens: 1200,
+
+  messages: [
+    {
+      role: "user",
+      content: prompt
+    }
+  ]
+})
 
   const text = completion.choices[0].message.content || "{}"
 

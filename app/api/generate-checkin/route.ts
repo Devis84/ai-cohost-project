@@ -37,7 +37,12 @@ export async function POST(req: Request) {
 
     }
 
-    const url = `http://localhost:3000/checkin?token=${token}`
+    const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "http://localhost:3000"
+
+const url =
+  `${baseUrl}/checkin?token=${token}`
 
     return NextResponse.json({
       ok: true,

@@ -16,10 +16,17 @@ export async function GET(request: Request) {
     .eq("property_id", property_id)
 
   if (error) {
-    console.log(error)
-    return NextResponse.json([])
-  }
+  console.log(error)
 
-  return NextResponse.json(data)
+  return NextResponse.json({
+    success: false,
+    tips: [],
+  })
+}
+
+return NextResponse.json({
+  success: true,
+  tips: data,
+})
 
 }
