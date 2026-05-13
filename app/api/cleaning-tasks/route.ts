@@ -6,12 +6,23 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+const defaultChecklist = {
+  bathroom: false,
+  kitchen: false,
+  bedroom: false,
+  trash: false,
+  towels: false,
+  final_check: false,
+}
+
 export async function GET() {
   try {
     const { data, error } = await supabase
       .from("cleaning_tasks")
       .select("*")
-      .order("cleaning_date", { ascending: true })
+      .order("cleaning_date", {
+        ascending: true,
+      })
 
     if (error) {
       return NextResponse.json(
@@ -28,7 +39,10 @@ export async function GET() {
       tasks: data || [],
     })
   } catch (error) {
-    console.error("CLEANING TASKS GET ERROR:", error)
+    console.error(
+      "CLEANING TASKS GET ERROR:",
+      error
+    )
 
     return NextResponse.json(
       {
@@ -53,13 +67,15 @@ export async function POST(req: Request) {
       cleaner_contact,
       status,
       notes,
+      checklist,
     } = body
 
     if (!property_name || !cleaning_date) {
       return NextResponse.json(
         {
           success: false,
-          error: "property_name and cleaning_date are required",
+          error:
+            "property_name and cleaning_date are required",
         },
         { status: 400 }
       )
@@ -71,11 +87,16 @@ export async function POST(req: Request) {
         property_id: property_id || null,
         property_name,
         cleaning_date,
-        checkout_time: checkout_time || null,
-        cleaner_name: cleaner_name || null,
-        cleaner_contact: cleaner_contact || null,
+        checkout_time:
+          checkout_time || null,
+        cleaner_name:
+          cleaner_name || null,
+        cleaner_contact:
+          cleaner_contact || null,
         status: status || "pending",
         notes: notes || null,
+        checklist:
+          checklist || defaultChecklist,
       })
       .select()
       .single()
@@ -95,7 +116,10 @@ export async function POST(req: Request) {
       task: data,
     })
   } catch (error) {
-    console.error("CLEANING TASKS POST ERROR:", error)
+    console.error(
+      "CLEANING TASKS POST ERROR:",
+      error
+    )
 
     return NextResponse.json(
       {
@@ -117,6 +141,7 @@ export async function PATCH(req: Request) {
       cleaner_contact,
       status,
       notes,
+      checklist,
     } = body
 
     if (!id) {
@@ -132,11 +157,13 @@ export async function PATCH(req: Request) {
     const updatePayload: any = {}
 
     if (cleaner_name !== undefined) {
-      updatePayload.cleaner_name = cleaner_name || null
+      updatePayload.cleaner_name =
+        cleaner_name || null
     }
 
     if (cleaner_contact !== undefined) {
-      updatePayload.cleaner_contact = cleaner_contact || null
+      updatePayload.cleaner_contact =
+        cleaner_contact || null
     }
 
     if (status !== undefined) {
@@ -145,6 +172,10 @@ export async function PATCH(req: Request) {
 
     if (notes !== undefined) {
       updatePayload.notes = notes || null
+    }
+
+    if (checklist !== undefined) {
+      updatePayload.checklist = checklist
     }
 
     const { data, error } = await supabase
@@ -169,7 +200,60 @@ export async function PATCH(req: Request) {
       task: data,
     })
   } catch (error) {
-    console.error("CLEANING TASKS PATCH ERROR:", error)
+    console.error(
+      "CLEANING TASKS PATCH ERROR:",
+      error
+    )
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Server error",
+      },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const body = await req.json()
+
+    const { id } = body
+
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Task id is required",
+        },
+        { status: 400 }
+      )
+    }
+
+    const { error } = await supabase
+      .from("cleaning_tasks")
+      .delete()
+      .eq("id", id)
+
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+    })
+  } catch (error) {
+    console.error(
+      "CLEANING TASK DELETE ERROR:",
+      error
+    )
 
     return NextResponse.json(
       {
