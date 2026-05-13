@@ -398,6 +398,20 @@ export default function Dashboard() {
               🤖 AI Training
             </button>
 
+            <a
+              href="/dashboard/cleaning"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
+            >
+              🧹 Cleaning
+            </a>
+
+            <a
+              href="/dashboard/billing"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
+            >
+              💳 Billing
+            </a>
+            
           </aside>
 
           {/* CONTENT */}
