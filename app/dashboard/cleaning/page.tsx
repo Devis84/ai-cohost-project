@@ -37,26 +37,16 @@ export default function CleaningDashboard() {
   const [tasks, setTasks] = useState<CleaningTask[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [propertyName, setPropertyName] =
-    useState("")
-
-  const [cleaningDate, setCleaningDate] =
-    useState("")
-
-  const [checkoutTime, setCheckoutTime] =
-    useState("")
-
-  const [filter, setFilter] =
-    useState("all")
+  const [propertyName, setPropertyName] = useState("")
+  const [cleaningDate, setCleaningDate] = useState("")
+  const [checkoutTime, setCheckoutTime] = useState("")
+  const [filter, setFilter] = useState("all")
 
   async function fetchTasks() {
     try {
       setLoading(true)
 
-      const res = await fetch(
-        "/api/cleaning-tasks"
-      )
-
+      const res = await fetch("/api/cleaning-tasks")
       const data = await res.json()
 
       setTasks(data.tasks || [])
@@ -73,42 +63,31 @@ export default function CleaningDashboard() {
 
   async function createTask() {
     if (!propertyName || !cleaningDate) {
-      alert(
-        "Property name and date are required"
-      )
-
+      alert("Property name and date are required")
       return
     }
 
     try {
-      const res = await fetch(
-        "/api/cleaning-tasks",
-        {
-          method: "POST",
+      const res = await fetch("/api/cleaning-tasks", {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify({
-            property_name: propertyName,
-            cleaning_date: cleaningDate,
-            checkout_time: checkoutTime,
-            status: "pending",
-            checklist: defaultChecklist,
-          }),
-        }
-      )
+        body: JSON.stringify({
+          property_name: propertyName,
+          cleaning_date: cleaningDate,
+          checkout_time: checkoutTime,
+          status: "pending",
+          checklist: defaultChecklist,
+        }),
+      })
 
       const data = await res.json()
 
       if (!data.success) {
-        alert(
-          data.error ||
-            "Error creating task"
-        )
-
+        alert(data.error || "Error creating task")
         return
       }
 
@@ -127,22 +106,18 @@ export default function CleaningDashboard() {
     payload: Partial<CleaningTask>
   ) {
     try {
-      const res = await fetch(
-        "/api/cleaning-tasks",
-        {
-          method: "PATCH",
+      const res = await fetch("/api/cleaning-tasks", {
+        method: "PATCH",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify({
-            id,
-            ...payload,
-          }),
-        }
-      )
+        body: JSON.stringify({
+          id,
+          ...payload,
+        }),
+      })
 
       const data = await res.json()
 
@@ -164,30 +139,22 @@ export default function CleaningDashboard() {
     if (!confirmed) return
 
     try {
-      const res = await fetch(
-        "/api/cleaning-tasks",
-        {
-          method: "DELETE",
+      const res = await fetch("/api/cleaning-tasks", {
+        method: "DELETE",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-          body: JSON.stringify({
-            id,
-          }),
-        }
-      )
+        body: JSON.stringify({
+          id,
+        }),
+      })
 
       const data = await res.json()
 
       if (!data.success) {
-        alert(
-          data.error ||
-            "Error deleting task"
-        )
-
+        alert(data.error || "Error deleting task")
         return
       }
 
@@ -201,14 +168,14 @@ export default function CleaningDashboard() {
     task: CleaningTask,
     key: keyof Checklist
   ) {
-    const currentChecklist =
-      task.checklist ||
-      defaultChecklist
+    const currentChecklist = {
+      ...defaultChecklist,
+      ...(task.checklist || {}),
+    }
 
     const updatedChecklist = {
       ...currentChecklist,
-      [key]:
-        !currentChecklist[key],
+      [key]: !currentChecklist[key],
     }
 
     await updateTask(task.id, {
@@ -222,20 +189,18 @@ export default function CleaningDashboard() {
     }
 
     return tasks.filter(
-      (task) =>
-        task.status === filter
+      (task) => task.status === filter
     )
   }, [tasks, filter])
 
   const pendingCount =
     tasks.filter(
-      (t) => t.status === "pending"
+      (task) => task.status === "pending"
     ).length
 
   const completedCount =
     tasks.filter(
-      (t) =>
-        t.status === "completed"
+      (task) => task.status === "completed"
     ).length
 
   return (
@@ -264,6 +229,17 @@ export default function CleaningDashboard() {
                 assign cleaners and monitor
                 cleaning status across properties.
               </p>
+
+              <div className="mt-6">
+
+                <a
+                  href="/dashboard/cleaning/mobile"
+                  className="inline-flex items-center justify-center bg-white text-black rounded-2xl px-5 py-3 font-semibold hover:opacity-90 transition"
+                >
+                  📱 Open Cleaner App
+                </a>
+
+              </div>
 
             </div>
 
@@ -312,9 +288,7 @@ export default function CleaningDashboard() {
             <input
               value={propertyName}
               onChange={(e) =>
-                setPropertyName(
-                  e.target.value
-                )
+                setPropertyName(e.target.value)
               }
               placeholder="Property name"
               className="border border-gray-200 rounded-2xl p-4"
@@ -324,9 +298,7 @@ export default function CleaningDashboard() {
               type="date"
               value={cleaningDate}
               onChange={(e) =>
-                setCleaningDate(
-                  e.target.value
-                )
+                setCleaningDate(e.target.value)
               }
               className="border border-gray-200 rounded-2xl p-4"
             />
@@ -334,9 +306,7 @@ export default function CleaningDashboard() {
             <input
               value={checkoutTime}
               onChange={(e) =>
-                setCheckoutTime(
-                  e.target.value
-                )
+                setCheckoutTime(e.target.value)
               }
               placeholder="Checkout time"
               className="border border-gray-200 rounded-2xl p-4"
@@ -344,7 +314,7 @@ export default function CleaningDashboard() {
 
             <button
               onClick={createTask}
-              className="bg-black text-white rounded-2xl px-6 py-4 font-semibold"
+              className="bg-black text-white rounded-2xl px-6 py-4 font-semibold hover:opacity-90 transition"
             >
               Create Task
             </button>
@@ -355,13 +325,11 @@ export default function CleaningDashboard() {
 
         {/* FILTERS */}
 
-        <div className="flex gap-3 mb-6">
+        <div className="flex flex-wrap gap-3 mb-6">
 
           <button
-            onClick={() =>
-              setFilter("all")
-            }
-            className={`px-5 py-3 rounded-2xl ${
+            onClick={() => setFilter("all")}
+            className={`px-5 py-3 rounded-2xl transition ${
               filter === "all"
                 ? "bg-black text-white"
                 : "bg-white border border-gray-200"
@@ -371,10 +339,8 @@ export default function CleaningDashboard() {
           </button>
 
           <button
-            onClick={() =>
-              setFilter("pending")
-            }
-            className={`px-5 py-3 rounded-2xl ${
+            onClick={() => setFilter("pending")}
+            className={`px-5 py-3 rounded-2xl transition ${
               filter === "pending"
                 ? "bg-orange-500 text-white"
                 : "bg-white border border-gray-200"
@@ -384,12 +350,8 @@ export default function CleaningDashboard() {
           </button>
 
           <button
-            onClick={() =>
-              setFilter(
-                "completed"
-              )
-            }
-            className={`px-5 py-3 rounded-2xl ${
+            onClick={() => setFilter("completed")}
+            className={`px-5 py-3 rounded-2xl transition ${
               filter === "completed"
                 ? "bg-green-600 text-white"
                 : "bg-white border border-gray-200"
@@ -411,218 +373,215 @@ export default function CleaningDashboard() {
           )}
 
           {!loading &&
-            filteredTasks.map(
-              (task) => {
-                const checklist =
-                  task.checklist ||
-                  defaultChecklist
+            filteredTasks.map((task) => {
 
-                return (
-                  <div
-                    key={task.id}
-                    className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5"
-                  >
+              const checklist = {
+                ...defaultChecklist,
+                ...(task.checklist || {}),
+              }
 
-                    <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
+              const checklistValues =
+                Object.values(checklist)
 
-                      {/* LEFT */}
+              const completedChecklistItems =
+                checklistValues.filter(Boolean).length
 
-                      <div className="space-y-5 flex-1">
+              const totalChecklistItems =
+                checklistValues.length
 
-                        <div>
+              return (
 
-                          <div className="text-sm text-gray-500 mb-1">
-                            Property
-                          </div>
+                <div
+                  key={task.id}
+                  className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5"
+                >
 
-                          <div className="text-2xl font-bold">
-                            {task.property_name ||
-                              "Unknown Property"}
-                          </div>
+                  <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8">
 
+                    {/* LEFT */}
+
+                    <div className="space-y-5 flex-1">
+
+                      <div>
+
+                        <div className="text-sm text-gray-500 mb-1">
+                          Property
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
+                        <div className="text-2xl font-bold">
+                          {task.property_name ||
+                            "Unknown Property"}
+                        </div>
+
+                      </div>
+
+                      <div className="flex flex-wrap gap-3">
+
+                        <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
+                          📅 {task.cleaning_date}
+                        </div>
+
+                        {task.checkout_time && (
 
                           <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
-                            📅{" "}
-                            {
-                              task.cleaning_date
-                            }
+                            ⏰ {task.checkout_time}
                           </div>
 
-                          {task.checkout_time && (
-                            <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
-                              ⏰{" "}
-                              {
-                                task.checkout_time
-                              }
-                            </div>
+                        )}
+
+                        <div
+                          className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
+                            task.status === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-orange-100 text-orange-700"
+                          }`}
+                        >
+                          {task.status || "pending"}
+                        </div>
+
+                        <div className="bg-blue-100 text-blue-700 px-4 py-2 rounded-2xl text-sm font-semibold">
+                          Checklist {
+                            completedChecklistItems
+                          }/{totalChecklistItems}
+                        </div>
+
+                      </div>
+
+                      {/* CHECKLIST */}
+
+                      <div>
+
+                        <div className="font-semibold mb-4">
+                          Cleaning Checklist
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-3">
+
+                          {Object.entries(checklist).map(
+                            ([key, value]) => (
+
+                              <label
+                                key={key}
+                                className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3"
+                              >
+
+                                <input
+                                  type="checkbox"
+                                  checked={value}
+                                  onChange={() =>
+                                    toggleChecklistItem(
+                                      task,
+                                      key as keyof Checklist
+                                    )
+                                  }
+                                />
+
+                                <span className="capitalize">
+                                  {key.replace("_", " ")}
+                                </span>
+
+                              </label>
+                            )
                           )}
 
-                          <div
-                            className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
-                              task.status ===
-                              "completed"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-orange-100 text-orange-700"
-                            }`}
-                          >
-                            {task.status ||
-                              "pending"}
-                          </div>
-
-                        </div>
-
-                        {/* CHECKLIST */}
-
-                        <div>
-
-                          <div className="font-semibold mb-4">
-                            Cleaning Checklist
-                          </div>
-
-                          <div className="grid md:grid-cols-2 gap-3">
-
-                            {Object.entries(
-                              checklist
-                            ).map(
-                              ([
-                                key,
-                                value,
-                              ]) => (
-
-                                <label
-                                  key={key}
-                                  className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3"
-                                >
-
-                                  <input
-                                    type="checkbox"
-                                    checked={
-                                      value
-                                    }
-                                    onChange={() =>
-                                      toggleChecklistItem(
-                                        task,
-                                        key as keyof Checklist
-                                      )
-                                    }
-                                  />
-
-                                  <span className="capitalize">
-                                    {key.replace(
-                                      "_",
-                                      " "
-                                    )}
-                                  </span>
-
-                                </label>
-                              )
-                            )}
-
-                          </div>
-
                         </div>
 
                       </div>
 
-                      {/* RIGHT */}
+                      {/* NOTES */}
 
-                      <div className="flex flex-col gap-3 min-w-[260px]">
+                      <textarea
+                        defaultValue={task.notes || ""}
+                        placeholder="Cleaning notes..."
+                        onBlur={(e) =>
+                          updateTask(task.id, {
+                            notes: e.target.value,
+                          })
+                        }
+                        className="w-full border border-gray-200 rounded-2xl p-4 min-h-[120px]"
+                      />
 
-                        <select
-                          value={
-                            task.cleaner_name ||
-                            ""
-                          }
-                          onChange={(e) =>
-                            updateTask(
-                              task.id,
-                              {
-                                cleaner_name:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          className="border border-gray-200 rounded-2xl p-4"
-                        >
+                    </div>
 
-                          <option value="">
-                            Select cleaner
-                          </option>
+                    {/* RIGHT */}
 
-                          <option value="Mario">
-                            Mario
-                          </option>
+                    <div className="flex flex-col gap-3 min-w-[260px]">
 
-                          <option value="Luigi">
-                            Luigi
-                          </option>
+                      <select
+                        value={task.cleaner_name || ""}
+                        onChange={(e) =>
+                          updateTask(task.id, {
+                            cleaner_name:
+                              e.target.value,
+                          })
+                        }
+                        className="border border-gray-200 rounded-2xl p-4"
+                      >
 
-                          <option value="Anna">
-                            Anna
-                          </option>
+                        <option value="">
+                          Select cleaner
+                        </option>
 
-                        </select>
+                        <option value="Mario">
+                          Mario
+                        </option>
 
-                        <button
-                          onClick={() =>
-                            updateTask(
-                              task.id,
-                              {
-                                status:
-                                  "pending",
-                              }
-                            )
-                          }
-                          className="bg-orange-500 hover:bg-orange-600 text-white rounded-2xl px-5 py-3 transition"
-                        >
-                          Mark as Pending
-                        </button>
+                        <option value="Luigi">
+                          Luigi
+                        </option>
 
-                        <button
-                          onClick={() =>
-                            updateTask(
-                              task.id,
-                              {
-                                status:
-                                  "completed",
-                              }
-                            )
-                          }
-                          className="bg-green-600 hover:bg-green-700 text-white rounded-2xl px-5 py-3 transition"
-                        >
-                          Mark as Completed
-                        </button>
+                        <option value="Anna">
+                          Anna
+                        </option>
 
-                        <button
-                          onClick={() =>
-                            deleteTask(
-                              task.id
-                            )
-                          }
-                          className="bg-red-500 hover:bg-red-600 text-white rounded-2xl px-5 py-3 transition"
-                        >
-                          Delete Task
-                        </button>
+                      </select>
 
-                      </div>
+                      <button
+                        onClick={() =>
+                          updateTask(task.id, {
+                            status: "pending",
+                          })
+                        }
+                        className="bg-orange-500 hover:bg-orange-600 text-white rounded-2xl px-5 py-3 transition"
+                      >
+                        Mark as Pending
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          updateTask(task.id, {
+                            status: "completed",
+                          })
+                        }
+                        className="bg-green-600 hover:bg-green-700 text-white rounded-2xl px-5 py-3 transition"
+                      >
+                        Mark as Completed
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          deleteTask(task.id)
+                        }
+                        className="bg-red-500 hover:bg-red-600 text-white rounded-2xl px-5 py-3 transition"
+                      >
+                        Delete Task
+                      </button>
 
                     </div>
 
                   </div>
-                )
-              }
-            )}
+
+                </div>
+              )
+            })}
 
           {!loading &&
-            filteredTasks.length ===
-              0 && (
+            filteredTasks.length === 0 && (
+
               <div className="bg-white rounded-[32px] p-10 text-center shadow-xl border border-black/5 text-gray-500">
                 No cleaning tasks found
               </div>
+
             )}
 
         </div>
