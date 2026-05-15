@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server"
+ import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
 
 export async function GET() {
-
   try {
 
     /*
     LOAD ALL PROPERTIES
     */
 
-    const { data: properties, error: propertiesError } = await supabase
+    const {
+      data: properties,
+      error: propertiesError,
+    } = await supabase
       .from("properties")
       .select("*")
 
@@ -18,47 +20,66 @@ export async function GET() {
     }
 
     /*
-    FOR EACH PROPERTY GET LAST MESSAGE
+    BUILD INBOX
     */
 
     const inbox = await Promise.all(
 
-      properties.map(async (property: any) => {
+      (properties || []).map(
+        async (property: any) => {
 
-        const { data: lastMessage } = await supabase
-          .from("conversations")
-          .select("*")
-          .eq("property_id", property.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single()
+          const {
+            data: lastMessage,
+          } = await supabase
+            .from("conversations")
+            .select("*")
+            .eq("property_id", property.id)
+            .order("created_at", {
+              ascending: false,
+            })
+            .limit(1)
+            .single()
 
-        return {
-          propertyId: property.id,
-          propertyName: property.property_name,
-          city: property.city,
-          lastMessage: lastMessage?.message || null,
-          role: lastMessage?.role || null,
-          created_at: lastMessage?.created_at || null
+          return {
+            propertyId: property.id,
+
+            propertyName:
+              property.property_name,
+
+            city: property.city,
+
+            lastMessage:
+              lastMessage?.message || null,
+
+            role:
+              lastMessage?.role || null,
+
+            created_at:
+              lastMessage?.created_at || null,
+          }
         }
-
-      })
-
+      )
     )
 
     return NextResponse.json({
-      conversations: inbox
+      success: true,
+      inbox,
     })
 
-  } catch (error) {
+  } catch (error: any) {
 
-    console.error(error)
-
-    return NextResponse.json(
-      { error: "Failed to load conversations" },
-      { status: 500 }
+    console.error(
+      "ALL CONVERSATIONS ERROR:",
+      error
     )
 
+    return NextResponse.json(
+      {
+        success: false,
+        inbox: [],
+        error: error.message,
+      },
+      { status: 500 }
+    )
   }
-
 }
