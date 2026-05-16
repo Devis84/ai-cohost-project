@@ -215,6 +215,24 @@ export async function POST(req: Request) {
       })
 
     /*
+    LOAD CURRENT CONVERSATION
+    */
+
+    const {
+      data: existingConversation,
+    } = await supabase
+      .from("conversations")
+      .select("unread_count")
+      .eq(
+        "conversation_id",
+        conversationId
+      )
+      .maybeSingle()
+
+    const currentUnread =
+      existingConversation?.unread_count || 0
+
+    /*
     UPDATE CONVERSATION
     */
 
@@ -244,6 +262,11 @@ export async function POST(req: Request) {
             escalation.requires_host
               ? "urgent"
               : "open",
+
+          unread_count:
+            currentUnread + 1,
+
+          last_sender: "guest",
 
           last_message_at:
             new Date().toISOString(),
@@ -338,6 +361,11 @@ export async function POST(req: Request) {
             escalation.requires_host
               ? "urgent"
               : "open",
+
+          unread_count:
+            currentUnread + 1,
+
+          last_sender: "assistant",
 
           last_message_at:
             new Date().toISOString(),
