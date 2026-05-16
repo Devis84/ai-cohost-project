@@ -411,6 +411,19 @@ export default function Dashboard() {
             >
               💳 Billing
             </a>
+                        <a
+              href="/dashboard/inbox"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
+            >
+              💬 Inbox
+            </a>
+
+            <a
+              href="/dashboard/notifications"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
+            >
+              🔔 Notifications
+            </a>
             
           </aside>
 
