@@ -1,17 +1,20 @@
  "use client"
 
 import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase/supabase"
 
 type InboxItem = {
   propertyId: string
   propertyName: string
   city: string
+  conversation_id?: string
   lastMessage: string | null
   role: string | null
   created_at: string | null
   priority?: string | null
   requires_host?: boolean | null
   issue_detected?: string | null
+  unread_count?: number | null
 }
 
 type ConversationMessage = {
@@ -107,14 +110,10 @@ export default function InboxPage() {
     }
   }
 
-  async function openConversation(
-    propertyId: string,
-    propertyName: string
+  async function fetchConversation(
+    propertyId: string
   ) {
     try {
-      setSelectedPropertyId(propertyId)
-      setSelectedPropertyName(propertyName)
-
       const res = await fetch(
         `/api/conversations?property_id=${propertyId}`
       )
@@ -122,8 +121,75 @@ export default function InboxPage() {
       const data = await res.json()
 
       if (data.success) {
-        setMessages(data.conversations || [])
+        setMessages(
+          data.conversations || []
+        )
       }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  async function markConversationAsRead(
+    conversationId?: string
+  ) {
+    if (!conversationId) return
+
+    try {
+      await fetch(
+        "/api/conversations/read",
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            conversation_id:
+              conversationId,
+          }),
+        }
+      )
+
+      setInbox((prev) =>
+        prev.map((item) => {
+          if (
+            item.conversation_id ===
+            conversationId
+          ) {
+            return {
+              ...item,
+              unread_count: 0,
+            }
+          }
+
+          return item
+        })
+      )
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  async function openConversation(
+    propertyId: string,
+    propertyName: string,
+    conversationId?: string
+  ) {
+    try {
+      setSelectedPropertyId(propertyId)
+
+      setSelectedPropertyName(propertyName)
+
+      await markConversationAsRead(
+        conversationId
+      )
+
+      await fetchConversation(
+        propertyId
+      )
     } catch (error) {
       console.error(error)
     }
@@ -133,10 +199,44 @@ export default function InboxPage() {
     fetchInbox()
   }, [])
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("inbox-realtime")
+
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "conversations",
+        },
+        async () => {
+          await fetchInbox()
+
+          if (selectedPropertyId) {
+            await fetchConversation(
+              selectedPropertyId
+            )
+          }
+        }
+      )
+
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [selectedPropertyId])
+
   const priorityCount = inbox.filter(
     (item) =>
       item.priority === "high" ||
       item.requires_host
+  ).length
+
+  const unreadCount = inbox.filter(
+    (item) =>
+      (item.unread_count || 0) > 0
   ).length
 
   return (
@@ -163,12 +263,13 @@ export default function InboxPage() {
               <p className="text-white/60 max-w-2xl">
                 Monitor guest conversations,
                 review AI interactions and detect
-                issues that may need host attention.
+                issues that may need host
+                attention.
               </p>
 
             </div>
 
-            <div className="grid grid-cols-2 gap-4 min-w-[320px]">
+            <div className="grid grid-cols-3 gap-4 min-w-[480px]">
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
 
@@ -178,6 +279,18 @@ export default function InboxPage() {
 
                 <div className="text-4xl font-bold">
                   {inbox.length}
+                </div>
+
+              </div>
+
+              <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
+
+                <div className="text-white/50 text-sm mb-2">
+                  Unread
+                </div>
+
+                <div className="text-4xl font-bold">
+                  {unreadCount}
                 </div>
 
               </div>
@@ -250,7 +363,8 @@ export default function InboxPage() {
                     onClick={() =>
                       openConversation(
                         item.propertyId,
-                        item.propertyName
+                        item.propertyName,
+                        item.conversation_id
                       )
                     }
                     className={`w-full text-left p-5 border-b border-gray-100 hover:bg-gray-50 transition ${
@@ -265,8 +379,21 @@ export default function InboxPage() {
 
                       <div className="flex-1">
 
-                        <div className="font-bold text-lg mb-1">
-                          {item.propertyName}
+                        <div className="flex items-center justify-between gap-3 mb-1">
+
+                          <div className="font-bold text-lg">
+                            {item.propertyName}
+                          </div>
+
+                          {(item.unread_count ||
+                            0) > 0 && (
+                            <div className="min-w-[28px] h-7 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center px-2">
+                              {
+                                item.unread_count
+                              }
+                            </div>
+                          )}
+
                         </div>
 
                         <div
@@ -282,9 +409,15 @@ export default function InboxPage() {
 
                         <div className="mb-3">
                           <PriorityBadge
-                            priority={item.priority}
-                            requiresHost={item.requires_host}
-                            issue={item.issue_detected}
+                            priority={
+                              item.priority
+                            }
+                            requiresHost={
+                              item.requires_host
+                            }
+                            issue={
+                              item.issue_detected
+                            }
                           />
                         </div>
 
@@ -386,16 +519,25 @@ export default function InboxPage() {
                     </div>
 
                     <PriorityBadge
-                      priority={message.priority}
-                      requiresHost={message.requires_host}
-                      issue={message.issue_detected}
+                      priority={
+                        message.priority
+                      }
+                      requiresHost={
+                        message.requires_host
+                      }
+                      issue={
+                        message.issue_detected
+                      }
                     />
 
                   </div>
 
                   {message.issue_detected && (
                     <div className="mb-3 text-xs rounded-2xl bg-red-50 text-red-700 px-3 py-2">
-                      Issue: {formatIssue(message.issue_detected)}
+                      Issue:{" "}
+                      {formatIssue(
+                        message.issue_detected
+                      )}
                     </div>
                   )}
 

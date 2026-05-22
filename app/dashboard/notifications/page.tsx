@@ -1,6 +1,7 @@
-"use client"
+ "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { supabase } from "@/lib/supabase/supabase"
 
 type Notification = {
   id: string
@@ -43,27 +44,18 @@ function PriorityBadge({
 
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
-
-  const [notifications, setNotifications] =
-    useState<Notification[]>([])
-
-  const [filter, setFilter] =
-    useState("all")
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [filter, setFilter] = useState("all")
 
   async function fetchNotifications() {
     try {
       setLoading(true)
 
-      const res = await fetch(
-        "/api/notifications"
-      )
-
+      const res = await fetch("/api/notifications")
       const data = await res.json()
 
       if (data.success) {
-        setNotifications(
-          data.notifications || []
-        )
+        setNotifications(data.notifications || [])
       }
     } catch (error) {
       console.error(error)
@@ -76,19 +68,25 @@ export default function NotificationsPage() {
     try {
       await fetch("/api/notifications", {
         method: "PATCH",
-
         headers: {
-          "Content-Type":
-            "application/json",
+          "Content-Type": "application/json",
         },
-
         body: JSON.stringify({
           id,
           read: true,
         }),
       })
 
-      fetchNotifications()
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.id === id
+            ? {
+                ...notification,
+                read: true,
+              }
+            : notification
+        )
+      )
     } catch (error) {
       console.error(error)
     }
@@ -98,56 +96,61 @@ export default function NotificationsPage() {
     fetchNotifications()
   }, [])
 
-  const unreadCount =
-    notifications.filter(
-      (notification) =>
-        !notification.read
-    ).length
+  useEffect(() => {
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+        },
+        async () => {
+          await fetchNotifications()
+        }
+      )
+      .subscribe()
 
-  const highPriorityCount =
-    notifications.filter(
-      (notification) =>
-        notification.priority ===
-        "high"
-    ).length
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
-  const filteredNotifications =
-    useMemo(() => {
-      if (filter === "all") {
-        return notifications
-      }
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read
+  ).length
 
-      if (filter === "unread") {
-        return notifications.filter(
-          (notification) =>
-            !notification.read
-        )
-      }
+  const highPriorityCount = notifications.filter(
+    (notification) => notification.priority === "high"
+  ).length
 
-      if (filter === "high") {
-        return notifications.filter(
-          (notification) =>
-            notification.priority ===
-            "high"
-        )
-      }
-
+  const filteredNotifications = useMemo(() => {
+    if (filter === "all") {
       return notifications
-    }, [notifications, filter])
+    }
+
+    if (filter === "unread") {
+      return notifications.filter(
+        (notification) => !notification.read
+      )
+    }
+
+    if (filter === "high") {
+      return notifications.filter(
+        (notification) => notification.priority === "high"
+      )
+    }
+
+    return notifications
+  }, [notifications, filter])
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] p-6">
-
       <div className="max-w-7xl mx-auto">
-
-        {/* HERO */}
-
         <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-8 shadow-2xl mb-8">
-
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-
             <div>
-
               <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
                 AI CO-HOST
               </div>
@@ -157,18 +160,13 @@ export default function NotificationsPage() {
               </h1>
 
               <p className="text-white/60 max-w-2xl">
-                Monitor AI alerts, guest
-                complaints, escalations and
-                operational notifications across
-                all properties.
+                Monitor AI alerts, guest complaints, escalations and
+                operational notifications across all properties.
               </p>
-
             </div>
 
             <div className="grid grid-cols-2 gap-4 min-w-[320px]">
-
               <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-
                 <div className="text-white/50 text-sm mb-2">
                   Unread
                 </div>
@@ -176,11 +174,9 @@ export default function NotificationsPage() {
                 <div className="text-4xl font-bold">
                   {unreadCount}
                 </div>
-
               </div>
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-6 backdrop-blur-xl">
-
                 <div className="text-white/50 text-sm mb-2">
                   High Priority
                 </div>
@@ -188,23 +184,14 @@ export default function NotificationsPage() {
                 <div className="text-4xl font-bold">
                   {highPriorityCount}
                 </div>
-
               </div>
-
             </div>
-
           </div>
-
         </div>
 
-        {/* FILTERS */}
-
         <div className="flex flex-wrap gap-3 mb-6">
-
           <button
-            onClick={() =>
-              setFilter("all")
-            }
+            onClick={() => setFilter("all")}
             className={`px-5 py-3 rounded-2xl transition ${
               filter === "all"
                 ? "bg-black text-white"
@@ -215,9 +202,7 @@ export default function NotificationsPage() {
           </button>
 
           <button
-            onClick={() =>
-              setFilter("unread")
-            }
+            onClick={() => setFilter("unread")}
             className={`px-5 py-3 rounded-2xl transition ${
               filter === "unread"
                 ? "bg-black text-white"
@@ -228,9 +213,7 @@ export default function NotificationsPage() {
           </button>
 
           <button
-            onClick={() =>
-              setFilter("high")
-            }
+            onClick={() => setFilter("high")}
             className={`px-5 py-3 rounded-2xl transition ${
               filter === "high"
                 ? "bg-red-600 text-white"
@@ -246,137 +229,79 @@ export default function NotificationsPage() {
           >
             Refresh
           </button>
-
         </div>
 
-        {/* NOTIFICATIONS */}
-
         <div className="space-y-5">
-
           {loading && (
-
             <div className="bg-white rounded-[32px] p-8 shadow-xl border border-black/5 text-gray-500">
               Loading notifications...
             </div>
+          )}
 
+          {!loading && filteredNotifications.length === 0 && (
+            <div className="bg-white rounded-[32px] p-10 shadow-xl border border-black/5 text-center text-gray-500">
+              No notifications found
+            </div>
           )}
 
           {!loading &&
-            filteredNotifications.length ===
-              0 && (
-
-              <div className="bg-white rounded-[32px] p-10 shadow-xl border border-black/5 text-center text-gray-500">
-
-                No notifications found
-
-              </div>
-
-            )}
-
-          {!loading &&
-            filteredNotifications.map(
-              (notification) => (
-
-                <div
-                  key={notification.id}
-                  className={`rounded-[32px] p-7 shadow-xl border ${
-                    notification.read
-                      ? "bg-white border-black/5"
-                      : "bg-blue-50 border-blue-100"
-                  }`}
-                >
-
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-
-                    {/* LEFT */}
-
-                    <div className="flex-1">
-
-                      <div className="flex flex-wrap items-center gap-3 mb-4">
-
-                        <PriorityBadge
-                          priority={
-                            notification.priority
-                          }
-                        />
-
-                        {!notification.read && (
-
-                          <div className="inline-flex items-center rounded-2xl bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold">
-                            New
-                          </div>
-
-                        )}
-
-                        {notification.type && (
-
-                          <div className="inline-flex items-center rounded-2xl bg-gray-100 text-gray-700 px-3 py-1 text-xs font-semibold">
-                            {notification.type}
-                          </div>
-
-                        )}
-
-                      </div>
-
-                      <h2 className="text-2xl font-bold mb-3">
-
-                        {notification.title ||
-                          "Notification"}
-
-                      </h2>
-
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">
-
-                        {notification.message}
-
-                      </p>
-
-                      {notification.created_at && (
-
-                        <div className="text-sm text-gray-400">
-
-                          {new Date(
-                            notification.created_at
-                          ).toLocaleString()}
-
-                        </div>
-
-                      )}
-
-                    </div>
-
-                    {/* RIGHT */}
-
-                    <div className="flex flex-col gap-3 min-w-[180px]">
+            filteredNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`rounded-[32px] p-7 shadow-xl border ${
+                  notification.read
+                    ? "bg-white border-black/5"
+                    : "bg-blue-50 border-blue-100"
+                }`}
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      <PriorityBadge priority={notification.priority} />
 
                       {!notification.read && (
-
-                        <button
-                          onClick={() =>
-                            markAsRead(
-                              notification.id
-                            )
-                          }
-                          className="bg-black text-white rounded-2xl px-5 py-3 font-semibold hover:opacity-90 transition"
-                        >
-                          Mark as Read
-                        </button>
-
+                        <div className="inline-flex items-center rounded-2xl bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold">
+                          New
+                        </div>
                       )}
 
+                      {notification.type && (
+                        <div className="inline-flex items-center rounded-2xl bg-gray-100 text-gray-700 px-3 py-1 text-xs font-semibold">
+                          {notification.type}
+                        </div>
+                      )}
                     </div>
 
+                    <h2 className="text-2xl font-bold mb-3">
+                      {notification.title || "Notification"}
+                    </h2>
+
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line mb-4">
+                      {notification.message || "No message provided"}
+                    </p>
+
+                    {notification.created_at && (
+                      <div className="text-sm text-gray-400">
+                        {new Date(notification.created_at).toLocaleString()}
+                      </div>
+                    )}
                   </div>
 
+                  <div className="flex flex-col gap-3 min-w-[180px]">
+                    {!notification.read && (
+                      <button
+                        onClick={() => markAsRead(notification.id)}
+                        className="bg-black text-white rounded-2xl px-5 py-3 font-semibold hover:opacity-90 transition"
+                      >
+                        Mark as Read
+                      </button>
+                    )}
+                  </div>
                 </div>
-
-              )
-            )}
-
+              </div>
+            ))}
         </div>
-
       </div>
-
     </div>
   )
 }
