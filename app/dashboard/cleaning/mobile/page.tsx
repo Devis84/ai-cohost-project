@@ -1,4 +1,4 @@
-"use client"
+ "use client"
 
 import { useEffect, useMemo, useState } from "react"
 
@@ -17,8 +17,13 @@ type CleaningTask = {
   cleaning_date?: string
   checkout_time?: string
   cleaner_name?: string
+  cleaner_contact?: string
+  priority?: string
   status?: string
   notes?: string
+  assigned_at?: string
+  started_at?: string
+  completed_at?: string
   checklist?: Checklist
 }
 
@@ -48,13 +53,13 @@ export default function CleanerMobilePage() {
 
       const data = await res.json()
 
-      const pendingTasks =
+      const activeTasks =
         (data.tasks || []).filter(
           (task: CleaningTask) =>
             task.status !== "completed"
         )
 
-      setTasks(pendingTasks)
+      setTasks(activeTasks)
     } catch (err) {
       console.error(err)
     } finally {
@@ -98,9 +103,10 @@ export default function CleanerMobilePage() {
     task: CleaningTask,
     key: keyof Checklist
   ) {
-    const checklist =
-      task.checklist ||
-      defaultChecklist
+    const checklist = {
+      ...defaultChecklist,
+      ...(task.checklist || {}),
+    }
 
     const updatedChecklist = {
       ...checklist,
@@ -113,50 +119,124 @@ export default function CleanerMobilePage() {
     })
   }
 
+  async function updateStatus(
+    task: CleaningTask,
+    status: string
+  ) {
+    const payload: Partial<CleaningTask> = {
+      status,
+    }
+
+    if (status === "accepted") {
+      payload.assigned_at =
+        new Date().toISOString()
+    }
+
+    if (status === "in_progress") {
+      payload.started_at =
+        new Date().toISOString()
+    }
+
+    if (status === "completed") {
+      payload.completed_at =
+        new Date().toISOString()
+    }
+
+    await updateTask(task.id, payload)
+  }
+
+  const urgentCount = useMemo(() => {
+    return tasks.filter(
+      (task) =>
+        task.priority === "urgent"
+    ).length
+  }, [tasks])
+
   return (
-    <div className="min-h-screen bg-[#f5f5f5] p-4">
+    <div className="min-h-screen bg-[#f5f5f5] pb-10">
 
-      <div className="max-w-xl mx-auto">
+      {/* HEADER */}
 
-        {/* HEADER */}
+      <div className="sticky top-0 z-20 bg-black text-white px-5 pt-6 pb-7 rounded-b-[32px] shadow-2xl">
 
-        <div className="bg-black text-white rounded-[32px] p-6 shadow-2xl mb-6">
+        <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-3">
+          AI CO-HOST
+        </div>
 
-          <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-3">
-            AI CO-HOST
+        <div className="flex items-center justify-between gap-4">
+
+          <div>
+
+            <h1 className="text-3xl font-bold mb-2">
+              Cleaner App
+            </h1>
+
+            <p className="text-white/60 text-sm">
+              Mobile cleaning workflow
+            </p>
+
           </div>
 
-          <h1 className="text-3xl font-bold mb-3">
-            Cleaner App
-          </h1>
+          <div className="bg-white/10 rounded-3xl px-5 py-4 text-center min-w-[90px]">
 
-          <p className="text-white/60 text-sm leading-relaxed">
-            Mobile cleaning workflow for
-            cleaners and operational staff.
-          </p>
+            <div className="text-white/50 text-xs mb-1">
+              Active
+            </div>
+
+            <div className="text-2xl font-bold">
+              {tasks.length}
+            </div>
+
+          </div>
 
         </div>
 
-        {/* TASKS */}
+        {urgentCount > 0 && (
+
+          <div className="mt-5 bg-red-500/20 border border-red-500/20 rounded-2xl px-4 py-3 text-sm text-red-100">
+
+            🔴 {urgentCount} urgent cleaning task
+            {urgentCount > 1 ? "s" : ""}
+
+          </div>
+
+        )}
+
+      </div>
+
+      {/* CONTENT */}
+
+      <div className="max-w-xl mx-auto px-4 pt-6">
 
         {loading && (
-          <div className="bg-white rounded-[32px] p-6 shadow">
+
+          <div className="bg-white rounded-[32px] p-6 shadow-xl">
+
             Loading tasks...
+
           </div>
+
         )}
 
-        {!loading && tasks.length === 0 && (
-          <div className="bg-white rounded-[32px] p-10 text-center shadow text-gray-500">
-            No active cleaning tasks
-          </div>
-        )}
+        {!loading &&
+          tasks.length === 0 && (
+
+            <div className="bg-white rounded-[32px] p-10 text-center shadow-xl text-gray-500">
+
+              No active cleaning tasks
+
+            </div>
+
+          )}
 
         <div className="space-y-5">
 
           {tasks.map((task) => {
-            const checklist =
-              task.checklist ||
-              defaultChecklist
+
+            const checklist = {
+              ...defaultChecklist,
+              ...(task.checklist || {}),
+            }
 
             const completedItems =
               Object.values(
@@ -164,9 +244,8 @@ export default function CleanerMobilePage() {
               ).filter(Boolean).length
 
             const totalItems =
-              Object.keys(
-                checklist
-              ).length
+              Object.keys(checklist)
+                .length
 
             const progress =
               Math.round(
@@ -176,43 +255,110 @@ export default function CleanerMobilePage() {
               )
 
             return (
+
               <div
                 key={task.id}
-                className="bg-white rounded-[32px] p-6 shadow-xl border border-black/5"
+                className="bg-white rounded-[32px] p-5 shadow-xl border border-black/5"
               >
 
                 {/* PROPERTY */}
 
                 <div className="mb-5">
 
-                  <div className="text-sm text-gray-500 mb-1">
-                    Property
-                  </div>
+                  <div className="flex items-start justify-between gap-3 mb-3">
 
-                  <div className="text-2xl font-bold">
-                    {task.property_name}
-                  </div>
+                    <div>
 
-                </div>
+                      <div className="text-sm text-gray-500 mb-1">
+                        Property
+                      </div>
 
-                {/* INFO */}
+                      <div className="text-2xl font-bold leading-tight">
+                        {task.property_name}
+                      </div>
 
-                <div className="flex flex-wrap gap-3 mb-5">
-
-                  <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
-                    📅 {task.cleaning_date}
-                  </div>
-
-                  {task.checkout_time && (
-                    <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
-                      ⏰{" "}
-                      {
-                        task.checkout_time
-                      }
                     </div>
-                  )}
+
+                    <div
+                      className={`px-4 py-2 rounded-2xl text-xs font-semibold ${
+                        task.priority ===
+                        "urgent"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}
+                    >
+
+                      {task.priority ||
+                        "normal"}
+
+                    </div>
+
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+
+                    <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
+                      📅 {task.cleaning_date}
+                    </div>
+
+                    {task.checkout_time && (
+
+                      <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
+                        ⏰{" "}
+                        {
+                          task.checkout_time
+                        }
+                      </div>
+
+                    )}
+
+                    <div className="bg-black text-white px-4 py-2 rounded-2xl text-sm capitalize">
+
+                      {task.status ||
+                        "pending"}
+
+                    </div>
+
+                  </div>
 
                 </div>
+
+                {/* CLEANER */}
+
+                {(task.cleaner_name ||
+                  task.cleaner_contact) && (
+
+                  <div className="bg-gray-50 rounded-2xl p-4 mb-5">
+
+                    <div className="text-sm font-semibold mb-2">
+                      Assigned Cleaner
+                    </div>
+
+                    {task.cleaner_name && (
+
+                      <div className="text-sm mb-1">
+                        👤{" "}
+                        {
+                          task.cleaner_name
+                        }
+                      </div>
+
+                    )}
+
+                    {task.cleaner_contact && (
+
+                      <div className="text-sm">
+                        📞{" "}
+                        {
+                          task.cleaner_contact
+                        }
+                      </div>
+
+                    )}
+
+                  </div>
+
+                )}
 
                 {/* PROGRESS */}
 
@@ -221,7 +367,7 @@ export default function CleanerMobilePage() {
                   <div className="flex items-center justify-between mb-2">
 
                     <div className="font-semibold text-sm">
-                      Progress
+                      Cleaning Progress
                     </div>
 
                     <div className="text-sm text-gray-500">
@@ -254,7 +400,11 @@ export default function CleanerMobilePage() {
 
                       <label
                         key={key}
-                        className="flex items-center gap-4 bg-gray-50 rounded-2xl p-4"
+                        className={`flex items-center gap-4 rounded-2xl p-4 transition ${
+                          value
+                            ? "bg-green-50 border border-green-100"
+                            : "bg-gray-50"
+                        }`}
                       >
 
                         <input
@@ -269,7 +419,7 @@ export default function CleanerMobilePage() {
                           className="w-5 h-5"
                         />
 
-                        <span className="capitalize">
+                        <span className="capitalize font-medium">
                           {key.replace(
                             "_",
                             " "
@@ -277,6 +427,7 @@ export default function CleanerMobilePage() {
                         </span>
 
                       </label>
+
                     )
                   )}
 
@@ -295,40 +446,65 @@ export default function CleanerMobilePage() {
                         e.target.value,
                     })
                   }
-                  className="w-full border border-gray-200 rounded-2xl p-4 min-h-[120px] mb-5"
+                  className="w-full border border-gray-200 rounded-2xl p-4 min-h-[120px] mb-6"
                 />
 
                 {/* ACTIONS */}
 
                 <div className="flex flex-col gap-3">
 
+                  {task.status ===
+                    "pending" && (
+
+                    <button
+                      onClick={() =>
+                        updateStatus(
+                          task,
+                          "accepted"
+                        )
+                      }
+                      className="bg-blue-500 hover:bg-blue-600 text-white rounded-2xl px-5 py-4 font-semibold transition"
+                    >
+                      👍 Accept Task
+                    </button>
+
+                  )}
+
+                  {(task.status ===
+                    "accepted" ||
+                    task.status ===
+                      "pending") && (
+
+                    <button
+                      onClick={() =>
+                        updateStatus(
+                          task,
+                          "in_progress"
+                        )
+                      }
+                      className="bg-orange-500 hover:bg-orange-600 text-white rounded-2xl px-5 py-4 font-semibold transition"
+                    >
+                      🧹 Start Cleaning
+                    </button>
+
+                  )}
+
                   <button
                     onClick={() =>
-                      updateTask(task.id, {
-                        status:
-                          "completed",
-                      })
+                      updateStatus(
+                        task,
+                        "completed"
+                      )
                     }
                     className="bg-green-600 hover:bg-green-700 text-white rounded-2xl px-5 py-4 font-semibold transition"
                   >
                     ✅ Mark as Completed
                   </button>
 
-                  <button
-                    onClick={() =>
-                      updateTask(task.id, {
-                        status:
-                          "pending",
-                      })
-                    }
-                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-2xl px-5 py-4 font-semibold transition"
-                  >
-                    🔄 Reopen Task
-                  </button>
-
                 </div>
 
               </div>
+
             )
           })}
 
