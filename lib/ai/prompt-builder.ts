@@ -1,3 +1,5 @@
+ /* eslint-disable @typescript-eslint/no-explicit-any */
+ 
  export function buildKnowledgePrompt(property: any) {
 
   const kb = property?.knowledge_base || {}

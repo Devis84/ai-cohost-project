@@ -1,4 +1,6 @@
-import { supabase } from "@/lib/supabase"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { supabase } from "@/lib/supabase/supabase"
 
 export async function createCleaningTask({
   propertyId,

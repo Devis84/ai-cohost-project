@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { getProperty } from "@/lib/property-service"
 import { getConversationHistory } from "@/lib/conversation-service"
 

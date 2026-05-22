@@ -10,6 +10,8 @@ type Issue = {
   status: string
 }
 
+async function loadIssues() {
+  
 export default function IssuesPage() {
 
   const [issues, setIssues] = useState<Issue[]>([])
@@ -18,7 +20,7 @@ export default function IssuesPage() {
     loadIssues()
   }, [])
 
-  async function loadIssues() {
+  
 
     const res = await fetch("/api/issues")
     const data = await res.json()

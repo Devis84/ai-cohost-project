@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase/supabase"
 
 export async function getOrCreateGuest(
   telegramId: string,

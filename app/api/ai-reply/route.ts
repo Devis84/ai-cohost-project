@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createCleaningTask } from "@/lib/cleaning-service"
+import { createCleaningTask } from "@/lib/services/cleaning-service"
 
 export async function POST(req: Request) {
   try {

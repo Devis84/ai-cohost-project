@@ -1,18 +1,21 @@
-const nextConfig = {
+ import type { NextConfig } from "next"
+
+const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   experimental: {
-    serverActions: true
+    serverActions: true,
   },
 
-  webpack: (config: any) => {
+  webpack: (config) => {
     config.resolve.fallback = {
       fs: false,
       net: false,
-      tls: false
+      tls: false,
     }
+
     return config
-  }
+  },
 }
 
 export default nextConfig

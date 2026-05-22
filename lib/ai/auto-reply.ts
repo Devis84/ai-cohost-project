@@ -1,7 +1,7 @@
 import OpenAI from "openai"
-import { supabase } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase/supabase"
 import { detectIntent } from "@/lib/ai/intent-router"
-import { createIssue } from "@/lib/issue-service"
+import { createIssue } from "@/lib/services/issue-service"
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!

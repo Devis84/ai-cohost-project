@@ -1,5 +1,7 @@
-import { supabase } from "@/lib/supabase"
-import { createCleaningTask } from "@/lib/cleaning-service"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { supabase } from "@/lib/supabase/supabase"
+import { createCleaningTask } from "@/lib/services/cleaning-service"
 
 export async function verifyCheckinToken(token: string) {
 
