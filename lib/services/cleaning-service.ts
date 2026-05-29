@@ -1,41 +1,37 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ import { supabase } from "@/lib/supabase/supabase"
 
-import { supabase } from "@/lib/supabase/supabase"
+type CreateCleaningTaskInput = {
+  propertyId: string
+  checkoutDate: string
+}
 
 export async function createCleaningTask({
   propertyId,
-  checkoutDate
-}: {
-  propertyId: string
-  checkoutDate: string
-}) {
+  checkoutDate,
+}: CreateCleaningTaskInput) {
   try {
-    console.log("CREATING CLEANING TASK:", {
-      propertyId,
-      checkoutDate
-    })
+    if (!propertyId || !checkoutDate) {
+      return null
+    }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("cleaning_tasks")
       .insert([
         {
           property_id: propertyId,
           cleaning_date: checkoutDate,
-          status: "pending"
-        }
+          status: "pending",
+        },
       ])
       .select()
-
-    console.log("CLEANING RESULT:", data, error)
 
     if (error) {
       throw error
     }
 
     return data
-
-  } catch (err) {
-    console.error("CREATE CLEANING ERROR:", err)
+  } catch (error) {
+    console.error("CREATE CLEANING TASK ERROR:", error)
     return null
   }
 }

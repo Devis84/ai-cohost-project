@@ -1,39 +1,51 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ import { supabase } from "@/lib/supabase/supabase"
+import {
+  createCleaningTask,
+} from "@/lib/services/cleaning-service"
 
-import { supabase } from "@/lib/supabase/supabase"
-import { createCleaningTask } from "@/lib/services/cleaning-service"
+type StayRecord = {
+  id?: string
+  property_id: string
+  check_out?: string
+  checkout_date?: string
+  guest_name?: string
+  status?: string
+}
 
-export async function verifyCheckinToken(token: string) {
+export async function verifyCheckinToken(
+  token: string
+) {
+  if (!token) {
+    return null
+  }
 
-  console.log("VERIFY TOKEN:", token)
-
-  const { data: stays, error } = await (supabase as any)
+  const { data: stays, error } = await supabase
     .from("stays")
     .select("*")
     .eq("checkin_token", token)
 
   if (error || !stays || stays.length === 0) {
-    console.log("NO STAY FOUND")
+    console.error("VERIFY CHECK-IN ERROR:", error)
     return null
   }
 
-  const stay = stays[0]
-
-  console.log("STAY FOUND:", stay)
+  const stay = stays[0] as StayRecord
 
   const propertyId = stay.property_id
-  const checkoutDate = stay.check_out
+  const checkoutDate =
+    stay.check_out ||
+    stay.checkout_date ||
+    ""
 
-  console.log("EXTRACTED:", { propertyId, checkoutDate })
-
-  await createCleaningTask({
-  propertyId,
-  checkoutDate: stay.check_out
-  })
+  if (propertyId && checkoutDate) {
+    await createCleaningTask({
+      propertyId,
+      checkoutDate,
+    })
+  }
 
   return {
     propertyId,
-    stay
+    stay,
   }
-
 }

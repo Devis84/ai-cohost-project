@@ -1,63 +1,74 @@
+ import crypto from "crypto"
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase/supabase"
-import crypto from "crypto"
 
-export async function POST(req: Request) {
+import { supabaseServer } from "@/lib/supabase/supabase-server"
 
+export async function POST(request: Request) {
   try {
+    const body = await request.json()
 
-    const body = await req.json()
+    const propertyId =
+      body.propertyId ||
+      body.property_id
 
-    const { propertyId } = body
+    if (!propertyId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "propertyId is required",
+        },
+        { status: 400 }
+      )
+    }
 
-    console.log("PROPERTY ID:", propertyId)
+    const token = crypto
+      .randomBytes(16)
+      .toString("hex")
 
-    const token = crypto.randomBytes(16).toString("hex")
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + 2)
 
-    const expires = new Date()
-    expires.setDate(expires.getDate() + 2)
-
-    const { data, error } = await supabase
+    const { error } = await supabaseServer
       .from("checkins")
       .insert({
         property_id: propertyId,
-        token: token,
-        expires_at: expires
+        token,
+        expires_at: expiresAt.toISOString(),
       })
-      .select()
 
     if (error) {
+      console.error("GENERATE CHECK-IN ERROR:", error)
 
-      console.error("SUPABASE ERROR:", error)
-
-      return NextResponse.json({
-        ok: false,
-        error: error.message
-      })
-
+      return NextResponse.json(
+        {
+          ok: false,
+          error: error.message,
+        },
+        { status: 500 }
+      )
     }
 
     const baseUrl =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  "http://localhost:3000"
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000"
 
-const url =
-  `${baseUrl}/checkin?token=${token}`
+    const url =
+      `${baseUrl}/checkin?token=${token}`
 
     return NextResponse.json({
       ok: true,
-      url
+      token,
+      url,
     })
+  } catch (error) {
+    console.error("GENERATE CHECK-IN SERVER ERROR:", error)
 
-  } catch (error: any) {
-
-    console.error("SERVER ERROR:", error)
-
-    return NextResponse.json({
-      ok: false,
-      error: error.message
-    })
-
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Unable to generate check-in link",
+      },
+      { status: 500 }
+    )
   }
-
 }

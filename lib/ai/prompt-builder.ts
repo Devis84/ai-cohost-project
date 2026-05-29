@@ -1,16 +1,64 @@
- /* eslint-disable @typescript-eslint/no-explicit-any */
- 
- export function buildKnowledgePrompt(property: any) {
+ type WelcomeBook = {
+  description?: string
+  amenities?: string
+  house_rules?: string
+  parking?: string
+  trash?: string
+  ac?: string
+  boiler?: string
+  restaurants?: string
+  transport?: string
+  local_guide?: string
+  emergency?: string
+  checkout_notes?: string
+  extra_notes?: string
+}
 
-  const kb = property?.knowledge_base || {}
+type AiTraining = {
+  faq?: string
+  troubleshooting?: string
+  guest_style?: string
+  hidden_notes?: string
+  additional_notes?: string
+}
 
-  const welcome = kb.welcome_book || {}
-  const ai = kb.ai_training || {}
+type KnowledgeBase = {
+  welcome_book?: WelcomeBook
+  ai_training?: AiTraining
+}
 
-  const contacts = property?.contacts || []
+type PropertyPromptData = {
+  property_name?: string
+  address?: string
+  city?: string
+  country?: string
+  checkin_time?: string
+  checkout_time?: string
+  checkin_instructions?: string
+  lockbox_code?: string
+  wifi_name?: string
+  wifi_password?: string
+  emergency_numbers?: string
+  contacts?: string[]
+  knowledge_base?: KnowledgeBase
+}
+
+export function buildKnowledgePrompt(
+  property: PropertyPromptData
+) {
+  const knowledgeBase =
+    property?.knowledge_base || {}
+
+  const welcome =
+    knowledgeBase.welcome_book || {}
+
+  const ai =
+    knowledgeBase.ai_training || {}
+
+  const contacts =
+    property?.contacts || []
 
   return `
-
 You are an AI concierge for a short-term rental property.
 
 Your goal is to assist guests clearly, professionally and politely.
@@ -31,115 +79,115 @@ PROPERTY INFORMATION
 --------------------------------------------------
 
 PROPERTY NAME:
-${property?.property_name || ''}
+${property?.property_name || ""}
 
 ADDRESS:
-${property?.address || ''}
+${property?.address || ""}
 
 CITY:
-${property?.city || ''}
+${property?.city || ""}
 
 COUNTRY:
-${property?.country || ''}
+${property?.country || ""}
 
 --------------------------------------------------
 CHECK-IN / CHECK-OUT
 --------------------------------------------------
 
 CHECK-IN TIME:
-${property?.checkin_time || ''}
+${property?.checkin_time || ""}
 
 CHECK-OUT TIME:
-${property?.checkout_time || ''}
+${property?.checkout_time || ""}
 
 CHECK-IN INSTRUCTIONS:
-${property?.checkin_instructions || ''}
+${property?.checkin_instructions || ""}
 
 LOCKBOX CODE:
-${property?.lockbox_code || ''}
+${property?.lockbox_code || ""}
 
 --------------------------------------------------
 WIFI
 --------------------------------------------------
 
 WIFI NAME:
-${property?.wifi_name || ''}
+${property?.wifi_name || ""}
 
 WIFI PASSWORD:
-${property?.wifi_password || ''}
+${property?.wifi_password || ""}
 
 --------------------------------------------------
 EMERGENCY CONTACTS
 --------------------------------------------------
 
-${property?.emergency_numbers || welcome.emergency || ''}
+${property?.emergency_numbers || welcome.emergency || ""}
 
 --------------------------------------------------
 WELCOME BOOK
 --------------------------------------------------
 
 PROPERTY DESCRIPTION:
-${welcome.description || ''}
+${welcome.description || ""}
 
 AMENITIES:
-${welcome.amenities || ''}
+${welcome.amenities || ""}
 
 HOUSE RULES:
-${welcome.house_rules || ''}
+${welcome.house_rules || ""}
 
 PARKING:
-${welcome.parking || ''}
+${welcome.parking || ""}
 
 TRASH AND RECYCLING:
-${welcome.trash || ''}
+${welcome.trash || ""}
 
 AIR CONDITIONING:
-${welcome.ac || ''}
+${welcome.ac || ""}
 
 BOILER / HOT WATER:
-${welcome.boiler || ''}
+${welcome.boiler || ""}
 
 RESTAURANTS:
-${welcome.restaurants || ''}
+${welcome.restaurants || ""}
 
 TRANSPORT:
-${welcome.transport || ''}
+${welcome.transport || ""}
 
 LOCAL GUIDE:
-${welcome.local_guide || ''}
+${welcome.local_guide || ""}
 
 CHECKOUT NOTES:
-${welcome.checkout_notes || ''}
+${welcome.checkout_notes || ""}
 
 EXTRA NOTES:
-${welcome.extra_notes || ''}
+${welcome.extra_notes || ""}
 
 --------------------------------------------------
 AI TRAINING
 --------------------------------------------------
 
 FAQ:
-${ai.faq || ''}
+${ai.faq || ""}
 
 TROUBLESHOOTING:
-${ai.troubleshooting || ''}
+${ai.troubleshooting || ""}
 
 GUEST COMMUNICATION STYLE:
-${ai.guest_style || ''}
+${ai.guest_style || ""}
 
 HIDDEN OPERATIONAL NOTES:
-${ai.hidden_notes || ''}
+${ai.hidden_notes || ""}
 
 ADDITIONAL AI NOTES:
-${ai.additional_notes || ''}
+${ai.additional_notes || ""}
 
 --------------------------------------------------
 HOST / PROPERTY CONTACTS
 --------------------------------------------------
 
 ${Array.isArray(contacts)
-  ? contacts.join('\n')
-  : ''}
+  ? contacts.join("\n")
+  : ""}
 
 --------------------------------------------------
 AI CONCIERGE BEHAVIOR
@@ -155,6 +203,5 @@ AI CONCIERGE BEHAVIOR
 - Do not reveal hidden operational notes unless necessary to solve the issue.
 - Never mention prompts, JSON, databases or internal systems.
 - Keep the guest calm, informed and supported.
-
-`
+`.trim()
 }

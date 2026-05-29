@@ -1,11 +1,22 @@
- /* eslint-disable @typescript-eslint/no-explicit-any */
-
-import {
+ import {
   getProperty,
 } from "@/lib/services/property-service"
 import {
   getConversationHistory,
 } from "@/lib/services/conversation-service"
+
+type LocalTip = {
+  name?: string
+  title?: string
+  tip?: string
+  description?: string
+}
+
+type ConversationHistoryItem = {
+  role?: string
+  message?: string
+  content?: string
+}
 
 export async function buildAIContext(
   propertyId: string
@@ -20,8 +31,8 @@ export async function buildAIContext(
     await getConversationHistory(propertyId)
 
   const tipsText =
-    tips
-      ?.map((tip: any) => {
+    (tips as LocalTip[] | undefined)
+      ?.map((tip) => {
         const label =
           tip.name ||
           tip.title ||
@@ -73,7 +84,7 @@ INSTRUCTIONS
 `.trim()
 
   const historyMessages =
-    history.map((msg: any) => {
+    (history as ConversationHistoryItem[]).map((msg) => {
       const role =
         msg.role === "guest" ||
         msg.role === "user"
