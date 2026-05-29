@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server"
+ import { NextResponse } from "next/server"
 import {
   getBillingStatus,
   getPlans,
-} from "@/lib/billing"
+} from "@/lib/services/billing"
 
 export async function GET() {
   return NextResponse.json({
