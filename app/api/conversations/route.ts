@@ -1,53 +1,139 @@
  import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase/supabase"
 
-export async function GET(req: Request) {
+import {
+  getConversationHistory,
+  markConversationRead,
+} from "@/lib/services/conversation-service"
+import { supabaseServer } from "@/lib/supabase/supabase-server"
+
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(req.url)
+    const { searchParams } =
+      new URL(request.url)
 
-    const property_id = searchParams.get("property_id")
-    const conversation_id = searchParams.get("conversation_id")
+    const propertyId =
+      searchParams.get("property_id")
 
-    let query = supabase
-      .from("conversations")
-      .select("*")
-      .order("created_at", { ascending: true })
+    const conversationId =
+      searchParams.get("conversation_id")
 
-    if (property_id) {
-      query = query.eq("property_id", property_id)
+    if (conversationId) {
+      const { data: conversation } =
+        await supabaseServer
+          .from("conversations")
+          .select("*")
+          .eq("conversation_id", conversationId)
+          .maybeSingle()
+
+      const messages =
+        await getConversationHistory(
+          conversationId,
+          100
+        )
+
+      return NextResponse.json({
+        success: true,
+        conversation,
+        messages,
+      })
     }
 
-    if (conversation_id) {
-      query = query.eq("conversation_id", conversation_id)
+    let query = supabaseServer
+      .from("conversations")
+      .select("*")
+      .order("last_message_at", {
+        ascending: false,
+      })
+
+    if (propertyId) {
+      query = query.eq("property_id", propertyId)
     }
 
     const { data, error } = await query
 
     if (error) {
-      console.error("CONVERSATIONS GET ERROR:", error)
-
-      return NextResponse.json(
-        {
-          success: false,
-          conversations: [],
-          error: error.message,
-        },
-        { status: 500 }
-      )
+      throw error
     }
 
     return NextResponse.json({
       success: true,
       conversations: data || [],
     })
-  } catch (error: any) {
-    console.error("CONVERSATIONS SERVER ERROR:", error)
+  } catch (error) {
+    console.error("GET /api/conversations ERROR:", error)
 
     return NextResponse.json(
       {
         success: false,
         conversations: [],
-        error: error.message,
+        error: "Unable to load conversations",
+      },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+
+    const conversationId =
+      body.conversationId ||
+      body.conversation_id
+
+    if (!conversationId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "conversationId is required",
+        },
+        { status: 400 }
+      )
+    }
+
+    const action = body.action || "mark_read"
+
+    if (action === "mark_read") {
+      const conversation =
+        await markConversationRead(conversationId)
+
+      return NextResponse.json({
+        success: true,
+        conversation,
+      })
+    }
+
+    const payload = {
+      ...body,
+      updated_at: new Date().toISOString(),
+    }
+
+    delete payload.conversationId
+    delete payload.conversation_id
+    delete payload.action
+
+    const { data, error } = await supabaseServer
+      .from("conversations")
+      .update(payload)
+      .eq("conversation_id", conversationId)
+      .select("*")
+      .maybeSingle()
+
+    if (error) {
+      throw error
+    }
+
+    return NextResponse.json({
+      success: true,
+      conversation: data,
+    })
+  } catch (error) {
+    console.error("PATCH /api/conversations ERROR:", error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Unable to update conversation",
       },
       { status: 500 }
     )

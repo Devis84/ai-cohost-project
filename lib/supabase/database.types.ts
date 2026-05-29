@@ -1,5 +1,4 @@
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export type Json =
   | string
@@ -17,7 +16,12 @@ export interface Database {
         Insert: any
         Update: any
       }
-      issues: {
+      property_info: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      local_tips: {
         Row: any
         Insert: any
         Update: any
@@ -27,7 +31,17 @@ export interface Database {
         Insert: any
         Update: any
       }
-      property_info: {
+      messages: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      notifications: {
+        Row: any
+        Insert: any
+        Update: any
+      }
+      issues: {
         Row: any
         Insert: any
         Update: any
@@ -42,7 +56,7 @@ export interface Database {
         Insert: any
         Update: any
       }
-      local_tips: {
+      checkins: {
         Row: any
         Insert: any
         Update: any

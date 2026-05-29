@@ -1,33 +1,53 @@
-import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase/supabase"
+ import { NextResponse } from "next/server"
 
-export async function POST(req: Request) {
+import { supabaseServer } from "@/lib/supabase/supabase-server"
 
-  const body = await req.json()
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
 
-  console.log("BODY:", body)
+    const issueId =
+      body.issueId ||
+      body.issue_id ||
+      body.id
 
-  const issueId = body.issueId
+    if (!issueId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "issueId is required",
+        },
+        { status: 400 }
+      )
+    }
 
-  if (!issueId) {
-    console.log("NO ISSUE ID")
+    const { data, error } = await supabaseServer
+      .from("issues")
+      .update({
+        status: "resolved",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", issueId)
+      .select("*")
+      .single()
+
+    if (error) {
+      throw error
+    }
+
     return NextResponse.json({
-      success: false,
-      error: "Missing issueId"
+      success: true,
+      issue: data,
     })
+  } catch (error) {
+    console.error("POST /api/issues/resolve ERROR:", error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Unable to resolve issue",
+      },
+      { status: 500 }
+    )
   }
-
-  const { data, error } = await supabase
-    .from("issues")
-    .update({ status: "resolved" })
-    .eq("id", issueId)
-    .select()
-
-  console.log("UPDATE RESULT:", data, error)
-
-  return NextResponse.json({
-    success: true,
-    data,
-    error
-  })
 }

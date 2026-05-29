@@ -1,45 +1,44 @@
-import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabase/supabase"
+ import { NextResponse } from "next/server"
+
+import { supabaseServer } from "@/lib/supabase/supabase-server"
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from("notifications")
       .select("*")
-      .order("created_at", { ascending: false })
+      .order("created_at", {
+        ascending: false,
+      })
 
     if (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          notifications: [],
-          error: error.message,
-        },
-        { status: 500 }
-      )
+      throw error
     }
 
     return NextResponse.json({
       success: true,
       notifications: data || [],
     })
-  } catch (error: any) {
+  } catch (error) {
+    console.error("GET /api/notifications ERROR:", error)
+
     return NextResponse.json(
       {
         success: false,
         notifications: [],
-        error: error.message,
+        error: "Unable to load notifications",
       },
       { status: 500 }
     )
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(request: Request) {
   try {
-    const body = await req.json()
+    const body = await request.json()
 
-    const { id, read } = body
+    const id = body.id
+    const read = body.read ?? true
 
     if (!id) {
       return NextResponse.json(
@@ -51,34 +50,30 @@ export async function PATCH(req: Request) {
       )
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from("notifications")
       .update({
-        read: read ?? true,
+        read,
       })
       .eq("id", id)
-      .select()
+      .select("*")
       .single()
 
     if (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.message,
-        },
-        { status: 500 }
-      )
+      throw error
     }
 
     return NextResponse.json({
       success: true,
       notification: data,
     })
-  } catch (error: any) {
+  } catch (error) {
+    console.error("PATCH /api/notifications ERROR:", error)
+
     return NextResponse.json(
       {
         success: false,
-        error: error.message,
+        error: "Unable to update notification",
       },
       { status: 500 }
     )

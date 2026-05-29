@@ -1,403 +1,332 @@
  import OpenAI from "openai"
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 
+import { detectEscalation } from "@/lib/ai/escalation"
 import { buildKnowledgePrompt } from "@/lib/ai/prompt-builder"
+import {
+  findOrCreateConversation,
+  getConversationHistory,
+  saveConversationMessage,
+  updateConversationPreview,
+} from "@/lib/services/conversation-service"
+import { supabaseServer } from "@/lib/supabase/supabase-server"
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY,
 })
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+type ChatRequestBody = {
+  message?: string
+  propertySlug?: string
+  propertyId?: string
+  conversationId?: string
+  guestName?: string
+  guestContact?: string
+  channel?: string
+}
 
-function detectEscalation(message: string) {
-  const text = message.toLowerCase()
+type ChatHistoryMessage = {
+  role?: string
+  content?: string
+  message?: string
+}
 
-  const urgentKeywords = [
-    "emergency",
-    "fire",
-    "gas",
-    "leak",
-    "flood",
-    "police",
-    "ambulance",
-    "hospital",
-    "locked out",
-    "can't enter",
-    "cannot enter",
-    "danger",
-    "unsafe",
-  ]
+async function findProperty({
+  propertySlug,
+  propertyId,
+}: {
+  propertySlug?: string
+  propertyId?: string
+}) {
+  if (propertyId) {
+    const { data } = await supabaseServer
+      .from("properties")
+      .select("*")
+      .eq("id", propertyId)
+      .maybeSingle()
 
-  const complaintKeywords = [
-    "refund",
-    "dirty",
-    "not clean",
-    "complaint",
-    "angry",
-    "unacceptable",
-    "broken",
-    "not working",
-    "mold",
-    "smell",
-    "noise",
-    "terrible",
-  ]
-
-  const urgent = urgentKeywords.some((keyword) =>
-    text.includes(keyword)
-  )
-
-  const complaint = complaintKeywords.some((keyword) =>
-    text.includes(keyword)
-  )
-
-  if (urgent) {
-    return {
-      priority: "high",
-      requires_host: true,
-      issue_detected: "urgent_guest_issue",
+    if (data) {
+      return data
     }
   }
 
-  if (complaint) {
-    return {
-      priority: "medium",
-      requires_host: true,
-      issue_detected: "guest_complaint",
+  if (propertySlug) {
+    const cleanSlug =
+      decodeURIComponent(propertySlug).trim()
+
+    const { data: bySlug } = await supabaseServer
+      .from("properties")
+      .select("*")
+      .eq("slug", cleanSlug)
+      .maybeSingle()
+
+    if (bySlug) {
+      return bySlug
+    }
+
+    const { data: byName } = await supabaseServer
+      .from("properties")
+      .select("*")
+      .eq("property_name", cleanSlug)
+      .maybeSingle()
+
+    if (byName) {
+      return byName
     }
   }
 
-  return {
-    priority: "normal",
-    requires_host: false,
-    issue_detected: null,
+  return null
+}
+
+function normalizeOpenAIRole(role?: string) {
+  if (role === "assistant") {
+    return "assistant" as const
+  }
+
+  return "user" as const
+}
+
+async function createHostAlert({
+  propertyId,
+  conversationId,
+  message,
+  priority,
+  issueType,
+}: {
+  propertyId: string
+  conversationId: string
+  message: string
+  priority: string
+  issueType: string | null
+}) {
+  const title =
+    priority === "high"
+      ? "Urgent guest issue detected"
+      : "Guest issue detected"
+
+  const now = new Date().toISOString()
+
+  const notificationResponse =
+    await supabaseServer
+      .from("notifications")
+      .insert({
+        property_id: propertyId,
+        conversation_id: conversationId,
+        type: "guest_issue",
+        title,
+        message,
+        priority,
+        read: false,
+        created_at: now,
+      })
+
+  if (notificationResponse.error) {
+    console.error(
+      "CREATE NOTIFICATION ERROR:",
+      notificationResponse.error
+    )
+  }
+
+  const issueResponse =
+    await supabaseServer
+      .from("issues")
+      .insert({
+        property_id: propertyId,
+        conversation_id: conversationId,
+        issue_type: issueType || "guest_issue",
+        priority,
+        status: "open",
+        description: message,
+        message,
+        created_at: now,
+        updated_at: now,
+      })
+
+  if (issueResponse.error) {
+    console.error(
+      "CREATE ISSUE ERROR:",
+      issueResponse.error
+    )
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const {
-      message,
-      propertySlug,
-      conversationId,
-    } = await req.json()
+    const body =
+      (await request.json()) as ChatRequestBody
 
-    if (
-      !message ||
-      !propertySlug ||
-      !conversationId
-    ) {
+    const message = body.message?.trim()
+    const propertySlug = body.propertySlug?.trim()
+    const propertyId = body.propertyId?.trim()
+    const channel = body.channel || "web"
+
+    if (!message) {
       return NextResponse.json(
         {
-          error:
-            "Missing message, propertySlug or conversationId",
+          success: false,
+          error: "message is required",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       )
     }
 
-    /*
-    LOAD PROPERTY
-    */
-
-    const {
-      data: property,
-      error: propertyError,
-    } = await supabase
-      .from("properties")
-      .select("*")
-      .eq("slug", propertySlug)
-      .single()
-
-    if (propertyError || !property) {
-      console.error(propertyError)
-
+    if (!propertySlug && !propertyId) {
       return NextResponse.json(
         {
+          success: false,
+          error: "propertySlug or propertyId is required",
+        },
+        { status: 400 }
+      )
+    }
+
+    const property = await findProperty({
+      propertySlug,
+      propertyId,
+    })
+
+    if (!property) {
+      return NextResponse.json(
+        {
+          success: false,
           error: "Property not found",
         },
-        {
-          status: 404,
-        }
+        { status: 404 }
       )
     }
 
-    /*
-    LOAD MESSAGE HISTORY
-    */
-
     const {
-      data: previousMessages,
-    } = await supabase
-      .from("messages")
-      .select("*")
-      .eq(
-        "conversation_id",
-        conversationId
-      )
-      .order("created_at", {
-        ascending: true,
-      })
-      .limit(20)
+      conversationId,
+    } = await findOrCreateConversation({
+      conversationId: body.conversationId,
+      propertyId: property.id,
+      guestName: body.guestName,
+      guestContact: body.guestContact,
+      channel,
+    })
 
     const history =
-      previousMessages?.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })) || []
-
-    /*
-    BUILD SYSTEM PROMPT
-    */
-
-    const systemPrompt =
-      buildKnowledgePrompt(property)
-
-    /*
-    ESCALATION DETECTION
-    */
+      await getConversationHistory(conversationId, 20)
 
     const escalation =
       detectEscalation(message)
 
-    /*
-    CREATE NOTIFICATION
-    */
+    await saveConversationMessage({
+      conversationId,
+      propertyId: property.id,
+      role: "user",
+      content: message,
+      channel,
+      priority: escalation.priority,
+      requiresHost: escalation.requires_host,
+      issueDetected: escalation.issue_detected,
+    })
+
+    await updateConversationPreview({
+      conversationId,
+      propertyId: property.id,
+      lastMessage: message,
+      lastSender: "guest",
+      channel,
+      priority: escalation.priority,
+      requiresHost: escalation.requires_host,
+      issueDetected: escalation.issue_detected,
+      status: escalation.requires_host
+        ? "attention_required"
+        : "open",
+      guestName: body.guestName,
+      guestContact: body.guestContact,
+    })
 
     if (escalation.requires_host) {
-      await supabase
-        .from("notifications")
-        .insert({
-          property_id: property.id,
-
-          type: "guest_issue",
-
-          title:
-            "Guest issue detected",
-
-          message,
-
-          priority:
-            escalation.priority,
-        })
+      await createHostAlert({
+        propertyId: property.id,
+        conversationId,
+        message,
+        priority: escalation.priority,
+        issueType: escalation.issue_type,
+      })
     }
 
-    /*
-    SAVE USER MESSAGE
-    */
+    const systemPrompt =
+      buildKnowledgePrompt(property)
 
-    await supabase
-      .from("messages")
-      .insert({
-        property_id: property.id,
-
-        conversation_id:
-          conversationId,
-
-        role: "user",
-
-        content: message,
-
-        priority:
-          escalation.priority,
-
-        requires_host:
-          escalation.requires_host,
-
-        issue_detected:
-          escalation.issue_detected,
-      })
-
-    /*
-    LOAD CURRENT CONVERSATION
-    */
-
-    const {
-      data: existingConversation,
-    } = await supabase
-      .from("conversations")
-      .select("unread_count")
-      .eq(
-        "conversation_id",
-        conversationId
-      )
-      .maybeSingle()
-
-    const currentUnread =
-      existingConversation?.unread_count || 0
-
-    /*
-    UPDATE CONVERSATION
-    */
-
-    await supabase
-      .from("conversations")
-      .upsert(
-        {
-          property_id: property.id,
-
-          conversation_id:
-            conversationId,
-
-          role: "user",
-
-          message,
-
-          priority:
-            escalation.priority,
-
-          requires_host:
-            escalation.requires_host,
-
-          issue_detected:
-            escalation.issue_detected,
-
-          status:
-            escalation.requires_host
-              ? "urgent"
-              : "open",
-
-          unread_count:
-            currentUnread + 1,
-
-          last_sender: "guest",
-
-          last_message_at:
-            new Date().toISOString(),
-        },
-        {
-          onConflict:
-            "conversation_id",
-        }
-      )
-
-    /*
-    OPENAI COMPLETION
-    */
+    const openAIHistory =
+      (history as ChatHistoryMessage[])
+        .filter((item) =>
+          Boolean(item.content || item.message)
+        )
+        .map((item) => ({
+          role: normalizeOpenAIRole(item.role),
+          content: item.content || item.message || "",
+        }))
 
     const completion =
-      await openai.chat.completions.create(
-        {
-          model: "gpt-4o-mini",
-
-          temperature: 0.2,
-
-          messages: [
-            {
-              role: "system",
-              content: systemPrompt,
-            },
-
-            ...history,
-
-            {
-              role: "user",
-              content: message,
-            },
-          ],
-        }
-      )
-
-    const reply =
-      completion.choices[0].message
-        .content || ""
-
-    /*
-    SAVE AI MESSAGE
-    */
-
-    await supabase
-      .from("messages")
-      .insert({
-        property_id: property.id,
-
-        conversation_id:
-          conversationId,
-
-        role: "assistant",
-
-        content: reply,
-
-        priority: "normal",
-
-        requires_host: false,
-
-        issue_detected: null,
+      await openai.chat.completions.create({
+        model:
+          process.env.OPENAI_MODEL ||
+          "gpt-4.1-mini",
+        temperature: 0.2,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          ...openAIHistory,
+          {
+            role: "user",
+            content: message,
+          },
+        ],
       })
 
-    /*
-    UPDATE CONVERSATION
-    */
+    const reply =
+      completion.choices[0]?.message?.content ||
+      "I’m sorry, I’m unable to answer right now. I will notify the host."
 
-    await supabase
-      .from("conversations")
-      .upsert(
-        {
-          property_id: property.id,
+    await saveConversationMessage({
+      conversationId,
+      propertyId: property.id,
+      role: "assistant",
+      content: reply,
+      channel,
+      priority: escalation.priority,
+      requiresHost: false,
+      issueDetected: null,
+    })
 
-          conversation_id:
-            conversationId,
-
-          role: "assistant",
-
-          message: reply,
-
-          priority:
-            escalation.priority,
-
-          requires_host:
-            escalation.requires_host,
-
-          issue_detected:
-            escalation.issue_detected,
-
-          status:
-            escalation.requires_host
-              ? "urgent"
-              : "open",
-
-          unread_count:
-            currentUnread + 1,
-
-          last_sender: "assistant",
-
-          last_message_at:
-            new Date().toISOString(),
-        },
-        {
-          onConflict:
-            "conversation_id",
-        }
-      )
-
-    /*
-    RESPONSE
-    */
+    await updateConversationPreview({
+      conversationId,
+      propertyId: property.id,
+      lastMessage: reply,
+      lastSender: "assistant",
+      channel,
+      priority: escalation.priority,
+      requiresHost: escalation.requires_host,
+      issueDetected: escalation.issue_detected,
+      status: escalation.requires_host
+        ? "attention_required"
+        : "open",
+      unreadCount: escalation.requires_host ? 1 : 0,
+      guestName: body.guestName,
+      guestContact: body.guestContact,
+    })
 
     return NextResponse.json({
+      success: true,
       reply,
+      conversationId,
       escalation,
     })
   } catch (error) {
-    console.error(
-      "CHAT API ERROR:",
-      error
-    )
+    console.error("CHAT API ERROR:", error)
 
     return NextResponse.json(
       {
-        error:
-          "Something went wrong",
+        success: false,
+        error: "Something went wrong while generating the AI reply",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     )
   }
 }
