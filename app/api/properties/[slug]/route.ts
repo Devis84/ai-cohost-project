@@ -8,14 +8,20 @@ const supabase = createClient(
 
 export async function GET(
   req: Request,
-  { params }: { params: { slug: string } }
+  context: {
+    params: Promise<{
+      slug: string
+    }>
+  }
 ) {
   try {
+    const { slug } = await context.params
+
     const { data, error } = await supabase
       .from("properties")
       .select("*")
-      .eq("slug", params.slug)
-      .single();
+      .eq("slug", slug)
+      .single()
 
     if (error || !data) {
       return NextResponse.json(
