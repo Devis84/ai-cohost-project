@@ -189,6 +189,7 @@ function createFallbackReply(
       "key",
       "door",
       "open",
+      "enter",
     ])
   ) {
     const checkinTime =
@@ -337,6 +338,48 @@ function createFallbackReply(
   return `I can help with WiFi, check-in, parking, house rules, restaurants, transport and emergency information for ${propertyName}.`;
 }
 
+async function tryInsertNotification(payloads: Record<string, unknown>[]) {
+  for (const payload of payloads) {
+    const { data, error } = await supabaseServer
+      .from("notifications")
+      .insert(payload)
+      .select("*")
+      .maybeSingle();
+
+    if (!error) {
+      return data;
+    }
+
+    console.error(
+      "CREATE NOTIFICATION ATTEMPT FAILED:",
+      error
+    );
+  }
+
+  return null;
+}
+
+async function tryInsertIssue(payloads: Record<string, unknown>[]) {
+  for (const payload of payloads) {
+    const { data, error } = await supabaseServer
+      .from("issues")
+      .insert(payload)
+      .select("*")
+      .maybeSingle();
+
+    if (!error) {
+      return data;
+    }
+
+    console.error(
+      "CREATE ISSUE ATTEMPT FAILED:",
+      error
+    );
+  }
+
+  return null;
+}
+
 async function createHostAlert({
   propertyId,
   conversationId,
@@ -357,55 +400,82 @@ async function createHostAlert({
 
   const now = new Date().toISOString();
 
-  try {
-    const notificationResponse =
-      await supabaseServer
-        .from("notifications")
-        .insert({
-          property_id: propertyId,
-          conversation_id: conversationId,
-          type: "guest_issue",
-          title,
-          message,
-          priority,
-          read: false,
-          created_at: now,
-        });
+  await tryInsertNotification([
+    {
+      property_id: propertyId,
+      conversation_id: conversationId,
+      type: "guest_issue",
+      title,
+      message,
+      priority,
+      read: false,
+      created_at: now,
+    },
+    {
+      property_id: propertyId,
+      conversation_id: conversationId,
+      title,
+      message,
+      priority,
+      created_at: now,
+    },
+    {
+      property_id: propertyId,
+      title,
+      message,
+      created_at: now,
+    },
+  ]);
 
-    if (notificationResponse.error) {
-      console.error(
-        "CREATE NOTIFICATION ERROR:",
-        notificationResponse.error
-      );
-    }
-  } catch (error) {
-    console.error("CREATE NOTIFICATION FAILED:", error);
+  const issue = await tryInsertIssue([
+    {
+      property_id: propertyId,
+      conversation_id: conversationId,
+      issue_type: issueType || "guest_issue",
+      priority,
+      severity: priority,
+      status: "open",
+      description: message,
+      message,
+      created_at: now,
+    },
+    {
+      property_id: propertyId,
+      conversation_id: conversationId,
+      issue_type: issueType || "guest_issue",
+      priority,
+      status: "open",
+      description: message,
+      created_at: now,
+    },
+    {
+      property_id: propertyId,
+      conversation_id: conversationId,
+      severity: priority,
+      status: "open",
+      message,
+      created_at: now,
+    },
+    {
+      property_id: propertyId,
+      status: "open",
+      description: message,
+      created_at: now,
+    },
+    {
+      property_id: propertyId,
+      message,
+      created_at: now,
+    },
+  ]);
+
+  if (!issue) {
+    console.error(
+      "CREATE ISSUE FAILED COMPLETELY"
+    );
   }
 
-  try {
-    const issueResponse =
-      await supabaseServer
-        .from("issues")
-        .insert({
-          property_id: propertyId,
-          conversation_id: conversationId,
-          issue_type: issueType || "guest_issue",
-          priority,
-          status: "open",
-          description: message,
-          message,
-          created_at: now,
-        });
-
-    if (issueResponse.error) {
-      console.error(
-        "CREATE ISSUE ERROR:",
-        issueResponse.error
-      );
-    }
-  } catch (error) {
-    console.error("CREATE ISSUE FAILED:", error);
-  }
+  return issue;
 }
 
 async function getAIReply({
