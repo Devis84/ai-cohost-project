@@ -1,52 +1,62 @@
- import { randomUUID } from "crypto"
+ import { randomUUID } from "crypto";
 
-import { supabaseServer } from "@/lib/supabase/supabase-server"
+import { supabaseServer } from "@/lib/supabase/supabase-server";
 
 export type MessageRole =
   | "user"
   | "assistant"
   | "system"
   | "guest"
-  | "host"
+  | "host";
 
 type ConversationInput = {
-  conversationId?: string
-  propertyId: string
-  guestName?: string
-  guestContact?: string
-  channel?: string
-}
+  conversationId?: string;
+  propertyId: string;
+  guestName?: string;
+  guestContact?: string;
+  channel?: string;
+};
 
 type SaveMessageInput = {
-  conversationId: string
-  propertyId: string
-  role: MessageRole
-  content: string
-  channel?: string
-  priority?: string
-  requiresHost?: boolean
-  issueDetected?: string | null
-}
+  conversationId: string;
+  propertyId: string;
+  role: MessageRole;
+  content: string;
+  channel?: string;
+  priority?: string;
+  requiresHost?: boolean;
+  issueDetected?: string | null;
+};
 
 type UpdateConversationInput = {
-  conversationId: string
-  propertyId: string
-  lastMessage: string
-  lastSender: string
-  channel?: string
-  priority?: string
-  requiresHost?: boolean
-  issueDetected?: string | null
-  status?: string
-  unreadCount?: number
-  guestName?: string
-  guestContact?: string
-}
+  conversationId: string;
+  propertyId: string;
+  lastMessage: string;
+  lastSender: string;
+  channel?: string;
+  priority?: string;
+  requiresHost?: boolean;
+  issueDetected?: string | null;
+  status?: string;
+  unreadCount?: number;
+  guestName?: string;
+  guestContact?: string;
+};
+
+type ConversationRecord = {
+  id?: string;
+  conversation_id?: string | null;
+  property_id?: string | null;
+  guest_name?: string | null;
+  guest_contact?: string | null;
+  channel?: string | null;
+  unread_count?: number | null;
+};
 
 export function normalizeConversationId(
   conversationId?: string
 ) {
-  return conversationId?.trim() || randomUUID()
+  return conversationId?.trim() || randomUUID();
 }
 
 export async function findConversation(
@@ -56,14 +66,81 @@ export async function findConversation(
     .from("conversations")
     .select("*")
     .eq("conversation_id", conversationId)
-    .maybeSingle()
+    .maybeSingle();
 
   if (error) {
-    console.error("FIND CONVERSATION ERROR:", error)
-    return null
+    console.error("FIND CONVERSATION ERROR:", error);
+    return null;
   }
 
-  return data
+  return data as ConversationRecord | null;
+}
+
+async function tryInsertConversation(payloads: Record<string, unknown>[]) {
+  for (const payload of payloads) {
+    const { data, error } = await supabaseServer
+      .from("conversations")
+      .insert(payload)
+      .select("*")
+      .maybeSingle();
+
+    if (!error) {
+      return data;
+    }
+
+    console.error("CREATE CONVERSATION ATTEMPT FAILED:", error);
+  }
+
+  return null;
+}
+
+async function tryUpdateConversation({
+  conversationId,
+  existingId,
+  payloads,
+}: {
+  conversationId: string;
+  existingId?: string;
+  payloads: Record<string, unknown>[];
+}) {
+  for (const payload of payloads) {
+    const query = supabaseServer
+      .from("conversations")
+      .update(payload)
+      .select("*");
+
+    const { data, error } = existingId
+      ? await query.eq("id", existingId).maybeSingle()
+      : await query
+          .eq("conversation_id", conversationId)
+          .maybeSingle();
+
+    if (!error) {
+      return data;
+    }
+
+    console.error("UPDATE CONVERSATION ATTEMPT FAILED:", error);
+  }
+
+  return null;
+}
+
+async function tryInsertMessage(payloads: Record<string, unknown>[]) {
+  for (const payload of payloads) {
+    const { data, error } = await supabaseServer
+      .from("messages")
+      .insert(payload)
+      .select("*")
+      .maybeSingle();
+
+    if (!error) {
+      return data;
+    }
+
+    console.error("SAVE MESSAGE ATTEMPT FAILED:", error);
+  }
+
+  return null;
 }
 
 export async function findOrCreateConversation({
@@ -74,22 +151,22 @@ export async function findOrCreateConversation({
   channel = "web",
 }: ConversationInput) {
   const finalConversationId =
-    normalizeConversationId(conversationId)
+    normalizeConversationId(conversationId);
 
   const existing =
-    await findConversation(finalConversationId)
+    await findConversation(finalConversationId);
 
   if (existing) {
     return {
       conversation: existing,
       conversationId: finalConversationId,
       created: false,
-    }
+    };
   }
 
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
 
-  const payload = {
+  const fullPayload = {
     conversation_id: finalConversationId,
     property_id: propertyId,
     guest_name: guestName || null,
@@ -104,30 +181,46 @@ export async function findOrCreateConversation({
     last_message: null,
     last_message_at: now,
     created_at: now,
-    updated_at: now,
-  }
+  };
 
-  const { data, error } = await supabaseServer
-    .from("conversations")
-    .insert(payload)
-    .select("*")
-    .single()
+  const mediumPayload = {
+    conversation_id: finalConversationId,
+    property_id: propertyId,
+    guest_name: guestName || null,
+    guest_contact: guestContact || null,
+    channel,
+    status: "open",
+    unread_count: 0,
+    created_at: now,
+  };
 
-  if (error) {
-    console.error("CREATE CONVERSATION ERROR:", error)
+  const minimalPayload = {
+    conversation_id: finalConversationId,
+    property_id: propertyId,
+    created_at: now,
+  };
+
+  const data = await tryInsertConversation([
+    fullPayload,
+    mediumPayload,
+    minimalPayload,
+  ]);
+
+  if (!data) {
+    console.error("CREATE CONVERSATION FAILED COMPLETELY");
 
     return {
       conversation: null,
       conversationId: finalConversationId,
       created: false,
-    }
+    };
   }
 
   return {
     conversation: data,
     conversationId: finalConversationId,
     created: true,
-  }
+  };
 }
 
 export async function getConversationHistory(
@@ -141,14 +234,14 @@ export async function getConversationHistory(
     .order("created_at", {
       ascending: true,
     })
-    .limit(limit)
+    .limit(limit);
 
   if (error) {
-    console.error("GET CONVERSATION HISTORY ERROR:", error)
-    return []
+    console.error("GET CONVERSATION HISTORY ERROR:", error);
+    return [];
   }
 
-  return data || []
+  return data || [];
 }
 
 export async function saveConversationMessage({
@@ -162,29 +255,79 @@ export async function saveConversationMessage({
   issueDetected = null,
 }: SaveMessageInput) {
   const normalizedRole =
-    role === "guest" ? "user" : role
+    role === "guest" ? "user" : role;
 
-  const { data, error } = await supabaseServer
-    .from("messages")
-    .insert({
-      conversation_id: conversationId,
-      property_id: propertyId,
-      role: normalizedRole,
-      content,
-      channel,
-      priority,
-      requires_host: requiresHost,
-      issue_detected: issueDetected,
-    })
-    .select("*")
-    .single()
+  const now = new Date().toISOString();
 
-  if (error) {
-    console.error("SAVE MESSAGE ERROR:", error)
-    return null
+  const fullContentPayload = {
+    conversation_id: conversationId,
+    property_id: propertyId,
+    role: normalizedRole,
+    content,
+    channel,
+    priority,
+    requires_host: requiresHost,
+    issue_detected: issueDetected,
+    created_at: now,
+  };
+
+  const fullMessagePayload = {
+    conversation_id: conversationId,
+    property_id: propertyId,
+    role: normalizedRole,
+    message: content,
+    channel,
+    priority,
+    requires_host: requiresHost,
+    issue_detected: issueDetected,
+    created_at: now,
+  };
+
+  const mediumContentPayload = {
+    conversation_id: conversationId,
+    property_id: propertyId,
+    role: normalizedRole,
+    content,
+    created_at: now,
+  };
+
+  const mediumMessagePayload = {
+    conversation_id: conversationId,
+    property_id: propertyId,
+    role: normalizedRole,
+    message: content,
+    created_at: now,
+  };
+
+  const minimalContentPayload = {
+    conversation_id: conversationId,
+    role: normalizedRole,
+    content,
+    created_at: now,
+  };
+
+  const minimalMessagePayload = {
+    conversation_id: conversationId,
+    role: normalizedRole,
+    message: content,
+    created_at: now,
+  };
+
+  const data = await tryInsertMessage([
+    fullContentPayload,
+    fullMessagePayload,
+    mediumContentPayload,
+    mediumMessagePayload,
+    minimalContentPayload,
+    minimalMessagePayload,
+  ]);
+
+  if (!data) {
+    console.error("SAVE MESSAGE FAILED COMPLETELY");
+    return null;
   }
 
-  return data
+  return data;
 }
 
 export async function updateConversationPreview({
@@ -202,21 +345,21 @@ export async function updateConversationPreview({
   guestContact,
 }: UpdateConversationInput) {
   const existing =
-    await findConversation(conversationId)
+    await findConversation(conversationId);
 
   const currentUnread =
-    existing?.unread_count || 0
+    existing?.unread_count || 0;
 
   const finalUnreadCount =
     typeof unreadCount === "number"
       ? unreadCount
       : lastSender === "guest" || lastSender === "user"
         ? currentUnread + 1
-        : currentUnread
+        : currentUnread;
 
-  const now = new Date().toISOString()
+  const now = new Date().toISOString();
 
-  const payload = {
+  const fullPayload = {
     conversation_id: conversationId,
     property_id: propertyId,
     guest_name:
@@ -235,40 +378,65 @@ export async function updateConversationPreview({
     issue_detected: issueDetected,
     status,
     unread_count: finalUnreadCount,
-    updated_at: now,
-  }
+  };
 
-  if (existing?.id) {
-    const { data, error } = await supabaseServer
-      .from("conversations")
-      .update(payload)
-      .eq("id", existing.id)
-      .select("*")
-      .single()
+  const mediumPayload = {
+    conversation_id: conversationId,
+    property_id: propertyId,
+    role: lastSender,
+    message: lastMessage,
+    last_message: lastMessage,
+    last_sender: lastSender,
+    last_message_at: now,
+    status,
+    unread_count: finalUnreadCount,
+  };
 
-    if (error) {
-      console.error("UPDATE CONVERSATION ERROR:", error)
-      return null
+  const minimalPayload = {
+    conversation_id: conversationId,
+    property_id: propertyId,
+    message: lastMessage,
+    last_message: lastMessage,
+    unread_count: finalUnreadCount,
+  };
+
+  if (existing?.id || existing?.conversation_id) {
+    const updated = await tryUpdateConversation({
+      conversationId,
+      existingId: existing?.id,
+      payloads: [
+        fullPayload,
+        mediumPayload,
+        minimalPayload,
+      ],
+    });
+
+    if (updated) {
+      return updated;
     }
-
-    return data
   }
 
-  const { data, error } = await supabaseServer
-    .from("conversations")
-    .insert({
-      ...payload,
+  const inserted = await tryInsertConversation([
+    {
+      ...fullPayload,
       created_at: now,
-    })
-    .select("*")
-    .single()
+    },
+    {
+      ...mediumPayload,
+      created_at: now,
+    },
+    {
+      ...minimalPayload,
+      created_at: now,
+    },
+  ]);
 
-  if (error) {
-    console.error("INSERT CONVERSATION ERROR:", error)
-    return null
+  if (!inserted) {
+    console.error("UPSERT CONVERSATION PREVIEW FAILED COMPLETELY");
+    return null;
   }
 
-  return data
+  return inserted;
 }
 
 export async function markConversationRead(
@@ -278,16 +446,15 @@ export async function markConversationRead(
     .from("conversations")
     .update({
       unread_count: 0,
-      updated_at: new Date().toISOString(),
     })
     .eq("conversation_id", conversationId)
     .select("*")
-    .maybeSingle()
+    .maybeSingle();
 
   if (error) {
-    console.error("MARK CONVERSATION READ ERROR:", error)
-    return null
+    console.error("MARK CONVERSATION READ ERROR:", error);
+    return null;
   }
 
-  return data
+  return data;
 }

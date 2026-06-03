@@ -14,6 +14,7 @@ type ConversationRecord = {
   conversation_id?: string | null;
   property_id?: string | null;
   message?: string | null;
+  content?: string | null;
   last_message?: string | null;
   role?: string | null;
   last_sender?: string | null;
@@ -23,7 +24,52 @@ type ConversationRecord = {
   requires_host?: boolean | null;
   issue_detected?: string | null;
   unread_count?: number | null;
+  status?: string | null;
 };
+
+type MessageRecord = {
+  id?: string;
+  conversation_id?: string | null;
+  property_id?: string | null;
+  role?: string | null;
+  message?: string | null;
+  content?: string | null;
+  created_at?: string | null;
+  priority?: string | null;
+  requires_host?: boolean | null;
+  issue_detected?: string | null;
+};
+
+function getMessageText(record?: ConversationRecord | MessageRecord | null) {
+  if (!record) {
+    return null;
+  }
+
+  return record.last_message ||
+    record.message ||
+    record.content ||
+    null;
+}
+
+function getRecordDate(record?: ConversationRecord | MessageRecord | null) {
+  if (!record) {
+    return null;
+  }
+
+  return record.last_message_at ||
+    record.created_at ||
+    null;
+}
+
+function getRecordSender(record?: ConversationRecord | MessageRecord | null) {
+  if (!record) {
+    return null;
+  }
+
+  return record.last_sender ||
+    record.role ||
+    null;
+}
 
 export async function GET() {
   try {
@@ -55,6 +101,33 @@ export async function GET() {
       throw conversationsError;
     }
 
+    let messagesData: MessageRecord[] = [];
+
+    try {
+      const { data, error } = await supabaseServer
+        .from("messages")
+        .select("*")
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (!error && data) {
+        messagesData = data as MessageRecord[];
+      }
+
+      if (error) {
+        console.error(
+          "GET /api/all-conversations messages warning:",
+          error
+        );
+      }
+    } catch (error) {
+      console.error(
+        "GET /api/all-conversations messages fallback failed:",
+        error
+      );
+    }
+
     const properties =
       (propertiesData || []) as PropertyRecord[];
 
@@ -80,12 +153,73 @@ export async function GET() {
         ?.push(conversation);
     }
 
+    const messagesByProperty =
+      new Map<string, MessageRecord[]>();
+
+    for (const message of messagesData) {
+      const propertyId = message.property_id;
+
+      if (!propertyId) {
+        continue;
+      }
+
+      if (!messagesByProperty.has(propertyId)) {
+        messagesByProperty.set(propertyId, []);
+      }
+
+      messagesByProperty
+        .get(propertyId)
+        ?.push(message);
+    }
+
     const inbox = properties.map((property) => {
       const propertyConversations =
         conversationsByProperty.get(property.id) || [];
 
+      const propertyMessages =
+        messagesByProperty.get(property.id) || [];
+
       const latestConversation =
-        propertyConversations[0];
+        propertyConversations[0] || null;
+
+      const latestMessage =
+        propertyMessages[0] || null;
+
+      const conversationId =
+        latestConversation?.conversation_id ||
+        latestMessage?.conversation_id ||
+        latestConversation?.id ||
+        null;
+
+      const source =
+        latestConversation || latestMessage;
+
+      const lastMessage =
+        getMessageText(latestConversation) ||
+        getMessageText(latestMessage);
+
+      const createdAt =
+        getRecordDate(latestConversation) ||
+        getRecordDate(latestMessage);
+
+      const role =
+        getRecordSender(latestConversation) ||
+        getRecordSender(latestMessage);
+
+      const priority =
+        latestConversation?.priority ||
+        latestMessage?.priority ||
+        "normal";
+
+      const requiresHost =
+        latestConversation?.requires_host ||
+        latestMessage?.requires_host ||
+        false;
+
+      const issueDetected =
+        latestConversation?.issue_detected ||
+        latestMessage?.issue_detected ||
+        null;
 
       return {
         propertyId: property.id,
@@ -97,44 +231,34 @@ export async function GET() {
 
         city: property.city || "",
 
-        conversationId:
-          latestConversation?.conversation_id ||
-          latestConversation?.id ||
-          null,
+        conversationId,
+        conversation_id: conversationId,
 
-        lastMessage:
-          latestConversation?.last_message ||
-          latestConversation?.message ||
-          null,
+        lastMessage,
+        role,
+        created_at: createdAt,
 
-        role:
-          latestConversation?.last_sender ||
-          latestConversation?.role ||
-          null,
-
-        created_at:
-          latestConversation?.last_message_at ||
-          latestConversation?.created_at ||
-          null,
-
-        priority:
-          latestConversation?.priority ||
-          "normal",
-
-        requires_host:
-          latestConversation?.requires_host ||
-          false,
-
-        issue_detected:
-          latestConversation?.issue_detected ||
-          null,
+        priority,
+        requires_host: requiresHost,
+        issue_detected: issueDetected,
 
         unread_count:
           latestConversation?.unread_count ||
-          0,
+          (requiresHost ? 1 : 0),
 
         conversation_count:
-          propertyConversations.length,
+          propertyConversations.length ||
+          (conversationId ? 1 : 0),
+
+        message_count:
+          propertyMessages.length,
+
+        status:
+          latestConversation?.status ||
+          null,
+
+        sourceId:
+          source?.id || null,
       };
     });
 
@@ -149,7 +273,10 @@ export async function GET() {
       {
         success: false,
         inbox: [],
-        error: "Unable to load inbox",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to load inbox",
       },
       {
         status: 500,
