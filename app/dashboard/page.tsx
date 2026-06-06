@@ -618,6 +618,13 @@ export default function Dashboard() {
             </button>
 
             <a
+              href="/dashboard/qr"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
+            >
+              📲 Guest Access QR/NFC
+            </a>
+
+            <a
               href="/dashboard/inbox"
               className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
             >
@@ -744,6 +751,13 @@ export default function Dashboard() {
                         className="bg-gray-100 hover:bg-gray-200 px-5 py-3 rounded-2xl text-sm font-semibold"
                       >
                         Open Guest Page
+                      </a>
+
+                      <a
+                        href="/dashboard/qr"
+                        className="bg-black text-white hover:opacity-90 px-5 py-3 rounded-2xl text-sm font-semibold"
+                      >
+                        Guest Access QR/NFC
                       </a>
 
                       <a
