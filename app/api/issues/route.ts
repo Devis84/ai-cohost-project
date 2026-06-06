@@ -7,6 +7,13 @@ type PropertyRecord = {
   property_name?: string | null;
   name?: string | null;
   city?: string | null;
+  slug?: string | null;
+};
+
+type ConversationRecord = {
+  id?: string;
+  conversation_id?: string | null;
+  property_id?: string | null;
 };
 
 type IssueRecord = {
@@ -23,6 +30,53 @@ type IssueRecord = {
   created_at?: string | null;
 };
 
+function getPropertyName(property?: PropertyRecord | null) {
+  if (!property) {
+    return "";
+  }
+
+  return (
+    property.property_name ||
+    property.name ||
+    property.slug ||
+    "Unknown property"
+  );
+}
+
+function getIssuePriority(issue: IssueRecord) {
+  return (
+    issue.priority ||
+    issue.severity ||
+    "normal"
+  );
+}
+
+async function loadProperties() {
+  const { data, error } = await supabaseServer
+    .from("properties")
+    .select("*");
+
+  if (error) {
+    console.error("LOAD PROPERTIES FOR ISSUES ERROR:", error);
+    return [];
+  }
+
+  return (data || []) as PropertyRecord[];
+}
+
+async function loadConversations() {
+  const { data, error } = await supabaseServer
+    .from("conversations")
+    .select("*");
+
+  if (error) {
+    console.error("LOAD CONVERSATIONS FOR ISSUES ERROR:", error);
+    return [];
+  }
+
+  return (data || []) as ConversationRecord[];
+}
+
 export async function GET() {
   try {
     const { data: issuesData, error: issuesError } =
@@ -37,46 +91,75 @@ export async function GET() {
       throw issuesError;
     }
 
-    const { data: propertiesData, error: propertiesError } =
-      await supabaseServer
-        .from("properties")
-        .select("id, property_name, name, city");
+    const properties = await loadProperties();
+    const conversations = await loadConversations();
 
-    if (propertiesError) {
-      console.error(
-        "GET /api/issues properties warning:",
-        propertiesError
-      );
+    const propertyMap = new Map<string, PropertyRecord>();
+
+    for (const property of properties) {
+      if (property.id) {
+        propertyMap.set(property.id, property);
+      }
     }
 
-    const propertyMap =
-      new Map<string, PropertyRecord>();
+    const conversationMap =
+      new Map<string, ConversationRecord>();
 
-    for (const property of propertiesData || []) {
-      propertyMap.set(property.id, property);
+    for (const conversation of conversations) {
+      if (conversation.conversation_id) {
+        conversationMap.set(
+          conversation.conversation_id,
+          conversation
+        );
+      }
+
+      if (conversation.id) {
+        conversationMap.set(
+          conversation.id,
+          conversation
+        );
+      }
     }
 
     const issues =
       ((issuesData || []) as IssueRecord[]).map((issue) => {
-        const property = issue.property_id
-          ? propertyMap.get(issue.property_id)
-          : null;
+        const conversation =
+          issue.conversation_id
+            ? conversationMap.get(issue.conversation_id)
+            : null;
+
+        const resolvedPropertyId =
+          issue.property_id ||
+          conversation?.property_id ||
+          null;
+
+        const property =
+          resolvedPropertyId
+            ? propertyMap.get(resolvedPropertyId)
+            : null;
+
+        const propertyName =
+          getPropertyName(property) ||
+          (resolvedPropertyId
+            ? `Property ${resolvedPropertyId.slice(0, 8)}`
+            : "Unknown property");
 
         return {
           ...issue,
-          property_name:
-            property?.property_name ||
-            property?.name ||
-            "Unknown property",
+
+          property_id: resolvedPropertyId,
+
+          property_name: propertyName,
+
           property_city:
             property?.city || "",
+
           priority:
-            issue.priority ||
-            issue.severity ||
-            "normal",
+            getIssuePriority(issue),
+
           status:
-            issue.status ||
-            "open",
+            issue.status || "open",
+
           description:
             issue.description ||
             issue.message ||
