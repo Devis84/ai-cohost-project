@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -657,6 +657,13 @@ export default function Dashboard() {
               className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
             >
               💳 Billing
+            </a>
+
+            <a
+              href="/logout"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-red-100 text-red-600 hover:bg-red-600 hover:text-white"
+            >
+              🚪 Logout
             </a>
           </aside>
 
