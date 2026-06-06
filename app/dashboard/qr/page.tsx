@@ -1,4 +1,4 @@
- /* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +22,14 @@ function createSlug(value: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function escapeWifiValue(value?: string | null) {
+  return (value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/:/g, "\\:");
+}
+
 function createWifiQrValue({
   wifiName,
   wifiPassword,
@@ -29,10 +37,23 @@ function createWifiQrValue({
   wifiName?: string | null;
   wifiPassword?: string | null;
 }) {
-  const ssid = wifiName || "";
-  const password = wifiPassword || "";
+  const ssid = escapeWifiValue(wifiName);
+  const password = escapeWifiValue(wifiPassword);
 
   return `WIFI:T:WPA;S:${ssid};P:${password};;`;
+}
+
+async function generateQr(value: string) {
+  try {
+    return await QRCode.toDataURL(value, {
+      width: 720,
+      margin: 2,
+      errorCorrectionLevel: "H",
+    });
+  } catch (error) {
+    console.error("QR GENERATION ERROR:", error);
+    return "";
+  }
 }
 
 export default function DashboardQrPage() {
@@ -137,19 +158,6 @@ export default function DashboardQrPage() {
       alert("Unable to load properties");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function generateQr(value: string) {
-    try {
-      return await QRCode.toDataURL(value, {
-        width: 720,
-        margin: 2,
-        errorCorrectionLevel: "H",
-      });
-    } catch (error) {
-      console.error("QR GENERATION ERROR:", error);
-      return "";
     }
   }
 

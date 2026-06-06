@@ -40,35 +40,57 @@ type MessageRecord = {
   issue_detected?: string | null;
 };
 
-function getMessageText(record?: ConversationRecord | MessageRecord | null) {
+function getConversationText(record: ConversationRecord | null) {
   if (!record) {
     return null;
   }
 
-  return record.last_message ||
+  return (
+    record.last_message ||
     record.message ||
     record.content ||
-    null;
+    null
+  );
 }
 
-function getRecordDate(record?: ConversationRecord | MessageRecord | null) {
+function getMessageText(record: MessageRecord | null) {
   if (!record) {
     return null;
   }
 
-  return record.last_message_at ||
-    record.created_at ||
-    null;
+  return record.message || record.content || null;
 }
 
-function getRecordSender(record?: ConversationRecord | MessageRecord | null) {
+function getConversationDate(record: ConversationRecord | null) {
   if (!record) {
     return null;
   }
 
-  return record.last_sender ||
-    record.role ||
-    null;
+  return record.last_message_at || record.created_at || null;
+}
+
+function getMessageDate(record: MessageRecord | null) {
+  if (!record) {
+    return null;
+  }
+
+  return record.created_at || null;
+}
+
+function getConversationSender(record: ConversationRecord | null) {
+  if (!record) {
+    return null;
+  }
+
+  return record.last_sender || record.role || null;
+}
+
+function getMessageSender(record: MessageRecord | null) {
+  if (!record) {
+    return null;
+  }
+
+  return record.role || null;
 }
 
 export async function GET() {
@@ -98,33 +120,26 @@ export async function GET() {
       });
 
     if (conversationsError) {
-      throw conversationsError;
+      console.error(
+        "GET /api/all-conversations conversations warning:",
+        conversationsError
+      );
     }
 
-    let messagesData: MessageRecord[] = [];
+    const {
+      data: messagesData,
+      error: messagesError,
+    } = await supabaseServer
+      .from("messages")
+      .select("*")
+      .order("created_at", {
+        ascending: false,
+      });
 
-    try {
-      const { data, error } = await supabaseServer
-        .from("messages")
-        .select("*")
-        .order("created_at", {
-          ascending: false,
-        });
-
-      if (!error && data) {
-        messagesData = data as MessageRecord[];
-      }
-
-      if (error) {
-        console.error(
-          "GET /api/all-conversations messages warning:",
-          error
-        );
-      }
-    } catch (error) {
+    if (messagesError) {
       console.error(
-        "GET /api/all-conversations messages fallback failed:",
-        error
+        "GET /api/all-conversations messages warning:",
+        messagesError
       );
     }
 
@@ -133,6 +148,9 @@ export async function GET() {
 
     const conversations =
       (conversationsData || []) as ConversationRecord[];
+
+    const messages =
+      (messagesData || []) as MessageRecord[];
 
     const conversationsByProperty =
       new Map<string, ConversationRecord[]>();
@@ -156,7 +174,7 @@ export async function GET() {
     const messagesByProperty =
       new Map<string, MessageRecord[]>();
 
-    for (const message of messagesData) {
+    for (const message of messages) {
       const propertyId = message.property_id;
 
       if (!propertyId) {
@@ -167,9 +185,7 @@ export async function GET() {
         messagesByProperty.set(propertyId, []);
       }
 
-      messagesByProperty
-        .get(propertyId)
-        ?.push(message);
+      messagesByProperty.get(propertyId)?.push(message);
     }
 
     const inbox = properties.map((property) => {
@@ -180,10 +196,14 @@ export async function GET() {
         messagesByProperty.get(property.id) || [];
 
       const latestConversation =
-        propertyConversations[0] || null;
+        propertyConversations.length > 0
+          ? propertyConversations[0]
+          : null;
 
       const latestMessage =
-        propertyMessages[0] || null;
+        propertyMessages.length > 0
+          ? propertyMessages[0]
+          : null;
 
       const conversationId =
         latestConversation?.conversation_id ||
@@ -191,20 +211,17 @@ export async function GET() {
         latestConversation?.id ||
         null;
 
-      const source =
-        latestConversation || latestMessage;
-
       const lastMessage =
-        getMessageText(latestConversation) ||
+        getConversationText(latestConversation) ||
         getMessageText(latestMessage);
 
       const createdAt =
-        getRecordDate(latestConversation) ||
-        getRecordDate(latestMessage);
+        getConversationDate(latestConversation) ||
+        getMessageDate(latestMessage);
 
       const role =
-        getRecordSender(latestConversation) ||
-        getRecordSender(latestMessage);
+        getConversationSender(latestConversation) ||
+        getMessageSender(latestMessage);
 
       const priority =
         latestConversation?.priority ||
@@ -258,7 +275,9 @@ export async function GET() {
           null,
 
         sourceId:
-          source?.id || null,
+          latestConversation?.id ||
+          latestMessage?.id ||
+          null,
       };
     });
 

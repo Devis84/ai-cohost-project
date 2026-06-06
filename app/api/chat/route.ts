@@ -50,6 +50,53 @@ type PropertyRecord = {
   ai_knowledge?: string | null;
   knowledge_base?: {
     welcome_book?: {
+      description?: string | null;
+      amenities?: string | null;
+      house_rules?: string | null;
+      parking?: string | null;
+      trash?: string | null;
+      ac?: string | null;
+      boiler?: string | null;
+      restaurants?: string | null;
+      transport?: string | null;
+      local_guide?: string | null;
+      emergency?: string | null;
+      checkout_notes?: string | null;
+      extra_notes?: string | null;
+    };
+    ai_training?: {
+      faq?: string | null;
+      troubleshooting?: string | null;
+      guest_style?: string | null;
+      hidden_notes?: string | null;
+      additional_notes?: string | null;
+    };
+  } | null;
+};
+
+type PromptProperty = {
+  id?: string;
+  property_name?: string;
+  slug?: string;
+  city?: string;
+  country?: string;
+  address?: string;
+  wifi_name?: string;
+  wifi_password?: string;
+  checkin_time?: string;
+  checkout_time?: string;
+  checkin_instructions?: string;
+  lockbox_code?: string;
+  emergency_numbers?: string;
+  house_rules?: string;
+  description?: string;
+  amenities?: string;
+  parking_info?: string;
+  local_info?: string;
+  emergency_info?: string;
+  ai_knowledge?: string;
+  knowledge_base?: {
+    welcome_book?: {
       description?: string;
       amenities?: string;
       house_rules?: string;
@@ -71,12 +118,124 @@ type PropertyRecord = {
       hidden_notes?: string;
       additional_notes?: string;
     };
-  } | null;
+  };
 };
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "missing-key",
 });
+
+function safeString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizePropertyForPrompt(
+  property: PropertyRecord
+): PromptProperty {
+  return {
+    id: property.id,
+    property_name:
+      property.property_name || "Untitled property",
+    slug: safeString(property.slug),
+    city: safeString(property.city),
+    country: safeString(property.country),
+    address: safeString(property.address),
+    wifi_name: safeString(property.wifi_name),
+    wifi_password: safeString(property.wifi_password),
+    checkin_time: safeString(property.checkin_time),
+    checkout_time: safeString(property.checkout_time),
+    checkin_instructions:
+      safeString(property.checkin_instructions),
+    lockbox_code: safeString(property.lockbox_code),
+    emergency_numbers:
+      safeString(property.emergency_numbers),
+    house_rules: safeString(property.house_rules),
+    description: safeString(property.description),
+    amenities: safeString(property.amenities),
+    parking_info: safeString(property.parking_info),
+    local_info: safeString(property.local_info),
+    emergency_info: safeString(property.emergency_info),
+    ai_knowledge: safeString(property.ai_knowledge),
+    knowledge_base: {
+      welcome_book: {
+        description:
+          safeString(
+            property.knowledge_base?.welcome_book?.description
+          ),
+        amenities:
+          safeString(
+            property.knowledge_base?.welcome_book?.amenities
+          ),
+        house_rules:
+          safeString(
+            property.knowledge_base?.welcome_book?.house_rules
+          ),
+        parking:
+          safeString(
+            property.knowledge_base?.welcome_book?.parking
+          ),
+        trash:
+          safeString(
+            property.knowledge_base?.welcome_book?.trash
+          ),
+        ac:
+          safeString(
+            property.knowledge_base?.welcome_book?.ac
+          ),
+        boiler:
+          safeString(
+            property.knowledge_base?.welcome_book?.boiler
+          ),
+        restaurants:
+          safeString(
+            property.knowledge_base?.welcome_book?.restaurants
+          ),
+        transport:
+          safeString(
+            property.knowledge_base?.welcome_book?.transport
+          ),
+        local_guide:
+          safeString(
+            property.knowledge_base?.welcome_book?.local_guide
+          ),
+        emergency:
+          safeString(
+            property.knowledge_base?.welcome_book?.emergency
+          ),
+        checkout_notes:
+          safeString(
+            property.knowledge_base?.welcome_book?.checkout_notes
+          ),
+        extra_notes:
+          safeString(
+            property.knowledge_base?.welcome_book?.extra_notes
+          ),
+      },
+      ai_training: {
+        faq:
+          safeString(
+            property.knowledge_base?.ai_training?.faq
+          ),
+        troubleshooting:
+          safeString(
+            property.knowledge_base?.ai_training?.troubleshooting
+          ),
+        guest_style:
+          safeString(
+            property.knowledge_base?.ai_training?.guest_style
+          ),
+        hidden_notes:
+          safeString(
+            property.knowledge_base?.ai_training?.hidden_notes
+          ),
+        additional_notes:
+          safeString(
+            property.knowledge_base?.ai_training?.additional_notes
+          ),
+      },
+    },
+  };
+}
 
 async function findProperty({
   propertySlug,
@@ -301,7 +460,7 @@ function createFallbackReply(
       property.emergency_numbers ||
       welcome.emergency ||
       property.emergency_info ||
-      "For emergencies in Malta, call 112."
+      "For emergencies, call the local emergency number."
     );
   }
 
@@ -338,7 +497,9 @@ function createFallbackReply(
   return `I can help with WiFi, check-in, parking, house rules, restaurants, transport and emergency information for ${propertyName}.`;
 }
 
-async function tryInsertNotification(payloads: Record<string, unknown>[]) {
+async function tryInsertNotification(
+  payloads: Record<string, unknown>[]
+) {
   for (const payload of payloads) {
     const { data, error } = await supabaseServer
       .from("notifications")
@@ -359,7 +520,9 @@ async function tryInsertNotification(payloads: Record<string, unknown>[]) {
   return null;
 }
 
-async function tryInsertIssue(payloads: Record<string, unknown>[]) {
+async function tryInsertIssue(
+  payloads: Record<string, unknown>[]
+) {
   for (const payload of payloads) {
     const { data, error } = await supabaseServer
       .from("issues")
@@ -470,9 +633,7 @@ async function createHostAlert({
   ]);
 
   if (!issue) {
-    console.error(
-      "CREATE ISSUE FAILED COMPLETELY"
-    );
+    console.error("CREATE ISSUE FAILED COMPLETELY");
   }
 
   return issue;
@@ -495,7 +656,9 @@ async function getAIReply({
 
   try {
     const systemPrompt =
-      buildKnowledgePrompt(property);
+      buildKnowledgePrompt(
+        normalizePropertyForPrompt(property)
+      );
 
     const openAIHistory =
       history
