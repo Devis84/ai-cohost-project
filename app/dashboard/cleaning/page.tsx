@@ -13,19 +13,39 @@ type Checklist = {
 
 type CleaningTask = {
   id: string
-  property_id?: string
-  property_name?: string
-  cleaning_date?: string
-  checkout_time?: string
-  cleaner_name?: string
-  cleaner_contact?: string
-  status?: string
-  priority?: string
-  notes?: string
-  assigned_at?: string
-  started_at?: string
-  completed_at?: string
-  checklist?: Checklist
+  property_id?: string | null
+  property_name?: string | null
+  cleaning_date?: string | null
+  checkout_date?: string | null
+  checkout_time?: string | null
+  next_checkin_date?: string | null
+  next_checkin_time?: string | null
+  planned_start_time?: string | null
+  planned_end_time?: string | null
+  actual_start_time?: string | null
+  actual_end_time?: string | null
+  cleaner_name?: string | null
+  cleaner_contact?: string | null
+  hourly_rate?: number | string | null
+  extra_fee?: number | string | null
+  currency?: string | null
+  status?: string | null
+  priority?: string | null
+  notes?: string | null
+  assigned_at?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+  checklist?: Checklist | null
+}
+
+type TaskDraft = {
+  cleaner_name: string
+  cleaner_contact: string
+  actual_start_time: string
+  actual_end_time: string
+  hourly_rate: string
+  extra_fee: string
+  notes: string
 }
 
 const defaultChecklist: Checklist = {
@@ -37,33 +57,249 @@ const defaultChecklist: Checklist = {
   final_check: false,
 }
 
+const statusOptions = [
+  "all",
+  "pending",
+  "accepted",
+  "in_progress",
+  "completed",
+]
+
+function safeText(value?: string | null) {
+  return typeof value === "string" && value.trim()
+    ? value.trim()
+    : ""
+}
+
+function toNumber(value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return 0
+  }
+
+  const numberValue = Number(value)
+  return Number.isNaN(numberValue) ? 0 : numberValue
+}
+
+function calculateHours(
+  start?: string | null,
+  end?: string | null
+) {
+  if (!start || !end) {
+    return 0
+  }
+
+  const [startHour, startMinute] = start.split(":").map(Number)
+  const [endHour, endMinute] = end.split(":").map(Number)
+
+  if (
+    Number.isNaN(startHour) ||
+    Number.isNaN(startMinute) ||
+    Number.isNaN(endHour) ||
+    Number.isNaN(endMinute)
+  ) {
+    return 0
+  }
+
+  const startTotal = startHour * 60 + startMinute
+  const endTotal = endHour * 60 + endMinute
+
+  if (endTotal <= startTotal) {
+    return 0
+  }
+
+  return Math.round(((endTotal - startTotal) / 60) * 100) / 100
+}
+
+function getTaskHours(task: CleaningTask) {
+  return calculateHours(
+    safeText(task.actual_start_time),
+    safeText(task.actual_end_time)
+  )
+}
+
+function getDraftHours(draft?: TaskDraft) {
+  if (!draft) {
+    return 0
+  }
+
+  return calculateHours(
+    draft.actual_start_time,
+    draft.actual_end_time
+  )
+}
+
+function getTaskAmount(task: CleaningTask) {
+  const hours = getTaskHours(task)
+  const rate = toNumber(task.hourly_rate)
+  const extra = toNumber(task.extra_fee)
+
+  return Math.round((hours * rate + extra) * 100) / 100
+}
+
+function getDraftAmount(draft?: TaskDraft) {
+  if (!draft) {
+    return 0
+  }
+
+  const hours = getDraftHours(draft)
+  const rate = toNumber(draft.hourly_rate)
+  const extra = toNumber(draft.extra_fee)
+
+  return Math.round((hours * rate + extra) * 100) / 100
+}
+
+function formatMoney(amount: number, currency = "EUR") {
+  return `${currency} ${amount.toFixed(2)}`
+}
+
+function getChecklistProgress(task: CleaningTask) {
+  const checklist = {
+    ...defaultChecklist,
+    ...(task.checklist || {}),
+  }
+
+  const values = Object.values(checklist)
+  const completed = values.filter(Boolean).length
+  const total = values.length
+  const percent =
+    total > 0 ? Math.round((completed / total) * 100) : 0
+
+  return {
+    checklist,
+    completed,
+    total,
+    percent,
+  }
+}
+
+function groupTasksByDate(tasks: CleaningTask[]) {
+  return tasks.reduce<Record<string, CleaningTask[]>>(
+    (groups, task) => {
+      const date =
+        safeText(task.cleaning_date) ||
+        safeText(task.checkout_date) ||
+        "Unscheduled"
+
+      if (!groups[date]) {
+        groups[date] = []
+      }
+
+      groups[date].push(task)
+      return groups
+    },
+    {}
+  )
+}
+
+function createDraftFromTask(task: CleaningTask): TaskDraft {
+  return {
+    cleaner_name: safeText(task.cleaner_name),
+    cleaner_contact: safeText(task.cleaner_contact),
+    actual_start_time: safeText(task.actual_start_time),
+    actual_end_time: safeText(task.actual_end_time),
+    hourly_rate:
+      task.hourly_rate === undefined ||
+      task.hourly_rate === null
+        ? ""
+        : String(task.hourly_rate),
+    extra_fee:
+      task.extra_fee === undefined || task.extra_fee === null
+        ? ""
+        : String(task.extra_fee),
+    notes: safeText(task.notes),
+  }
+}
+
+function FieldLabel({
+  title,
+  description,
+}: {
+  title: string
+  description?: string
+}) {
+  return (
+    <div className="mb-2">
+      <label className="block text-sm font-bold text-gray-800">
+        {title}
+      </label>
+
+      {description && (
+        <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+          {description}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function SectionTitle({
+  number,
+  title,
+  description,
+}: {
+  number: string
+  title: string
+  description: string
+}) {
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="bg-black text-white rounded-2xl w-9 h-9 flex items-center justify-center font-bold text-sm">
+          {number}
+        </div>
+
+        <h3 className="text-xl font-black">
+          {title}
+        </h3>
+      </div>
+
+      <p className="text-sm text-gray-500 leading-relaxed">
+        {description}
+      </p>
+    </div>
+  )
+}
+
 export default function CleaningDashboard() {
   const [tasks, setTasks] = useState<CleaningTask[]>([])
+  const [drafts, setDrafts] = useState<Record<string, TaskDraft>>({})
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [filter, setFilter] = useState("all")
 
-  const [propertyName, setPropertyName] =
-    useState("")
+  const [propertyName, setPropertyName] = useState("")
+  const [cleaningDate, setCleaningDate] = useState("")
+  const [checkoutDate, setCheckoutDate] = useState("")
+  const [checkoutTime, setCheckoutTime] = useState("")
+  const [nextCheckinDate, setNextCheckinDate] = useState("")
+  const [nextCheckinTime, setNextCheckinTime] = useState("")
+  const [plannedStartTime, setPlannedStartTime] = useState("")
+  const [plannedEndTime, setPlannedEndTime] = useState("")
+  const [cleanerName, setCleanerName] = useState("")
+  const [cleanerContact, setCleanerContact] = useState("")
+  const [hourlyRate, setHourlyRate] = useState("")
 
-  const [cleaningDate, setCleaningDate] =
-    useState("")
+  function rebuildDrafts(nextTasks: CleaningTask[]) {
+    const nextDrafts: Record<string, TaskDraft> = {}
 
-  const [checkoutTime, setCheckoutTime] =
-    useState("")
+    nextTasks.forEach((task) => {
+      nextDrafts[task.id] =
+        drafts[task.id] || createDraftFromTask(task)
+    })
 
-  const [filter, setFilter] =
-    useState("all")
+    setDrafts(nextDrafts)
+  }
 
   async function fetchTasks() {
     try {
       setLoading(true)
 
-      const res = await fetch(
-        "/api/cleaning-tasks"
-      )
-
+      const res = await fetch("/api/cleaning-tasks")
       const data = await res.json()
+      const nextTasks = data.tasks || []
 
-      setTasks(data.tasks || [])
+      setTasks(nextTasks)
+      rebuildDrafts(nextTasks)
     } catch (err) {
       console.error(err)
     } finally {
@@ -73,57 +309,88 @@ export default function CleaningDashboard() {
 
   useEffect(() => {
     fetchTasks()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  function updateDraft(
+    taskId: string,
+    field: keyof TaskDraft,
+    value: string
+  ) {
+    setDrafts((current) => ({
+      ...current,
+      [taskId]: {
+        ...(current[taskId] || {
+          cleaner_name: "",
+          cleaner_contact: "",
+          actual_start_time: "",
+          actual_end_time: "",
+          hourly_rate: "",
+          extra_fee: "",
+          notes: "",
+        }),
+        [field]: value,
+      },
+    }))
+  }
 
   async function createTask() {
     if (!propertyName || !cleaningDate) {
-      alert(
-        "Property name and date are required"
-      )
-
+      alert("Property name and cleaning date are required")
       return
     }
 
     try {
-      const res = await fetch(
-        "/api/cleaning-tasks",
-        {
-          method: "POST",
+      setSaving(true)
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            property_name: propertyName,
-            cleaning_date: cleaningDate,
-            checkout_time: checkoutTime,
-            status: "pending",
-            priority: "normal",
-            checklist: defaultChecklist,
-          }),
-        }
-      )
+      const res = await fetch("/api/cleaning-tasks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          property_name: propertyName,
+          cleaning_date: cleaningDate,
+          checkout_date: checkoutDate || cleaningDate,
+          checkout_time: checkoutTime,
+          next_checkin_date: nextCheckinDate,
+          next_checkin_time: nextCheckinTime,
+          planned_start_time: plannedStartTime,
+          planned_end_time: plannedEndTime,
+          cleaner_name: cleanerName,
+          cleaner_contact: cleanerContact,
+          hourly_rate: hourlyRate,
+          currency: "EUR",
+          status: "pending",
+          priority: "normal",
+          checklist: defaultChecklist,
+        }),
+      })
 
       const data = await res.json()
 
       if (!data.success) {
-        alert(
-          data.error ||
-            "Error creating task"
-        )
-
+        alert(data.error || "Error creating task")
         return
       }
 
       setPropertyName("")
       setCleaningDate("")
+      setCheckoutDate("")
       setCheckoutTime("")
+      setNextCheckinDate("")
+      setNextCheckinTime("")
+      setPlannedStartTime("")
+      setPlannedEndTime("")
+      setCleanerName("")
+      setCleanerContact("")
+      setHourlyRate("")
 
-      fetchTasks()
+      await fetchTasks()
     } catch (err) {
       console.error(err)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -132,71 +399,74 @@ export default function CleaningDashboard() {
     payload: Partial<CleaningTask>
   ) {
     try {
-      const res = await fetch(
-        "/api/cleaning-tasks",
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            id,
-            ...payload,
-          }),
-        }
-      )
+      const res = await fetch("/api/cleaning-tasks", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          ...payload,
+        }),
+      })
 
       const data = await res.json()
 
       if (!data.success) {
         console.error(data.error)
+        alert(data.error || "Error updating task")
       }
 
-      fetchTasks()
+      await fetchTasks()
     } catch (err) {
       console.error(err)
     }
   }
 
-  async function deleteTask(id: string) {
-    const confirmed = confirm(
-      "Delete this cleaning task?"
-    )
+  async function saveTaskDraft(task: CleaningTask) {
+    const draft = drafts[task.id]
 
-    if (!confirmed) return
+    if (!draft) {
+      return
+    }
+
+    await updateTask(task.id, {
+      cleaner_name: draft.cleaner_name,
+      cleaner_contact: draft.cleaner_contact,
+      actual_start_time: draft.actual_start_time,
+      actual_end_time: draft.actual_end_time,
+      hourly_rate: draft.hourly_rate,
+      extra_fee: draft.extra_fee,
+      notes: draft.notes,
+    })
+  }
+
+  async function deleteTask(id: string) {
+    const confirmed = confirm("Delete this cleaning task?")
+
+    if (!confirmed) {
+      return
+    }
 
     try {
-      const res = await fetch(
-        "/api/cleaning-tasks",
-        {
-          method: "DELETE",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            id,
-          }),
-        }
-      )
+      const res = await fetch("/api/cleaning-tasks", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+        }),
+      })
 
       const data = await res.json()
 
       if (!data.success) {
-        alert(
-          data.error ||
-            "Error deleting task"
-        )
-
+        alert(data.error || "Error deleting task")
         return
       }
 
-      fetchTasks()
+      await fetchTasks()
     } catch (err) {
       console.error(err)
     }
@@ -230,18 +500,23 @@ export default function CleaningDashboard() {
     }
 
     if (status === "accepted") {
-      payload.assigned_at =
-        new Date().toISOString()
+      payload.assigned_at = new Date().toISOString()
     }
 
     if (status === "in_progress") {
-      payload.started_at =
-        new Date().toISOString()
+      payload.started_at = new Date().toISOString()
+      payload.actual_start_time =
+        task.actual_start_time ||
+        drafts[task.id]?.actual_start_time ||
+        new Date().toTimeString().slice(0, 5)
     }
 
     if (status === "completed") {
-      payload.completed_at =
-        new Date().toISOString()
+      payload.completed_at = new Date().toISOString()
+      payload.actual_end_time =
+        task.actual_end_time ||
+        drafts[task.id]?.actual_end_time ||
+        new Date().toTimeString().slice(0, 5)
     }
 
     await updateTask(task.id, payload)
@@ -252,506 +527,894 @@ export default function CleaningDashboard() {
       return tasks
     }
 
-    return tasks.filter(
-      (task) => task.status === filter
-    )
+    return tasks.filter((task) => task.status === filter)
   }, [tasks, filter])
 
   const pendingCount = tasks.filter(
     (task) => task.status === "pending"
   ).length
 
+  const acceptedCount = tasks.filter(
+    (task) => task.status === "accepted"
+  ).length
+
   const inProgressCount = tasks.filter(
-    (task) =>
-      task.status === "in_progress"
+    (task) => task.status === "in_progress"
   ).length
 
   const completedCount = tasks.filter(
-    (task) =>
-      task.status === "completed"
+    (task) => task.status === "completed"
   ).length
 
   const urgentCount = tasks.filter(
     (task) => task.priority === "urgent"
   ).length
 
+  const totalWorkedHours = tasks.reduce(
+    (sum, task) => sum + getTaskHours(task),
+    0
+  )
+
+  const totalPayable = tasks.reduce(
+    (sum, task) => sum + getTaskAmount(task),
+    0
+  )
+
+  const openTasks = tasks.filter(
+    (task) => task.status !== "completed"
+  ).length
+
+  const groupedTasks = groupTasksByDate(filteredTasks)
+
+  const cleanerSummary = useMemo(() => {
+    const summary = tasks.reduce<
+      Record<
+        string,
+        {
+          cleaner: string
+          hours: number
+          amount: number
+          tasks: number
+        }
+      >
+    >((acc, task) => {
+      const cleaner =
+        safeText(task.cleaner_name) || "Unassigned"
+
+      if (!acc[cleaner]) {
+        acc[cleaner] = {
+          cleaner,
+          hours: 0,
+          amount: 0,
+          tasks: 0,
+        }
+      }
+
+      acc[cleaner].hours += getTaskHours(task)
+      acc[cleaner].amount += getTaskAmount(task)
+      acc[cleaner].tasks += 1
+
+      return acc
+    }, {})
+
+    return Object.values(summary)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6)
+  }, [tasks])
+
   return (
-    <div className="min-h-screen bg-[#f5f5f5] p-6">
-
-      <div className="max-w-7xl mx-auto">
-
-        {/* HERO */}
-
-        <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-8 shadow-2xl mb-8">
-
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-
+    <div className="min-h-screen bg-[#f5f5f5] p-5 md:p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-7 md:p-8 shadow-2xl">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-8">
             <div>
-
               <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
                 AI CO-HOST
               </div>
 
-              <h1 className="text-4xl font-bold mb-4">
-                Cleaning Dashboard
+              <h1 className="text-4xl md:text-5xl font-black mb-4">
+                Cleaning Operations
               </h1>
 
-              <p className="text-white/60 max-w-2xl">
-                Manage cleaning operations,
-                assign cleaners and monitor
-                cleaning workflows across all
-                properties.
+              <p className="text-white/60 max-w-2xl leading-relaxed">
+                Manage manual turnovers, assign cleaners, track
+                checkout and next check-in windows, and estimate
+                cleaner payments based on actual working time.
               </p>
-
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
               <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-
                 <div className="text-white/50 text-sm mb-2">
-                  Pending
+                  Open
                 </div>
-
                 <div className="text-3xl font-bold">
-                  {pendingCount}
+                  {openTasks}
                 </div>
-
               </div>
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-
                 <div className="text-white/50 text-sm mb-2">
                   In Progress
                 </div>
-
                 <div className="text-3xl font-bold">
                   {inProgressCount}
                 </div>
-
               </div>
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-
                 <div className="text-white/50 text-sm mb-2">
-                  Completed
+                  Hours
                 </div>
-
                 <div className="text-3xl font-bold">
-                  {completedCount}
+                  {totalWorkedHours.toFixed(1)}
                 </div>
-
               </div>
 
-              <div className="bg-red-500/20 border border-red-500/20 rounded-3xl p-5">
-
-                <div className="text-red-100 text-sm mb-2">
-                  Urgent
+              <div className="bg-green-500/15 border border-green-400/20 rounded-3xl p-5">
+                <div className="text-green-100 text-sm mb-2">
+                  Payable
                 </div>
-
-                <div className="text-3xl font-bold text-red-100">
-                  {urgentCount}
+                <div className="text-3xl font-bold text-green-100">
+                  €{totalPayable.toFixed(2)}
                 </div>
-
               </div>
+            </div>
+          </div>
+        </div>
 
+        <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-8">
+          <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-xl border border-black/5">
+            <div className="mb-8">
+              <h2 className="text-3xl font-black mb-3">
+                ➕ Create Manual Cleaning Task
+              </h2>
+
+              <p className="text-gray-500 leading-relaxed">
+                Create a manual cleaning task for a turnover. Use the
+                check-out and next check-in fields to understand the
+                available window, then assign a cleaner and planned
+                cleaning time.
+              </p>
             </div>
 
+            <div className="space-y-8">
+              <section className="bg-gray-50 rounded-[28px] p-5 md:p-6 border border-gray-100">
+                <SectionTitle
+                  number="1"
+                  title="Property"
+                  description="Choose the property or enter the property name for this cleaning task."
+                />
+
+                <FieldLabel
+                  title="Property name"
+                  description="Example: Maltese Maisonette"
+                />
+
+                <input
+                  value={propertyName}
+                  onChange={(event) =>
+                    setPropertyName(event.target.value)
+                  }
+                  placeholder="Maltese Maisonette"
+                  className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                />
+              </section>
+
+              <section className="bg-gray-50 rounded-[28px] p-5 md:p-6 border border-gray-100">
+                <SectionTitle
+                  number="2"
+                  title="Guest Turnover Window"
+                  description="Enter the previous guest check-out and the next guest check-in."
+                />
+
+                <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <div>
+                    <FieldLabel
+                      title="Guest check-out date"
+                      description="Date the previous guest leaves."
+                    />
+
+                    <input
+                      type="date"
+                      value={checkoutDate}
+                      onChange={(event) =>
+                        setCheckoutDate(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Guest check-out time"
+                      description="Usually around 10:00."
+                    />
+
+                    <input
+                      type="time"
+                      value={checkoutTime}
+                      onChange={(event) =>
+                        setCheckoutTime(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Next check-in date"
+                      description="Date the next guest arrives."
+                    />
+
+                    <input
+                      type="date"
+                      value={nextCheckinDate}
+                      onChange={(event) =>
+                        setNextCheckinDate(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Next check-in time"
+                      description="Usually around 15:00."
+                    />
+
+                    <input
+                      type="time"
+                      value={nextCheckinTime}
+                      onChange={(event) =>
+                        setNextCheckinTime(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="bg-gray-50 rounded-[28px] p-5 md:p-6 border border-gray-100">
+                <SectionTitle
+                  number="3"
+                  title="Cleaning Schedule"
+                  description="Set the day and planned time when the cleaner should perform the job."
+                />
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <FieldLabel
+                      title="Cleaning date"
+                      description="The day the cleaner should go to the property."
+                    />
+
+                    <input
+                      type="date"
+                      value={cleaningDate}
+                      onChange={(event) =>
+                        setCleaningDate(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Planned start time"
+                      description="Expected cleaning start."
+                    />
+
+                    <input
+                      type="time"
+                      value={plannedStartTime}
+                      onChange={(event) =>
+                        setPlannedStartTime(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Planned end time"
+                      description="Expected cleaning finish."
+                    />
+
+                    <input
+                      type="time"
+                      value={plannedEndTime}
+                      onChange={(event) =>
+                        setPlannedEndTime(event.target.value)
+                      }
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="bg-gray-50 rounded-[28px] p-5 md:p-6 border border-gray-100">
+                <SectionTitle
+                  number="4"
+                  title="Cleaner Assignment & Pay"
+                  description="Assign the cleaner and define the agreed hourly rate."
+                />
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <FieldLabel
+                      title="Cleaner name"
+                      description="Example: Luca, Maria, Joseph."
+                    />
+
+                    <input
+                      value={cleanerName}
+                      onChange={(event) =>
+                        setCleanerName(event.target.value)
+                      }
+                      placeholder="Cleaner name"
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Cleaner contact"
+                      description="Phone or WhatsApp number."
+                    />
+
+                    <input
+                      value={cleanerContact}
+                      onChange={(event) =>
+                        setCleanerContact(event.target.value)
+                      }
+                      placeholder="+356..."
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Hourly rate"
+                      description="Agreed pay per hour in EUR."
+                    />
+
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={hourlyRate}
+                      onChange={(event) =>
+                        setHourlyRate(event.target.value)
+                      }
+                      placeholder="10"
+                      className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={createTask}
+                  disabled={saving}
+                  className="bg-black text-white rounded-2xl px-8 py-4 font-bold disabled:opacity-50"
+                >
+                  {saving ? "Creating..." : "Create Cleaning Task"}
+                </button>
+              </div>
+            </div>
           </div>
 
+          <div className="bg-white rounded-[32px] p-6 md:p-7 shadow-xl border border-black/5">
+            <h2 className="text-2xl font-bold mb-2">
+              💶 Cleaner Payment Summary
+            </h2>
+
+            <p className="text-gray-500 mb-6">
+              Estimated totals based on actual start/end time and
+              hourly rate.
+            </p>
+
+            <div className="space-y-4">
+              {cleanerSummary.map((item) => (
+                <div
+                  key={item.cleaner}
+                  className="bg-gray-50 rounded-3xl p-5"
+                >
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div>
+                      <div className="font-bold text-lg">
+                        {item.cleaner}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        {item.tasks} task
+                        {item.tasks === 1 ? "" : "s"}
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="font-bold">
+                        €{item.amount.toFixed(2)}
+                      </div>
+
+                      <div className="text-sm text-gray-500">
+                        {item.hours.toFixed(1)}h
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-black"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          item.hours * 10
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {cleanerSummary.length === 0 && (
+                <div className="bg-gray-50 rounded-3xl p-8 text-center text-gray-500">
+                  No cleaner payment data yet
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* CREATE TASK */}
+        <div className="grid lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-3xl p-5 shadow border border-black/5">
+            <div className="text-gray-500 text-sm mb-2">
+              Pending
+            </div>
 
-        <div className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5 mb-8">
-
-          <h2 className="text-2xl font-bold mb-6">
-            ➕ Create Cleaning Task
-          </h2>
-
-          <div className="grid lg:grid-cols-4 gap-4">
-
-            <input
-              value={propertyName}
-              onChange={(e) =>
-                setPropertyName(
-                  e.target.value
-                )
-              }
-              placeholder="Property name"
-              className="border border-gray-200 rounded-2xl p-4"
-            />
-
-            <input
-              type="date"
-              value={cleaningDate}
-              onChange={(e) =>
-                setCleaningDate(
-                  e.target.value
-                )
-              }
-              className="border border-gray-200 rounded-2xl p-4"
-            />
-
-            <input
-              value={checkoutTime}
-              onChange={(e) =>
-                setCheckoutTime(
-                  e.target.value
-                )
-              }
-              placeholder="Checkout time"
-              className="border border-gray-200 rounded-2xl p-4"
-            />
-
-            <button
-              onClick={createTask}
-              className="bg-black text-white rounded-2xl px-6 py-4 font-semibold"
-            >
-              Create Task
-            </button>
-
+            <div className="text-3xl font-bold">
+              {pendingCount}
+            </div>
           </div>
 
+          <div className="bg-white rounded-3xl p-5 shadow border border-black/5">
+            <div className="text-gray-500 text-sm mb-2">
+              Accepted
+            </div>
+
+            <div className="text-3xl font-bold">
+              {acceptedCount}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow border border-black/5">
+            <div className="text-gray-500 text-sm mb-2">
+              Completed
+            </div>
+
+            <div className="text-3xl font-bold">
+              {completedCount}
+            </div>
+          </div>
+
+          <div className="bg-red-50 rounded-3xl p-5 shadow border border-red-100">
+            <div className="text-red-500 text-sm mb-2">
+              Urgent
+            </div>
+
+            <div className="text-3xl font-bold text-red-600">
+              {urgentCount}
+            </div>
+          </div>
         </div>
 
-        {/* FILTERS */}
-
-        <div className="flex flex-wrap gap-3 mb-6">
-
-          {[
-            "all",
-            "pending",
-            "accepted",
-            "in_progress",
-            "completed",
-          ].map((status) => (
-
+        <div className="flex flex-wrap gap-3">
+          {statusOptions.map((status) => (
             <button
               key={status}
-              onClick={() =>
-                setFilter(status)
-              }
-              className={`px-5 py-3 rounded-2xl transition ${
+              onClick={() => setFilter(status)}
+              className={`px-5 py-3 rounded-2xl capitalize transition ${
                 filter === status
                   ? "bg-black text-white"
                   : "bg-white border border-gray-200"
               }`}
             >
-
               {status.replace("_", " ")}
-
             </button>
-
           ))}
-
         </div>
 
-        {/* TASKS */}
+        <div className="bg-white rounded-[32px] p-6 md:p-7 shadow-xl border border-black/5">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">
+                🗓️ Turnover Overview
+              </h2>
 
-        <div className="space-y-5">
-
-          {loading && (
-
-            <div className="bg-white rounded-3xl p-6 shadow">
-              Loading cleaning tasks...
+              <p className="text-gray-500">
+                Edit cleaner details, actual times and payment data,
+                then save the task.
+              </p>
             </div>
 
+            <a
+              href="/dashboard/cleaning/mobile"
+              className="bg-black text-white rounded-2xl px-5 py-3 font-semibold"
+            >
+              Open Cleaner Mobile
+            </a>
+          </div>
+
+          {loading && (
+            <div className="bg-gray-50 rounded-3xl p-6">
+              Loading cleaning tasks...
+            </div>
           )}
 
           {!loading &&
-            filteredTasks.map((task) => {
-
-              const checklist = {
-                ...defaultChecklist,
-                ...(task.checklist || {}),
-              }
-
-              const checklistValues =
-                Object.values(checklist)
-
-              const completedChecklistItems =
-                checklistValues.filter(Boolean)
-                  .length
-
-              const totalChecklistItems =
-                checklistValues.length
-
-              return (
-
-                <div
-                  key={task.id}
-                  className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5"
-                >
-
-                  <div className="flex flex-col xl:flex-row xl:justify-between gap-8">
-
-                    {/* LEFT */}
-
-                    <div className="flex-1 space-y-5">
-
-                      <div>
-
-                        <div className="text-sm text-gray-500 mb-1">
-                          Property
-                        </div>
-
-                        <div className="text-2xl font-bold">
-                          {task.property_name ||
-                            "Unknown Property"}
-                        </div>
-
-                      </div>
-
-                      <div className="flex flex-wrap gap-3">
-
-                        <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
-                          📅 {task.cleaning_date}
-                        </div>
-
-                        {task.checkout_time && (
-
-                          <div className="bg-gray-100 px-4 py-2 rounded-2xl text-sm">
-                            ⏰ {task.checkout_time}
-                          </div>
-
-                        )}
-
-                        <div
-                          className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
-                            task.priority ===
-                            "urgent"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}
-                        >
-
-                          {task.priority ||
-                            "normal"}
-
-                        </div>
-
-                        <div className="bg-black text-white px-4 py-2 rounded-2xl text-sm">
-
-                          {task.status ||
-                            "pending"}
-
-                        </div>
-
-                        <div className="bg-green-100 text-green-700 px-4 py-2 rounded-2xl text-sm font-semibold">
-
-                          Checklist {
-                            completedChecklistItems
-                          }/{totalChecklistItems}
-
-                        </div>
-
-                      </div>
-
-                      {/* CLEANER */}
-
-                      <div className="grid md:grid-cols-2 gap-4">
-
-                        <input
-                          value={
-                            task.cleaner_name ||
-                            ""
-                          }
-                          placeholder="Cleaner name"
-                          onChange={(e) =>
-                            updateTask(
-                              task.id,
-                              {
-                                cleaner_name:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          className="border border-gray-200 rounded-2xl p-4"
-                        />
-
-                        <input
-                          value={
-                            task.cleaner_contact ||
-                            ""
-                          }
-                          placeholder="Cleaner contact"
-                          onChange={(e) =>
-                            updateTask(
-                              task.id,
-                              {
-                                cleaner_contact:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          className="border border-gray-200 rounded-2xl p-4"
-                        />
-
-                      </div>
-
-                      {/* CHECKLIST */}
-
-                      <div>
-
-                        <div className="font-semibold mb-4">
-                          Cleaning Checklist
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-3">
-
-                          {Object.entries(
-                            checklist
-                          ).map(
-                            ([key, value]) => (
-
-                              <label
-                                key={key}
-                                className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3"
-                              >
-
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    value
-                                  }
-                                  onChange={() =>
-                                    toggleChecklistItem(
-                                      task,
-                                      key as keyof Checklist
-                                    )
-                                  }
-                                />
-
-                                <span className="capitalize">
-                                  {key.replace(
-                                    "_",
-                                    " "
-                                  )}
-                                </span>
-
-                              </label>
-
-                            )
-                          )}
-
-                        </div>
-
-                      </div>
-
-                      {/* NOTES */}
-
-                      <textarea
-                        defaultValue={
-                          task.notes || ""
-                        }
-                        placeholder="Cleaning notes..."
-                        onBlur={(e) =>
-                          updateTask(
-                            task.id,
-                            {
-                              notes:
-                                e.target
-                                  .value,
-                            }
-                          )
-                        }
-                        className="w-full border border-gray-200 rounded-2xl p-4 min-h-[120px]"
-                      />
-
-                    </div>
-
-                    {/* RIGHT */}
-
-                    <div className="flex flex-col gap-3 min-w-[240px]">
-
-                      <button
-                        onClick={() =>
-                          updateStatus(
-                            task,
-                            "accepted"
-                          )
-                        }
-                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-2xl px-5 py-3 transition"
-                      >
-                        Accept Task
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          updateStatus(
-                            task,
-                            "in_progress"
-                          )
-                        }
-                        className="bg-orange-500 hover:bg-orange-600 text-white rounded-2xl px-5 py-3 transition"
-                      >
-                        Start Cleaning
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          updateStatus(
-                            task,
-                            "completed"
-                          )
-                        }
-                        className="bg-green-600 hover:bg-green-700 text-white rounded-2xl px-5 py-3 transition"
-                      >
-                        Mark Completed
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          updateTask(
-                            task.id,
-                            {
-                              priority:
-                                task.priority ===
-                                "urgent"
-                                  ? "normal"
-                                  : "urgent",
-                            }
-                          )
-                        }
-                        className="bg-red-500 hover:bg-red-600 text-white rounded-2xl px-5 py-3 transition"
-                      >
-                        Toggle Urgent
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          deleteTask(task.id)
-                        }
-                        className="bg-gray-800 hover:bg-black text-white rounded-2xl px-5 py-3 transition"
-                      >
-                        Delete Task
-                      </button>
-
-                    </div>
-
+            Object.entries(groupedTasks).map(([date, dateTasks]) => (
+              <div key={date} className="mb-8 last:mb-0">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-black text-white rounded-2xl px-4 py-2 font-semibold">
+                    {date}
                   </div>
 
+                  <div className="text-gray-400 text-sm">
+                    {dateTasks.length} task
+                    {dateTasks.length === 1 ? "" : "s"}
+                  </div>
                 </div>
 
-              )
-            })}
+                <div className="space-y-5">
+                  {dateTasks.map((task) => {
+                    const progress = getChecklistProgress(task)
+                    const draft =
+                      drafts[task.id] || createDraftFromTask(task)
+                    const draftHours = getDraftHours(draft)
+                    const draftAmount = getDraftAmount(draft)
+                    const currency = task.currency || "EUR"
 
-          {!loading &&
-            filteredTasks.length === 0 && (
+                    return (
+                      <div
+                        key={task.id}
+                        className="border border-gray-100 rounded-[28px] p-5 md:p-6"
+                      >
+                        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
+                          <div className="flex-1 space-y-5">
+                            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                              <div>
+                                <div className="text-sm text-gray-500 mb-1">
+                                  Property
+                                </div>
 
-              <div className="bg-white rounded-[32px] p-10 text-center shadow-xl border border-black/5 text-gray-500">
-                No cleaning tasks found
+                                <div className="text-2xl font-bold">
+                                  {task.property_name ||
+                                    "Unknown Property"}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <span
+                                  className={`px-4 py-2 rounded-2xl text-sm font-semibold ${
+                                    task.priority === "urgent"
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-blue-100 text-blue-700"
+                                  }`}
+                                >
+                                  {task.priority || "normal"}
+                                </span>
+
+                                <span className="bg-black text-white px-4 py-2 rounded-2xl text-sm capitalize">
+                                  {task.status || "pending"}
+                                </span>
+
+                                <span className="bg-green-100 text-green-700 px-4 py-2 rounded-2xl text-sm font-semibold">
+                                  Checklist {progress.completed}/
+                                  {progress.total}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-4 gap-3">
+                              <div className="bg-gray-50 rounded-2xl p-4">
+                                <div className="text-xs text-gray-400 mb-1">
+                                  Guest Check-out
+                                </div>
+
+                                <div className="font-semibold">
+                                  {task.checkout_date ||
+                                    task.cleaning_date ||
+                                    "—"}
+                                </div>
+
+                                <div className="text-sm text-gray-500">
+                                  {task.checkout_time || "—"}
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 rounded-2xl p-4">
+                                <div className="text-xs text-gray-400 mb-1">
+                                  Planned Cleaning
+                                </div>
+
+                                <div className="font-semibold">
+                                  {task.planned_start_time || "—"}{" "}
+                                  → {task.planned_end_time || "—"}
+                                </div>
+
+                                <div className="text-sm text-gray-500">
+                                  {task.cleaning_date || "—"}
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 rounded-2xl p-4">
+                                <div className="text-xs text-gray-400 mb-1">
+                                  Next Guest Check-in
+                                </div>
+
+                                <div className="font-semibold">
+                                  {task.next_checkin_date || "—"}
+                                </div>
+
+                                <div className="text-sm text-gray-500">
+                                  {task.next_checkin_time || "—"}
+                                </div>
+                              </div>
+
+                              <div className="bg-gray-50 rounded-2xl p-4">
+                                <div className="text-xs text-gray-400 mb-1">
+                                  Draft Pay Estimate
+                                </div>
+
+                                <div className="font-semibold">
+                                  {formatMoney(
+                                    draftAmount,
+                                    currency
+                                  )}
+                                </div>
+
+                                <div className="text-sm text-gray-500">
+                                  {draftHours.toFixed(1)}h x €
+                                  {toNumber(
+                                    draft.hourly_rate
+                                  ).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4 bg-gray-50 rounded-3xl p-4 border border-gray-100">
+                              <div>
+                                <FieldLabel title="Cleaner name" />
+                                <input
+                                  value={draft.cleaner_name}
+                                  placeholder="Cleaner name"
+                                  onChange={(event) =>
+                                    updateDraft(
+                                      task.id,
+                                      "cleaner_name",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="w-full border border-gray-200 rounded-2xl p-3 bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <FieldLabel title="Cleaner contact" />
+                                <input
+                                  value={draft.cleaner_contact}
+                                  placeholder="Phone / WhatsApp"
+                                  onChange={(event) =>
+                                    updateDraft(
+                                      task.id,
+                                      "cleaner_contact",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="w-full border border-gray-200 rounded-2xl p-3 bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <FieldLabel title="Hourly rate" />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={draft.hourly_rate}
+                                  placeholder="10"
+                                  onChange={(event) =>
+                                    updateDraft(
+                                      task.id,
+                                      "hourly_rate",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="w-full border border-gray-200 rounded-2xl p-3 bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <FieldLabel title="Actual start" />
+                                <input
+                                  type="time"
+                                  value={draft.actual_start_time}
+                                  onChange={(event) =>
+                                    updateDraft(
+                                      task.id,
+                                      "actual_start_time",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="w-full border border-gray-200 rounded-2xl p-3 bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <FieldLabel title="Actual end" />
+                                <input
+                                  type="time"
+                                  value={draft.actual_end_time}
+                                  onChange={(event) =>
+                                    updateDraft(
+                                      task.id,
+                                      "actual_end_time",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="w-full border border-gray-200 rounded-2xl p-3 bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <FieldLabel title="Extra fee" />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={draft.extra_fee}
+                                  placeholder="0"
+                                  onChange={(event) =>
+                                    updateDraft(
+                                      task.id,
+                                      "extra_fee",
+                                      event.target.value
+                                    )
+                                  }
+                                  className="w-full border border-gray-200 rounded-2xl p-3 bg-white"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="font-semibold mb-4">
+                                Cleaning Checklist
+                              </div>
+
+                              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                {Object.entries(
+                                  progress.checklist
+                                ).map(([key, value]) => (
+                                  <label
+                                    key={key}
+                                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
+                                      value
+                                        ? "bg-green-50 border border-green-100"
+                                        : "bg-gray-50"
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={value}
+                                      onChange={() =>
+                                        toggleChecklistItem(
+                                          task,
+                                          key as keyof Checklist
+                                        )
+                                      }
+                                    />
+
+                                    <span className="capitalize">
+                                      {key.replace("_", " ")}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <FieldLabel title="Cleaning notes" />
+                              <textarea
+                                value={draft.notes}
+                                placeholder="Cleaning notes..."
+                                onChange={(event) =>
+                                  updateDraft(
+                                    task.id,
+                                    "notes",
+                                    event.target.value
+                                  )
+                                }
+                                className="w-full border border-gray-200 rounded-2xl p-4 min-h-[100px]"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-3 min-w-[220px]">
+                            <button
+                              onClick={() => saveTaskDraft(task)}
+                              className="bg-black hover:bg-zinc-800 text-white rounded-2xl px-5 py-3 font-bold transition"
+                            >
+                              Save Task Details
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                updateStatus(task, "accepted")
+                              }
+                              className="bg-blue-500 hover:bg-blue-600 text-white rounded-2xl px-5 py-3 transition"
+                            >
+                              Accept Task
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                updateStatus(
+                                  task,
+                                  "in_progress"
+                                )
+                              }
+                              className="bg-orange-500 hover:bg-orange-600 text-white rounded-2xl px-5 py-3 transition"
+                            >
+                              Start Cleaning
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                updateStatus(task, "completed")
+                              }
+                              className="bg-green-600 hover:bg-green-700 text-white rounded-2xl px-5 py-3 transition"
+                            >
+                              Mark Completed
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                updateTask(task.id, {
+                                  priority:
+                                    task.priority === "urgent"
+                                      ? "normal"
+                                      : "urgent",
+                                })
+                              }
+                              className="bg-red-500 hover:bg-red-600 text-white rounded-2xl px-5 py-3 transition"
+                            >
+                              Toggle Urgent
+                            </button>
+
+                            <button
+                              onClick={() => deleteTask(task.id)}
+                              className="bg-gray-800 hover:bg-black text-white rounded-2xl px-5 py-3 transition"
+                            >
+                              Delete Task
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
+            ))}
 
-            )}
-
+          {!loading && filteredTasks.length === 0 && (
+            <div className="bg-gray-50 rounded-[28px] p-10 text-center text-gray-500">
+              No cleaning tasks found
+            </div>
+          )}
         </div>
-
       </div>
-
     </div>
   )
 }

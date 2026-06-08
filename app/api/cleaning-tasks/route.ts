@@ -15,12 +15,147 @@ const defaultChecklist = {
   final_check: false,
 }
 
+type CleaningTaskPayload = {
+  id?: string
+  property_id?: string | null
+  property_name?: string | null
+  cleaning_date?: string | null
+  checkout_date?: string | null
+  checkout_time?: string | null
+  next_checkin_date?: string | null
+  next_checkin_time?: string | null
+  planned_start_time?: string | null
+  planned_end_time?: string | null
+  actual_start_time?: string | null
+  actual_end_time?: string | null
+  cleaner_name?: string | null
+  cleaner_contact?: string | null
+  hourly_rate?: number | string | null
+  extra_fee?: number | string | null
+  currency?: string | null
+  priority?: string | null
+  status?: string | null
+  notes?: string | null
+  checklist?: Record<string, boolean> | null
+  assigned_at?: string | null
+  started_at?: string | null
+  completed_at?: string | null
+}
+
+function normalizeNumber(value: unknown) {
+  if (value === undefined || value === null || value === "") {
+    return 0
+  }
+
+  const numberValue = Number(value)
+
+  if (Number.isNaN(numberValue)) {
+    return 0
+  }
+
+  return numberValue
+}
+
+function normalizeNullableString(value: unknown) {
+  if (value === undefined || value === null) {
+    return null
+  }
+
+  if (typeof value !== "string") {
+    return String(value)
+  }
+
+  const trimmed = value.trim()
+
+  return trimmed || null
+}
+
+function buildInsertPayload(body: CleaningTaskPayload) {
+  return {
+    property_id: normalizeNullableString(body.property_id),
+    property_name: normalizeNullableString(body.property_name),
+    cleaning_date: normalizeNullableString(body.cleaning_date),
+    checkout_date: normalizeNullableString(body.checkout_date),
+    checkout_time: normalizeNullableString(body.checkout_time),
+    next_checkin_date: normalizeNullableString(body.next_checkin_date),
+    next_checkin_time: normalizeNullableString(body.next_checkin_time),
+    planned_start_time: normalizeNullableString(body.planned_start_time),
+    planned_end_time: normalizeNullableString(body.planned_end_time),
+    actual_start_time: normalizeNullableString(body.actual_start_time),
+    actual_end_time: normalizeNullableString(body.actual_end_time),
+    cleaner_name: normalizeNullableString(body.cleaner_name),
+    cleaner_contact: normalizeNullableString(body.cleaner_contact),
+    hourly_rate: normalizeNumber(body.hourly_rate),
+    extra_fee: normalizeNumber(body.extra_fee),
+    currency: normalizeNullableString(body.currency) || "EUR",
+    priority: normalizeNullableString(body.priority) || "normal",
+    status: normalizeNullableString(body.status) || "pending",
+    notes: normalizeNullableString(body.notes),
+    checklist: body.checklist || defaultChecklist,
+    assigned_at: body.assigned_at || null,
+    started_at: body.started_at || null,
+    completed_at: body.completed_at || null,
+  }
+}
+
+function buildUpdatePayload(body: CleaningTaskPayload) {
+  const updatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+
+  const stringFields: Array<keyof CleaningTaskPayload> = [
+    "property_id",
+    "property_name",
+    "cleaning_date",
+    "checkout_date",
+    "checkout_time",
+    "next_checkin_date",
+    "next_checkin_time",
+    "planned_start_time",
+    "planned_end_time",
+    "actual_start_time",
+    "actual_end_time",
+    "cleaner_name",
+    "cleaner_contact",
+    "currency",
+    "priority",
+    "status",
+    "notes",
+    "assigned_at",
+    "started_at",
+    "completed_at",
+  ]
+
+  stringFields.forEach((field) => {
+    if (body[field] !== undefined) {
+      updatePayload[field] = normalizeNullableString(body[field])
+    }
+  })
+
+  if (body.hourly_rate !== undefined) {
+    updatePayload.hourly_rate = normalizeNumber(body.hourly_rate)
+  }
+
+  if (body.extra_fee !== undefined) {
+    updatePayload.extra_fee = normalizeNumber(body.extra_fee)
+  }
+
+  if (body.checklist !== undefined) {
+    updatePayload.checklist = body.checklist || defaultChecklist
+  }
+
+  return updatePayload
+}
+
 export async function GET() {
   try {
     const { data, error } = await supabase
       .from("cleaning_tasks")
       .select("*")
       .order("cleaning_date", {
+        ascending: true,
+      })
+      .order("planned_start_time", {
         ascending: true,
       })
 
@@ -39,10 +174,7 @@ export async function GET() {
       tasks: data || [],
     })
   } catch (error) {
-    console.error(
-      "CLEANING TASKS GET ERROR:",
-      error
-    )
+    console.error("CLEANING TASKS GET ERROR:", error)
 
     return NextResponse.json(
       {
@@ -56,48 +188,23 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const body = (await req.json()) as CleaningTaskPayload
 
-    const {
-      property_id,
-      property_name,
-      cleaning_date,
-      checkout_time,
-      cleaner_name,
-      cleaner_contact,
-      status,
-      notes,
-      checklist,
-    } = body
-
-    if (!property_name || !cleaning_date) {
+    if (!body.property_name || !body.cleaning_date) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "property_name and cleaning_date are required",
+          error: "property_name and cleaning_date are required",
         },
         { status: 400 }
       )
     }
 
+    const insertPayload = buildInsertPayload(body)
+
     const { data, error } = await supabase
       .from("cleaning_tasks")
-      .insert({
-        property_id: property_id || null,
-        property_name,
-        cleaning_date,
-        checkout_time:
-          checkout_time || null,
-        cleaner_name:
-          cleaner_name || null,
-        cleaner_contact:
-          cleaner_contact || null,
-        status: status || "pending",
-        notes: notes || null,
-        checklist:
-          checklist || defaultChecklist,
-      })
+      .insert(insertPayload)
       .select()
       .single()
 
@@ -116,10 +223,7 @@ export async function POST(req: Request) {
       task: data,
     })
   } catch (error) {
-    console.error(
-      "CLEANING TASKS POST ERROR:",
-      error
-    )
+    console.error("CLEANING TASKS POST ERROR:", error)
 
     return NextResponse.json(
       {
@@ -133,18 +237,9 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const body = await req.json()
+    const body = (await req.json()) as CleaningTaskPayload
 
-    const {
-      id,
-      cleaner_name,
-      cleaner_contact,
-      status,
-      notes,
-      checklist,
-    } = body
-
-    if (!id) {
+    if (!body.id) {
       return NextResponse.json(
         {
           success: false,
@@ -154,34 +249,12 @@ export async function PATCH(req: Request) {
       )
     }
 
-    const updatePayload: any = {}
-
-    if (cleaner_name !== undefined) {
-      updatePayload.cleaner_name =
-        cleaner_name || null
-    }
-
-    if (cleaner_contact !== undefined) {
-      updatePayload.cleaner_contact =
-        cleaner_contact || null
-    }
-
-    if (status !== undefined) {
-      updatePayload.status = status
-    }
-
-    if (notes !== undefined) {
-      updatePayload.notes = notes || null
-    }
-
-    if (checklist !== undefined) {
-      updatePayload.checklist = checklist
-    }
+    const updatePayload = buildUpdatePayload(body)
 
     const { data, error } = await supabase
       .from("cleaning_tasks")
       .update(updatePayload)
-      .eq("id", id)
+      .eq("id", body.id)
       .select()
       .single()
 
@@ -200,10 +273,7 @@ export async function PATCH(req: Request) {
       task: data,
     })
   } catch (error) {
-    console.error(
-      "CLEANING TASKS PATCH ERROR:",
-      error
-    )
+    console.error("CLEANING TASKS PATCH ERROR:", error)
 
     return NextResponse.json(
       {
@@ -217,11 +287,9 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const body = await req.json()
+    const body = (await req.json()) as CleaningTaskPayload
 
-    const { id } = body
-
-    if (!id) {
+    if (!body.id) {
       return NextResponse.json(
         {
           success: false,
@@ -234,7 +302,7 @@ export async function DELETE(req: Request) {
     const { error } = await supabase
       .from("cleaning_tasks")
       .delete()
-      .eq("id", id)
+      .eq("id", body.id)
 
     if (error) {
       return NextResponse.json(
@@ -250,10 +318,7 @@ export async function DELETE(req: Request) {
       success: true,
     })
   } catch (error) {
-    console.error(
-      "CLEANING TASK DELETE ERROR:",
-      error
-    )
+    console.error("CLEANING TASK DELETE ERROR:", error)
 
     return NextResponse.json(
       {
