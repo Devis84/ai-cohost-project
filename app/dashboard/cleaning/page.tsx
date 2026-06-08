@@ -48,6 +48,17 @@ type TaskDraft = {
   notes: string
 }
 
+type CleanerSummary = {
+  cleaner: string
+  hours: number
+  amount: number
+  tasks: number
+  completed: number
+  open: number
+  missingTime: number
+  missingRate: number
+}
+
 const defaultChecklist: Checklist = {
   bathroom: false,
   kitchen: false,
@@ -65,6 +76,12 @@ const statusOptions = [
   "completed",
 ]
 
+const periodOptions = [
+  "all",
+  "this_week",
+  "this_month",
+]
+
 function safeText(value?: string | null) {
   return typeof value === "string" && value.trim()
     ? value.trim()
@@ -77,6 +94,7 @@ function toNumber(value: unknown) {
   }
 
   const numberValue = Number(value)
+
   return Number.isNaN(numberValue) ? 0 : numberValue
 }
 
@@ -172,19 +190,25 @@ function getChecklistProgress(task: CleaningTask) {
   }
 }
 
+function getTaskDate(task: CleaningTask) {
+  return (
+    safeText(task.cleaning_date) ||
+    safeText(task.checkout_date) ||
+    ""
+  )
+}
+
 function groupTasksByDate(tasks: CleaningTask[]) {
   return tasks.reduce<Record<string, CleaningTask[]>>(
     (groups, task) => {
-      const date =
-        safeText(task.cleaning_date) ||
-        safeText(task.checkout_date) ||
-        "Unscheduled"
+      const date = getTaskDate(task) || "Unscheduled"
 
       if (!groups[date]) {
         groups[date] = []
       }
 
       groups[date].push(task)
+
       return groups
     },
     {}
@@ -208,6 +232,121 @@ function createDraftFromTask(task: CleaningTask): TaskDraft {
         : String(task.extra_fee),
     notes: safeText(task.notes),
   }
+}
+
+function startOfWeek(date: Date) {
+  const copy = new Date(date)
+  const day = copy.getDay()
+  const diff = copy.getDate() - day + (day === 0 ? -6 : 1)
+
+  copy.setDate(diff)
+  copy.setHours(0, 0, 0, 0)
+
+  return copy
+}
+
+function endOfWeek(date: Date) {
+  const start = startOfWeek(date)
+  const end = new Date(start)
+
+  end.setDate(start.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+
+  return end
+}
+
+function isTaskInPeriod(task: CleaningTask, period: string) {
+  if (period === "all") {
+    return true
+  }
+
+  const rawDate = getTaskDate(task)
+
+  if (!rawDate) {
+    return false
+  }
+
+  const date = new Date(`${rawDate}T12:00:00`)
+  const now = new Date()
+
+  if (Number.isNaN(date.getTime())) {
+    return false
+  }
+
+  if (period === "this_week") {
+    return date >= startOfWeek(now) && date <= endOfWeek(now)
+  }
+
+  if (period === "this_month") {
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    )
+  }
+
+  return true
+}
+
+function getTaskWarnings(task: CleaningTask) {
+  const warnings: string[] = []
+
+  if (!safeText(task.cleaner_name)) {
+    warnings.push("No cleaner assigned")
+  }
+
+  if (
+    !safeText(task.planned_start_time) ||
+    !safeText(task.planned_end_time)
+  ) {
+    warnings.push("Missing planned cleaning time")
+  }
+
+  if (
+    task.status === "completed" &&
+    (!safeText(task.actual_start_time) ||
+      !safeText(task.actual_end_time))
+  ) {
+    warnings.push("Completed but missing actual time")
+  }
+
+  if (
+    safeText(task.actual_start_time) &&
+    safeText(task.actual_end_time) &&
+    getTaskHours(task) === 0
+  ) {
+    warnings.push("Actual end time must be after start time")
+  }
+
+  if (toNumber(task.hourly_rate) === 0) {
+    warnings.push("Missing hourly rate")
+  }
+
+  if (
+    safeText(task.checkout_date) &&
+    safeText(task.next_checkin_date) &&
+    task.checkout_date === task.next_checkin_date
+  ) {
+    warnings.push("Same-day turnover")
+  }
+
+  if (
+    safeText(task.checkout_time) &&
+    safeText(task.next_checkin_time) &&
+    safeText(task.checkout_date) &&
+    safeText(task.next_checkin_date) &&
+    task.checkout_date === task.next_checkin_date
+  ) {
+    const availableHours = calculateHours(
+      task.checkout_time,
+      task.next_checkin_time
+    )
+
+    if (availableHours > 0 && availableHours <= 4) {
+      warnings.push("Tight turnover window")
+    }
+  }
+
+  return warnings
 }
 
 function FieldLabel({
@@ -260,12 +399,38 @@ function SectionTitle({
   )
 }
 
+function StatusBadge({
+  value,
+}: {
+  value?: string | null
+}) {
+  const status = value || "pending"
+
+  const className =
+    status === "completed"
+      ? "bg-green-100 text-green-700"
+      : status === "in_progress"
+        ? "bg-orange-100 text-orange-700"
+        : status === "accepted"
+          ? "bg-blue-100 text-blue-700"
+          : "bg-black text-white"
+
+  return (
+    <span
+      className={`px-4 py-2 rounded-2xl text-sm font-semibold capitalize ${className}`}
+    >
+      {status.replace("_", " ")}
+    </span>
+  )
+}
+
 export default function CleaningDashboard() {
   const [tasks, setTasks] = useState<CleaningTask[]>([])
   const [drafts, setDrafts] = useState<Record<string, TaskDraft>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState("all")
+  const [periodFilter, setPeriodFilter] = useState("all")
 
   const [propertyName, setPropertyName] = useState("")
   const [cleaningDate, setCleaningDate] = useState("")
@@ -522,61 +687,71 @@ export default function CleaningDashboard() {
     await updateTask(task.id, payload)
   }
 
+  const periodTasks = useMemo(() => {
+    return tasks.filter((task) =>
+      isTaskInPeriod(task, periodFilter)
+    )
+  }, [tasks, periodFilter])
+
   const filteredTasks = useMemo(() => {
+    const source = periodTasks
+
     if (filter === "all") {
-      return tasks
+      return source
     }
 
-    return tasks.filter((task) => task.status === filter)
-  }, [tasks, filter])
+    return source.filter((task) => task.status === filter)
+  }, [periodTasks, filter])
 
-  const pendingCount = tasks.filter(
+  const pendingCount = periodTasks.filter(
     (task) => task.status === "pending"
   ).length
 
-  const acceptedCount = tasks.filter(
+  const acceptedCount = periodTasks.filter(
     (task) => task.status === "accepted"
   ).length
 
-  const inProgressCount = tasks.filter(
+  const inProgressCount = periodTasks.filter(
     (task) => task.status === "in_progress"
   ).length
 
-  const completedCount = tasks.filter(
+  const completedCount = periodTasks.filter(
     (task) => task.status === "completed"
   ).length
 
-  const urgentCount = tasks.filter(
+  const urgentCount = periodTasks.filter(
     (task) => task.priority === "urgent"
   ).length
 
-  const totalWorkedHours = tasks.reduce(
+  const openTasks = periodTasks.filter(
+    (task) => task.status !== "completed"
+  ).length
+
+  const totalWorkedHours = periodTasks.reduce(
     (sum, task) => sum + getTaskHours(task),
     0
   )
 
-  const totalPayable = tasks.reduce(
+  const totalPayable = periodTasks.reduce(
     (sum, task) => sum + getTaskAmount(task),
     0
   )
 
-  const openTasks = tasks.filter(
-    (task) => task.status !== "completed"
+  const missingTimeCount = periodTasks.filter(
+    (task) =>
+      !safeText(task.actual_start_time) ||
+      !safeText(task.actual_end_time)
+  ).length
+
+  const missingRateCount = periodTasks.filter(
+    (task) => toNumber(task.hourly_rate) === 0
   ).length
 
   const groupedTasks = groupTasksByDate(filteredTasks)
 
   const cleanerSummary = useMemo(() => {
-    const summary = tasks.reduce<
-      Record<
-        string,
-        {
-          cleaner: string
-          hours: number
-          amount: number
-          tasks: number
-        }
-      >
+    const summary = periodTasks.reduce<
+      Record<string, CleanerSummary>
     >((acc, task) => {
       const cleaner =
         safeText(task.cleaner_name) || "Unassigned"
@@ -587,6 +762,10 @@ export default function CleaningDashboard() {
           hours: 0,
           amount: 0,
           tasks: 0,
+          completed: 0,
+          open: 0,
+          missingTime: 0,
+          missingRate: 0,
         }
       }
 
@@ -594,13 +773,30 @@ export default function CleaningDashboard() {
       acc[cleaner].amount += getTaskAmount(task)
       acc[cleaner].tasks += 1
 
+      if (task.status === "completed") {
+        acc[cleaner].completed += 1
+      } else {
+        acc[cleaner].open += 1
+      }
+
+      if (
+        !safeText(task.actual_start_time) ||
+        !safeText(task.actual_end_time)
+      ) {
+        acc[cleaner].missingTime += 1
+      }
+
+      if (toNumber(task.hourly_rate) === 0) {
+        acc[cleaner].missingRate += 1
+      }
+
       return acc
     }, {})
 
-    return Object.values(summary)
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 6)
-  }, [tasks])
+    return Object.values(summary).sort(
+      (a, b) => b.amount - a.amount
+    )
+  }, [periodTasks])
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] p-5 md:p-6">
@@ -635,15 +831,6 @@ export default function CleaningDashboard() {
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
                 <div className="text-white/50 text-sm mb-2">
-                  In Progress
-                </div>
-                <div className="text-3xl font-bold">
-                  {inProgressCount}
-                </div>
-              </div>
-
-              <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-                <div className="text-white/50 text-sm mb-2">
                   Hours
                 </div>
                 <div className="text-3xl font-bold">
@@ -659,8 +846,33 @@ export default function CleaningDashboard() {
                   €{totalPayable.toFixed(2)}
                 </div>
               </div>
+
+              <div className="bg-red-500/15 border border-red-400/20 rounded-3xl p-5">
+                <div className="text-red-100 text-sm mb-2">
+                  Missing Data
+                </div>
+                <div className="text-3xl font-bold text-red-100">
+                  {missingTimeCount + missingRateCount}
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {periodOptions.map((period) => (
+            <button
+              key={period}
+              onClick={() => setPeriodFilter(period)}
+              className={`px-5 py-3 rounded-2xl capitalize transition ${
+                periodFilter === period
+                  ? "bg-black text-white"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              {period.replace("_", " ")}
+            </button>
+          ))}
         </div>
 
         <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-8">
@@ -907,14 +1119,31 @@ export default function CleaningDashboard() {
           </div>
 
           <div className="bg-white rounded-[32px] p-6 md:p-7 shadow-xl border border-black/5">
-            <h2 className="text-2xl font-bold mb-2">
-              💶 Cleaner Payment Summary
-            </h2>
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">
+                  💶 Cleaner Payment Summary
+                </h2>
 
-            <p className="text-gray-500 mb-6">
-              Estimated totals based on actual start/end time and
-              hourly rate.
-            </p>
+                <p className="text-gray-500">
+                  Totals for the selected period.
+                </p>
+              </div>
+
+              <div className="text-right">
+                <div className="text-sm text-gray-500">
+                  Total
+                </div>
+
+                <div className="text-2xl font-black">
+                  €{totalPayable.toFixed(2)}
+                </div>
+
+                <div className="text-xs text-gray-400">
+                  {totalWorkedHours.toFixed(1)}h
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-4">
               {cleanerSummary.map((item) => (
@@ -922,7 +1151,7 @@ export default function CleaningDashboard() {
                   key={item.cleaner}
                   className="bg-gray-50 rounded-3xl p-5"
                 >
-                  <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-start justify-between gap-4 mb-4">
                     <div>
                       <div className="font-bold text-lg">
                         {item.cleaner}
@@ -930,7 +1159,8 @@ export default function CleaningDashboard() {
 
                       <div className="text-sm text-gray-500">
                         {item.tasks} task
-                        {item.tasks === 1 ? "" : "s"}
+                        {item.tasks === 1 ? "" : "s"} ·{" "}
+                        {item.completed} completed · {item.open} open
                       </div>
                     </div>
 
@@ -944,6 +1174,23 @@ export default function CleaningDashboard() {
                       </div>
                     </div>
                   </div>
+
+                  {(item.missingTime > 0 ||
+                    item.missingRate > 0) && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {item.missingTime > 0 && (
+                        <span className="bg-orange-100 text-orange-700 rounded-2xl px-3 py-2 text-xs font-semibold">
+                          {item.missingTime} missing time
+                        </span>
+                      )}
+
+                      {item.missingRate > 0 && (
+                        <span className="bg-red-100 text-red-700 rounded-2xl px-3 py-2 text-xs font-semibold">
+                          {item.missingRate} missing rate
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                     <div
@@ -1034,8 +1281,8 @@ export default function CleaningDashboard() {
               </h2>
 
               <p className="text-gray-500">
-                Edit cleaner details, actual times and payment data,
-                then save the task.
+                Manual operational overview of checkout, cleaning,
+                cleaner assignment and next check-in.
               </p>
             </div>
 
@@ -1075,6 +1322,7 @@ export default function CleaningDashboard() {
                     const draftHours = getDraftHours(draft)
                     const draftAmount = getDraftAmount(draft)
                     const currency = task.currency || "EUR"
+                    const warnings = getTaskWarnings(task)
 
                     return (
                       <div
@@ -1106,9 +1354,7 @@ export default function CleaningDashboard() {
                                   {task.priority || "normal"}
                                 </span>
 
-                                <span className="bg-black text-white px-4 py-2 rounded-2xl text-sm capitalize">
-                                  {task.status || "pending"}
-                                </span>
+                                <StatusBadge value={task.status} />
 
                                 <span className="bg-green-100 text-green-700 px-4 py-2 rounded-2xl text-sm font-semibold">
                                   Checklist {progress.completed}/
@@ -1116,6 +1362,19 @@ export default function CleaningDashboard() {
                                 </span>
                               </div>
                             </div>
+
+                            {warnings.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {warnings.map((warning) => (
+                                  <span
+                                    key={warning}
+                                    className="bg-orange-100 text-orange-700 rounded-2xl px-3 py-2 text-xs font-semibold"
+                                  >
+                                    ⚠️ {warning}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
 
                             <div className="grid md:grid-cols-4 gap-3">
                               <div className="bg-gray-50 rounded-2xl p-4">
@@ -1326,6 +1585,7 @@ export default function CleaningDashboard() {
 
                             <div>
                               <FieldLabel title="Cleaning notes" />
+
                               <textarea
                                 value={draft.notes}
                                 placeholder="Cleaning notes..."
