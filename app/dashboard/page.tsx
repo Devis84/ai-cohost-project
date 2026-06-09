@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -145,6 +145,52 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
         safeString(property.ai_knowledge),
     },
   };
+}
+
+function FieldLabel({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-2">
+      <label className="block text-sm font-bold text-gray-800">
+        {title}
+      </label>
+
+      {description && (
+        <p className="text-xs text-gray-400 leading-relaxed mt-1">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon: string;
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-2xl font-bold mb-2">
+        {icon} {title}
+      </h2>
+
+      {description && (
+        <p className="text-gray-500 leading-relaxed">
+          {description}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -671,9 +717,11 @@ export default function Dashboard() {
             {activeTab === "general" && (
               <>
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <h2 className="text-2xl font-bold mb-6">
-                    🏡 Property
-                  </h2>
+                  <SectionHeader
+                    icon="🏡"
+                    title="Property Identity"
+                    description="Select, create or rename the property that will be shown to guests."
+                  />
 
                   <div className="grid md:grid-cols-[1fr_auto] gap-4 mb-4">
                     <select
@@ -709,10 +757,10 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  <div className="grid md:grid-cols-[1fr_auto] gap-3">
+                  <div className="grid md:grid-cols-[1fr_auto] gap-3 mb-4">
                     <input
                       className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="Add new property"
+                      placeholder="Add new property, e.g. Big House"
                       value={newProperty}
                       onChange={(event) =>
                         setNewProperty(event.target.value)
@@ -727,27 +775,41 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  <div className="mt-4 grid md:grid-cols-2 gap-4">
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="Property display name"
-                      value={propertyName}
-                      onChange={(event) =>
-                        setPropertyName(event.target.value)
-                      }
-                    />
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <FieldLabel
+                        title="Property display name"
+                        description="This is the property name shown in the dashboard and guest page."
+                      />
 
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4 bg-gray-50"
-                      placeholder="Slug"
-                      value={
-                        selectedSlug ||
-                        createSlug(propertyName)
-                      }
-                      onChange={(event) =>
-                        setSelectedSlug(event.target.value)
-                      }
-                    />
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: Maltese Maisonette"
+                        value={propertyName}
+                        onChange={(event) =>
+                          setPropertyName(event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel
+                        title="Property slug"
+                        description="Stable URL identifier used for the guest page and QR/NFC link."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4 bg-gray-50"
+                        placeholder="Example: maltese-maisonette"
+                        value={
+                          selectedSlug ||
+                          createSlug(propertyName)
+                        }
+                        onChange={(event) =>
+                          setSelectedSlug(event.target.value)
+                        }
+                      />
+                    </div>
                   </div>
 
                   {selectedSlug && (
@@ -779,112 +841,212 @@ export default function Dashboard() {
                 </section>
 
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <h2 className="text-2xl font-bold mb-6">
-                    📍 Location
-                  </h2>
+                  <SectionHeader
+                    icon="📝"
+                    title="Property Description"
+                    description="Add the main description of the property. You can paste the same text used on Airbnb, Booking.com or your direct listing."
+                  />
+
+                  <TextArea
+                    placeholder="Paste the property description used on Airbnb, Booking.com or your direct listing."
+                    value={knowledgeBase.welcome_book.description}
+                    onChange={(value) =>
+                      updateWelcomeBook(
+                        "description",
+                        value
+                      )
+                    }
+                    large
+                  />
+                </section>
+
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                  <SectionHeader
+                    icon="📍"
+                    title="Location & Arrival"
+                    description="Add the location details and useful arrival information for guests."
+                  />
 
                   <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="City"
-                      value={city}
-                      onChange={(event) =>
-                        setCity(event.target.value)
-                      }
+                    <div>
+                      <FieldLabel
+                        title="Town / City"
+                        description="The town or area where the property is located."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: Sliema"
+                        value={city}
+                        onChange={(event) =>
+                          setCity(event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel
+                        title="Country"
+                        description="The country where the property is located."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: Malta"
+                        value={country}
+                        onChange={(event) =>
+                          setCountry(event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-5">
+                    <FieldLabel
+                      title="Full address"
+                      description="Full property address for host reference and guest arrival instructions."
                     />
 
                     <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="Country"
-                      value={country}
+                      className="w-full border border-gray-200 rounded-2xl p-4"
+                      placeholder="Enter the full property address"
+                      value={address}
                       onChange={(event) =>
-                        setCountry(event.target.value)
+                        setAddress(event.target.value)
                       }
                     />
                   </div>
 
-                  <input
-                    className="w-full border border-gray-200 rounded-2xl p-4"
-                    placeholder="Full address"
-                    value={address}
-                    onChange={(event) =>
-                      setAddress(event.target.value)
+                  <FieldLabel
+                    title="How to reach the property from the airport"
+                    description="Add taxi, Bolt/Uber, public transport, approximate travel time and useful arrival tips."
+                  />
+
+                  <TextArea
+                    placeholder="Example: From Malta International Airport, the easiest way to reach the apartment is by taxi or Bolt. The journey usually takes around 20–30 minutes depending on traffic. Public transport is also available, but travel time may be longer with luggage."
+                    value={knowledgeBase.welcome_book.transport}
+                    onChange={(value) =>
+                      updateWelcomeBook("transport", value)
                     }
                   />
                 </section>
 
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold">
-                      📶 WiFi
-                    </h2>
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+                    <SectionHeader
+                      icon="📶"
+                      title="Wi-Fi"
+                      description="Add the Wi-Fi details guests should use during their stay."
+                    />
 
                     <button
                       onClick={copyWifi}
                       className="bg-black text-white px-5 py-3 rounded-2xl"
                     >
-                      Copy WiFi
+                      Copy Wi-Fi
                     </button>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="WiFi name"
-                      value={wifiName}
-                      onChange={(event) =>
-                        setWifiName(event.target.value)
-                      }
-                    />
+                    <div>
+                      <FieldLabel
+                        title="Wi-Fi network name"
+                        description="The network name guests should select on their device."
+                      />
 
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="WiFi password"
-                      value={wifiPassword}
-                      onChange={(event) =>
-                        setWifiPassword(event.target.value)
-                      }
-                    />
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: Melita-XXXX"
+                        value={wifiName}
+                        onChange={(event) =>
+                          setWifiName(event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel
+                        title="Wi-Fi password"
+                        description="The password guests should use to connect."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Enter the Wi-Fi password"
+                        value={wifiPassword}
+                        onChange={(event) =>
+                          setWifiPassword(event.target.value)
+                        }
+                      />
+                    </div>
                   </div>
                 </section>
 
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <h2 className="text-2xl font-bold mb-6">
-                    🔑 Check-in
-                  </h2>
+                  <SectionHeader
+                    icon="🔑"
+                    title="Check-in & Access"
+                    description="Add the arrival instructions, access method and any lockbox or door code guests may need."
+                  />
 
                   <div className="grid md:grid-cols-2 gap-4 mb-4">
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="Check-in time"
-                      value={checkin}
-                      onChange={(event) =>
-                        setCheckin(event.target.value)
-                      }
+                    <div>
+                      <FieldLabel
+                        title="Check-in time"
+                        description="The earliest time guests can check in."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: 15:00"
+                        value={checkin}
+                        onChange={(event) =>
+                          setCheckin(event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel
+                        title="Check-out time"
+                        description="The latest time guests should leave the property."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: 10:00"
+                        value={checkout}
+                        onChange={(event) =>
+                          setCheckout(event.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <FieldLabel
+                      title="Check-in instructions"
+                      description="Explain how guests access the property, where to find the keys, door details, lockbox instructions or any important arrival notes."
                     />
 
-                    <input
-                      className="border border-gray-200 rounded-2xl p-4"
-                      placeholder="Check-out time"
-                      value={checkout}
+                    <textarea
+                      className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+                      placeholder="Example: The keys are located in the lockbox near the entrance. Enter the code, collect the keys and make sure to close the lockbox after use."
+                      value={checkinNotes}
                       onChange={(event) =>
-                        setCheckout(event.target.value)
+                        setCheckinNotes(event.target.value)
                       }
                     />
                   </div>
 
-                  <textarea
-                    className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px] mb-4"
-                    placeholder="Check-in instructions"
-                    value={checkinNotes}
-                    onChange={(event) =>
-                      setCheckinNotes(event.target.value)
-                    }
+                  <FieldLabel
+                    title="Lockbox / door code"
+                    description="Enter the lockbox PIN, smart lock code or access code if applicable."
                   />
 
                   <input
                     className="w-full border border-gray-200 rounded-2xl p-4"
-                    placeholder="Lockbox code"
+                    placeholder="Example: 1234"
                     value={lockboxCode}
                     onChange={(event) =>
                       setLockboxCode(event.target.value)
@@ -892,14 +1054,74 @@ export default function Dashboard() {
                   />
                 </section>
 
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                  <SectionHeader
+                    icon="📋"
+                    title="House Rules"
+                    description="Add the main house rules guests should follow during their stay."
+                  />
+
+                  <TextArea
+                    placeholder={`Example:
+- Quiet hours are from 23:00 to 07:00.
+- No parties or events.
+- No smoking inside the apartment.
+- Please keep doors and windows closed when using the air conditioning.
+- Please use only the towels and bedsheets provided for your stay.
+- If you need anything extra, please contact the host.`}
+                    value={knowledgeBase.welcome_book.house_rules}
+                    onChange={(value) =>
+                      updateWelcomeBook(
+                        "house_rules",
+                        value
+                      )
+                    }
+                    large
+                  />
+                </section>
+
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                  <SectionHeader
+                    icon="🚪"
+                    title="Check-out Instructions"
+                    description="Explain what guests should do before leaving the property."
+                  />
+
+                  <TextArea
+                    placeholder={`Example:
+Check-out time is 10:00.
+
+Before leaving, please:
+- Turn off the air conditioning and lights.
+- Close all windows and doors.
+- Leave the keys as instructed by the host.
+- Place used towels together in the bathroom.
+- Do not remove towels or linens from the apartment.`}
+                    value={knowledgeBase.welcome_book.checkout_notes}
+                    onChange={(value) =>
+                      updateWelcomeBook(
+                        "checkout_notes",
+                        value
+                      )
+                    }
+                    large
+                  />
+                </section>
+
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-red-100">
-                  <h2 className="text-2xl font-bold mb-6">
-                    🚨 Emergency Numbers
-                  </h2>
+                  <SectionHeader
+                    icon="🚨"
+                    title="Emergency Contacts"
+                    description="Add emergency numbers, host contact, maintenance contact or useful local emergency information."
+                  />
 
                   <textarea
                     className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
-                    placeholder="Emergency contacts, hospitals, police, maintenance..."
+                    placeholder={`Example:
+Emergency number in Malta: 112
+Host contact: [host phone]
+Maintenance contact: [optional]
+Nearest clinic / pharmacy: [optional]`}
                     value={emergencyNumbers}
                     onChange={(event) =>
                       setEmergencyNumbers(event.target.value)
@@ -908,9 +1130,11 @@ export default function Dashboard() {
                 </section>
 
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <h2 className="text-2xl font-bold mb-6">
-                    ⚙️ Modules
-                  </h2>
+                  <SectionHeader
+                    icon="⚙️"
+                    title="Modules"
+                    description="Enable or disable guest-facing modules for this property."
+                  />
 
                   <div className="grid md:grid-cols-2 gap-4">
                     <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
