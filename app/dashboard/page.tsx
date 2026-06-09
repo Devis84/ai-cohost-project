@@ -6,33 +6,55 @@ type WelcomeBook = {
   description: string;
   amenities: string;
   house_rules: string;
-  parking: string;
-  trash: string;
+  apartment_instructions: string;
+  kitchen: string;
+  washing_machine: string;
   ac: string;
   boiler: string;
-  restaurants: string;
-  transport: string;
-  local_guide: string;
+  trash: string;
+  towels_linen: string;
+  beach_towels: string;
+  parking: string;
   emergency: string;
   checkout_notes: string;
   extra_notes: string;
+
+  restaurants: string;
+  transport: string;
+  local_guide: string;
+};
+
+type LocalGuide = {
+  neighbourhood_overview: string;
+  restaurants: string;
+  breakfast_coffee: string;
+  bars: string;
+  beaches: string;
+  things_to_visit: string;
+  transport_getting_around: string;
+  useful_services: string;
+  host_recommendations: string;
 };
 
 type AiTraining = {
   faq: string;
   troubleshooting: string;
   guest_style: string;
+  complaint_handling: string;
+  escalation_rules: string;
   hidden_notes: string;
   additional_notes: string;
 };
 
 type KnowledgeBase = {
   welcome_book: WelcomeBook;
+  local_guide: LocalGuide;
   ai_training: AiTraining;
 };
 
 type StoredKnowledgeBase = {
   welcome_book?: Partial<WelcomeBook>;
+  local_guide?: Partial<LocalGuide>;
   ai_training?: Partial<AiTraining>;
 };
 
@@ -70,22 +92,42 @@ function createEmptyKnowledgeBase(): KnowledgeBase {
       description: "",
       amenities: "",
       house_rules: "",
-      parking: "",
-      trash: "",
+      apartment_instructions: "",
+      kitchen: "",
+      washing_machine: "",
       ac: "",
       boiler: "",
-      restaurants: "",
-      transport: "",
-      local_guide: "",
+      trash: "",
+      towels_linen: "",
+      beach_towels: "",
+      parking: "",
       emergency: "",
       checkout_notes: "",
       extra_notes: "",
+
+      restaurants: "",
+      transport: "",
+      local_guide: "",
+    },
+
+    local_guide: {
+      neighbourhood_overview: "",
+      restaurants: "",
+      breakfast_coffee: "",
+      bars: "",
+      beaches: "",
+      things_to_visit: "",
+      transport_getting_around: "",
+      useful_services: "",
+      host_recommendations: "",
     },
 
     ai_training: {
       faq: "",
       troubleshooting: "",
       guest_style: "",
+      complaint_handling: "",
+      escalation_rules: "",
       hidden_notes: "",
       additional_notes: "",
     },
@@ -110,6 +152,9 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
   const savedWelcome: Partial<WelcomeBook> =
     property.knowledge_base?.welcome_book || {};
 
+  const savedLocalGuide: Partial<LocalGuide> =
+    property.knowledge_base?.local_guide || {};
+
   const savedAi: Partial<AiTraining> =
     property.knowledge_base?.ai_training || {};
 
@@ -129,12 +174,26 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
       parking:
         savedWelcome.parking ||
         safeString(property.parking_info),
-      local_guide:
-        savedWelcome.local_guide ||
-        safeString(property.local_info),
       emergency:
         savedWelcome.emergency ||
         safeString(property.emergency_info),
+    },
+
+    local_guide: {
+      ...empty.local_guide,
+      ...savedLocalGuide,
+      neighbourhood_overview:
+        savedLocalGuide.neighbourhood_overview ||
+        safeString(property.local_info),
+      restaurants:
+        savedLocalGuide.restaurants ||
+        safeString(savedWelcome.restaurants),
+      transport_getting_around:
+        savedLocalGuide.transport_getting_around ||
+        safeString(savedWelcome.transport),
+      host_recommendations:
+        savedLocalGuide.host_recommendations ||
+        safeString(savedWelcome.local_guide),
     },
 
     ai_training: {
@@ -459,7 +518,7 @@ export default function Dashboard() {
       parking_info:
         knowledgeBase.welcome_book.parking,
       local_info:
-        knowledgeBase.welcome_book.local_guide,
+        knowledgeBase.local_guide.neighbourhood_overview,
       emergency_info:
         knowledgeBase.welcome_book.emergency,
       ai_knowledge:
@@ -569,6 +628,19 @@ export default function Dashboard() {
     }));
   }
 
+  function updateLocalGuide(
+    field: keyof LocalGuide,
+    value: string
+  ) {
+    setKnowledgeBase((current) => ({
+      ...current,
+      local_guide: {
+        ...current.local_guide,
+        [field]: value,
+      },
+    }));
+  }
+
   function updateAiTraining(
     field: keyof AiTraining,
     value: string
@@ -650,6 +722,17 @@ export default function Dashboard() {
               }`}
             >
               📘 Welcome Book
+            </button>
+
+            <button
+              onClick={() => setActiveTab("localguide")}
+              className={`w-full text-left px-5 py-4 rounded-2xl transition ${
+                activeTab === "localguide"
+                  ? "bg-black text-white shadow-xl"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              📍 Local Guide
             </button>
 
             <button
@@ -924,9 +1007,12 @@ export default function Dashboard() {
 
                   <TextArea
                     placeholder="Example: From Malta International Airport, the easiest way to reach the apartment is by taxi or Bolt. The journey usually takes around 20–30 minutes depending on traffic. Public transport is also available, but travel time may be longer with luggage."
-                    value={knowledgeBase.welcome_book.transport}
+                    value={knowledgeBase.local_guide.transport_getting_around}
                     onChange={(value) =>
-                      updateWelcomeBook("transport", value)
+                      updateLocalGuide(
+                        "transport_getting_around",
+                        value
+                      )
                     }
                   />
                 </section>
@@ -1062,13 +1148,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder={`Example:
-- Quiet hours are from 23:00 to 07:00.
-- No parties or events.
-- No smoking inside the apartment.
-- Please keep doors and windows closed when using the air conditioning.
-- Please use only the towels and bedsheets provided for your stay.
-- If you need anything extra, please contact the host.`}
+                    placeholder="Add the main house rules for this property."
                     value={knowledgeBase.welcome_book.house_rules}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1088,15 +1168,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder={`Example:
-Check-out time is 10:00.
-
-Before leaving, please:
-- Turn off the air conditioning and lights.
-- Close all windows and doors.
-- Leave the keys as instructed by the host.
-- Place used towels together in the bathroom.
-- Do not remove towels or linens from the apartment.`}
+                    placeholder="Add check-out instructions for guests."
                     value={knowledgeBase.welcome_book.checkout_notes}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1117,11 +1189,7 @@ Before leaving, please:
 
                   <textarea
                     className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
-                    placeholder={`Example:
-Emergency number in Malta: 112
-Host contact: [host phone]
-Maintenance contact: [optional]
-Nearest clinic / pharmacy: [optional]`}
+                    placeholder="Add emergency contacts and useful numbers."
                     value={emergencyNumbers}
                     onChange={(event) =>
                       setEmergencyNumbers(event.target.value)
@@ -1193,28 +1261,15 @@ Nearest clinic / pharmacy: [optional]`}
 
             {activeTab === "welcomebook" && (
               <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                <h2 className="text-2xl font-bold mb-2">
-                  📘 Welcome Book
-                </h2>
-
-                <p className="text-gray-500 mb-6">
-                  Information visible to guests during the stay.
-                </p>
+                <SectionHeader
+                  icon="📘"
+                  title="Welcome Book"
+                  description="House manual and practical apartment information visible to guests during their stay."
+                />
 
                 <div className="space-y-5">
                   <TextArea
-                    placeholder="Property description"
-                    value={knowledgeBase.welcome_book.description}
-                    onChange={(value) =>
-                      updateWelcomeBook(
-                        "description",
-                        value
-                      )
-                    }
-                  />
-
-                  <TextArea
-                    placeholder="Amenities"
+                    placeholder="Amenities available in the apartment."
                     value={knowledgeBase.welcome_book.amenities}
                     onChange={(value) =>
                       updateWelcomeBook("amenities", value)
@@ -1222,34 +1277,37 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="House rules"
-                    value={knowledgeBase.welcome_book.house_rules}
+                    placeholder="General apartment instructions."
+                    value={knowledgeBase.welcome_book.apartment_instructions}
                     onChange={(value) =>
                       updateWelcomeBook(
-                        "house_rules",
+                        "apartment_instructions",
                         value
                       )
                     }
                   />
 
                   <TextArea
-                    placeholder="Parking information"
-                    value={knowledgeBase.welcome_book.parking}
+                    placeholder="Kitchen instructions, appliances, basic supplies and usage notes."
+                    value={knowledgeBase.welcome_book.kitchen}
                     onChange={(value) =>
-                      updateWelcomeBook("parking", value)
+                      updateWelcomeBook("kitchen", value)
                     }
                   />
 
                   <TextArea
-                    placeholder="Trash and recycling instructions"
-                    value={knowledgeBase.welcome_book.trash}
+                    placeholder="Washing machine instructions."
+                    value={knowledgeBase.welcome_book.washing_machine}
                     onChange={(value) =>
-                      updateWelcomeBook("trash", value)
+                      updateWelcomeBook(
+                        "washing_machine",
+                        value
+                      )
                     }
                   />
 
                   <TextArea
-                    placeholder="Air conditioning instructions"
+                    placeholder="Air conditioning instructions."
                     value={knowledgeBase.welcome_book.ac}
                     onChange={(value) =>
                       updateWelcomeBook("ac", value)
@@ -1257,7 +1315,7 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Boiler / hot water instructions"
+                    placeholder="Boiler / hot water instructions."
                     value={knowledgeBase.welcome_book.boiler}
                     onChange={(value) =>
                       updateWelcomeBook("boiler", value)
@@ -1265,37 +1323,45 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Restaurants and food recommendations"
-                    value={knowledgeBase.welcome_book.restaurants}
+                    placeholder="Trash and recycling instructions."
+                    value={knowledgeBase.welcome_book.trash}
+                    onChange={(value) =>
+                      updateWelcomeBook("trash", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Towels and linen instructions."
+                    value={knowledgeBase.welcome_book.towels_linen}
                     onChange={(value) =>
                       updateWelcomeBook(
-                        "restaurants",
+                        "towels_linen",
                         value
                       )
                     }
                   />
 
                   <TextArea
-                    placeholder="Transport information"
-                    value={knowledgeBase.welcome_book.transport}
-                    onChange={(value) =>
-                      updateWelcomeBook("transport", value)
-                    }
-                  />
-
-                  <TextArea
-                    placeholder="Local guide"
-                    value={knowledgeBase.welcome_book.local_guide}
+                    placeholder="Beach towels instructions."
+                    value={knowledgeBase.welcome_book.beach_towels}
                     onChange={(value) =>
                       updateWelcomeBook(
-                        "local_guide",
+                        "beach_towels",
                         value
                       )
                     }
                   />
 
                   <TextArea
-                    placeholder="Emergency information visible to guests"
+                    placeholder="Parking information."
+                    value={knowledgeBase.welcome_book.parking}
+                    onChange={(value) =>
+                      updateWelcomeBook("parking", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Emergency information visible to guests."
                     value={knowledgeBase.welcome_book.emergency}
                     onChange={(value) =>
                       updateWelcomeBook("emergency", value)
@@ -1303,18 +1369,7 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Checkout notes"
-                    value={knowledgeBase.welcome_book.checkout_notes}
-                    onChange={(value) =>
-                      updateWelcomeBook(
-                        "checkout_notes",
-                        value
-                      )
-                    }
-                  />
-
-                  <TextArea
-                    placeholder="Extra notes for this property"
+                    placeholder="Extra house notes for this property."
                     value={knowledgeBase.welcome_book.extra_notes}
                     onChange={(value) =>
                       updateWelcomeBook("extra_notes", value)
@@ -1325,19 +1380,123 @@ Nearest clinic / pharmacy: [optional]`}
               </section>
             )}
 
-            {activeTab === "ai" && (
+            {activeTab === "localguide" && (
               <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                <h2 className="text-2xl font-bold mb-2">
-                  🤖 AI Training
-                </h2>
-
-                <p className="text-gray-500 mb-6 leading-relaxed">
-                  Internal AI knowledge used by the AI concierge.
-                </p>
+                <SectionHeader
+                  icon="📍"
+                  title="Local Guide"
+                  description="Local recommendations and area information for guests: restaurants, bars, beaches, transport and things to do."
+                />
 
                 <div className="space-y-5">
                   <TextArea
-                    placeholder="FAQs"
+                    placeholder="Neighbourhood overview. Explain the area, atmosphere, nearby landmarks and what guests should know."
+                    value={knowledgeBase.local_guide.neighbourhood_overview}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "neighbourhood_overview",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Restaurants. Add recommended places to eat nearby."
+                    value={knowledgeBase.local_guide.restaurants}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "restaurants",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Breakfast and coffee. Add cafés, bakeries and breakfast spots."
+                    value={knowledgeBase.local_guide.breakfast_coffee}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "breakfast_coffee",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Bars. Add cocktail bars, wine bars, pubs or nightlife recommendations."
+                    value={knowledgeBase.local_guide.bars}
+                    onChange={(value) =>
+                      updateLocalGuide("bars", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Beaches. Add nearby beaches, swimming spots, rocky beaches and beach clubs."
+                    value={knowledgeBase.local_guide.beaches}
+                    onChange={(value) =>
+                      updateLocalGuide("beaches", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Things to visit. Add attractions, sightseeing ideas, day trips and cultural places."
+                    value={knowledgeBase.local_guide.things_to_visit}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "things_to_visit",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Transport and getting around. Add airport transfer, buses, ferries, Bolt/Uber, taxis and walking tips."
+                    value={knowledgeBase.local_guide.transport_getting_around}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "transport_getting_around",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Useful services. Add supermarkets, pharmacies, clinics, ATMs, laundry, gyms or other practical services."
+                    value={knowledgeBase.local_guide.useful_services}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "useful_services",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Host recommendations. Add your personal favourites and practical tips."
+                    value={knowledgeBase.local_guide.host_recommendations}
+                    onChange={(value) =>
+                      updateLocalGuide(
+                        "host_recommendations",
+                        value
+                      )
+                    }
+                    large
+                  />
+                </div>
+              </section>
+            )}
+
+            {activeTab === "ai" && (
+              <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                <SectionHeader
+                  icon="🤖"
+                  title="AI Training"
+                  description="Internal instructions used by the AI concierge. These notes help the assistant answer correctly and escalate when needed."
+                />
+
+                <div className="space-y-5">
+                  <TextArea
+                    placeholder="FAQs. Add common guest questions and preferred answers."
                     value={knowledgeBase.ai_training.faq}
                     onChange={(value) =>
                       updateAiTraining("faq", value)
@@ -1345,7 +1504,7 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Troubleshooting & operational notes"
+                    placeholder="Troubleshooting. Add instructions for common apartment issues such as Wi-Fi, AC, hot water, keys, access or appliances."
                     value={
                       knowledgeBase.ai_training.troubleshooting
                     }
@@ -1358,7 +1517,7 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Guest communication style"
+                    placeholder="Guest communication style. Explain tone, language, length of answers and hospitality style."
                     value={knowledgeBase.ai_training.guest_style}
                     onChange={(value) =>
                       updateAiTraining(
@@ -1369,7 +1528,29 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Hidden operational notes"
+                    placeholder="Complaint handling. Explain how the AI should respond to complaints, unhappy guests or sensitive situations."
+                    value={knowledgeBase.ai_training.complaint_handling}
+                    onChange={(value) =>
+                      updateAiTraining(
+                        "complaint_handling",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Escalation rules. Explain when the AI should tell the guest to contact the host immediately."
+                    value={knowledgeBase.ai_training.escalation_rules}
+                    onChange={(value) =>
+                      updateAiTraining(
+                        "escalation_rules",
+                        value
+                      )
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Hidden operational notes. Internal host notes that should guide the AI but should not be shown directly to guests."
                     value={knowledgeBase.ai_training.hidden_notes}
                     onChange={(value) =>
                       updateAiTraining(
@@ -1380,7 +1561,7 @@ Nearest clinic / pharmacy: [optional]`}
                   />
 
                   <TextArea
-                    placeholder="Additional AI notes"
+                    placeholder="Additional AI notes."
                     value={
                       knowledgeBase.ai_training.additional_notes
                     }
