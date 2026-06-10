@@ -18,7 +18,6 @@ type WelcomeBook = {
   emergency: string;
   checkout_notes: string;
   extra_notes: string;
-
   restaurants: string;
   transport: string;
   local_guide: string;
@@ -104,7 +103,6 @@ function createEmptyKnowledgeBase(): KnowledgeBase {
       emergency: "",
       checkout_notes: "",
       extra_notes: "",
-
       restaurants: "",
       transport: "",
       local_guide: "",
@@ -931,7 +929,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Paste the property description used on Airbnb, Booking.com or your direct listing."
+                    placeholder="Property description. Paste the property description used on Airbnb, Booking.com or your direct listing."
                     value={knowledgeBase.welcome_book.description}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1000,13 +998,8 @@ export default function Dashboard() {
                     />
                   </div>
 
-                  <FieldLabel
-                    title="How to reach the property from the airport"
-                    description="Add taxi, Bolt/Uber, public transport, approximate travel time and useful arrival tips."
-                  />
-
                   <TextArea
-                    placeholder="Example: From Malta International Airport, the easiest way to reach the apartment is by taxi or Bolt. The journey usually takes around 20–30 minutes depending on traffic. Public transport is also available, but travel time may be longer with luggage."
+                    placeholder="How to reach the property from the airport. Add taxi, Bolt/Uber, public transport, approximate travel time and useful arrival tips."
                     value={knowledgeBase.local_guide.transport_getting_around}
                     onChange={(value) =>
                       updateLocalGuide(
@@ -1148,7 +1141,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Add the main house rules for this property."
+                    placeholder="House rules. Add the main house rules for this property."
                     value={knowledgeBase.welcome_book.house_rules}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1168,7 +1161,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Add check-out instructions for guests."
+                    placeholder="Check-out instructions. Add check-out instructions for guests."
                     value={knowledgeBase.welcome_book.checkout_notes}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1269,7 +1262,7 @@ export default function Dashboard() {
 
                 <div className="space-y-5">
                   <TextArea
-                    placeholder="Amenities available in the apartment."
+                    placeholder="Amenities. Amenities available in the apartment."
                     value={knowledgeBase.welcome_book.amenities}
                     onChange={(value) =>
                       updateWelcomeBook("amenities", value)
@@ -1277,7 +1270,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="General apartment instructions."
+                    placeholder="General apartment instructions. Add general instructions guests should follow while using the apartment."
                     value={knowledgeBase.welcome_book.apartment_instructions}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1288,7 +1281,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Kitchen instructions, appliances, basic supplies and usage notes."
+                    placeholder="Kitchen instructions. Add appliances, basic supplies and usage notes."
                     value={knowledgeBase.welcome_book.kitchen}
                     onChange={(value) =>
                       updateWelcomeBook("kitchen", value)
@@ -1296,7 +1289,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Washing machine instructions."
+                    placeholder="Washing machine instructions. Explain how guests can use the washing machine."
                     value={knowledgeBase.welcome_book.washing_machine}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1307,7 +1300,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Air conditioning instructions."
+                    placeholder="Air conditioning instructions. Explain how guests should use the air conditioning."
                     value={knowledgeBase.welcome_book.ac}
                     onChange={(value) =>
                       updateWelcomeBook("ac", value)
@@ -1315,7 +1308,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Boiler / hot water instructions."
+                    placeholder="Boiler / hot water instructions. Explain anything guests should know about hot water."
                     value={knowledgeBase.welcome_book.boiler}
                     onChange={(value) =>
                       updateWelcomeBook("boiler", value)
@@ -1323,7 +1316,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Trash and recycling instructions."
+                    placeholder="Trash and recycling instructions. Explain rubbish collection, recycling rules and check-out rubbish instructions."
                     value={knowledgeBase.welcome_book.trash}
                     onChange={(value) =>
                       updateWelcomeBook("trash", value)
@@ -1331,7 +1324,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Towels and linen instructions."
+                    placeholder="Towels and linen instructions. Explain provided towels, linen and extra towel rules."
                     value={knowledgeBase.welcome_book.towels_linen}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1342,7 +1335,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Beach towels instructions."
+                    placeholder="Beach towels instructions. Explain where beach towels are located and how guests may use them."
                     value={knowledgeBase.welcome_book.beach_towels}
                     onChange={(value) =>
                       updateWelcomeBook(
@@ -1353,7 +1346,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Parking information."
+                    placeholder="Parking information. Explain parking availability, limitations and useful parking notes."
                     value={knowledgeBase.welcome_book.parking}
                     onChange={(value) =>
                       updateWelcomeBook("parking", value)
@@ -1361,7 +1354,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Emergency information visible to guests."
+                    placeholder="Emergency information. Add emergency information visible to guests."
                     value={knowledgeBase.welcome_book.emergency}
                     onChange={(value) =>
                       updateWelcomeBook("emergency", value)
@@ -1369,7 +1362,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Extra house notes for this property."
+                    placeholder="Extra house notes. Add extra notes specific to this property."
                     value={knowledgeBase.welcome_book.extra_notes}
                     onChange={(value) =>
                       updateWelcomeBook("extra_notes", value)
@@ -1561,7 +1554,7 @@ export default function Dashboard() {
                   />
 
                   <TextArea
-                    placeholder="Additional AI notes."
+                    placeholder="Additional AI notes. Add any additional instruction for the AI concierge."
                     value={
                       knowledgeBase.ai_training.additional_notes
                     }
@@ -1616,16 +1609,44 @@ function TextArea({
   onChange: (value: string) => void;
   large?: boolean;
 }) {
+  const helperText = placeholder.trim();
+
+  const firstDotIndex = helperText.indexOf(".");
+
+  const title =
+    firstDotIndex > 0
+      ? helperText.slice(0, firstDotIndex).trim()
+      : helperText;
+
+  const description =
+    firstDotIndex > 0
+      ? helperText.slice(firstDotIndex + 1).trim()
+      : "";
+
   return (
-    <textarea
-      className={`w-full border border-gray-200 rounded-2xl p-4 ${
-        large ? "min-h-[220px]" : "min-h-[150px]"
-      }`}
-      placeholder={placeholder}
-      value={value}
-      onChange={(event) =>
-        onChange(event.target.value)
-      }
-    />
+    <div className="space-y-2">
+      <div>
+        <label className="block text-sm font-bold text-gray-900">
+          {title}
+        </label>
+
+        {description && (
+          <p className="text-sm text-gray-500 leading-relaxed mt-1">
+            {description}
+          </p>
+        )}
+      </div>
+
+      <textarea
+        className={`w-full border border-gray-200 rounded-2xl p-4 text-gray-900 placeholder:text-gray-300 ${
+          large ? "min-h-[220px]" : "min-h-[150px]"
+        }`}
+        placeholder="Write the details here..."
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+      />
+    </div>
   );
 }
