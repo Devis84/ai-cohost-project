@@ -1,6 +1,21 @@
- import { NextResponse } from "next/server";
 
-import { supabaseServer } from "@/lib/supabase/supabase-server";
+export const runtime = "nodejs";
+
+ import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic";
+
+function getSupabaseAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 export async function PATCH(request: Request) {
   try {
@@ -22,7 +37,9 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const { data, error } = await supabaseServer
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
       .from("conversations")
       .update({
         unread_count: 0,

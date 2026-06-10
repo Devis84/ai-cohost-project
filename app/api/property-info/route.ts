@@ -1,24 +1,61 @@
-import { createClient } from "@supabase/supabase-js"
+ import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
- process.env.NEXT_PUBLIC_SUPABASE_URL!,
- process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+function getSupabaseAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const propertyId = searchParams.get("property_id");
 
- const { searchParams } = new URL(req.url)
- const property_id = searchParams.get("property_id")
+    if (!propertyId) {
+      return Response.json(null);
+    }
 
- if (!property_id) {
-  return Response.json(null)
- }
+    const supabase = getSupabaseAdminClient();
 
- const { data } = await supabase
-  .from("property_info")
-  .select("*")
-  .eq("property_id", property_id)
-  .single()
+    const { data, error } = await supabase
+      .from("property_info")
+      .select("*")
+      .eq("property_id", propertyId)
+      .single();
 
- return Response.json(data)
+    if (error) {
+      console.error("PROPERTY INFO ERROR:", error);
+
+      return Response.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    return Response.json(data);
+  } catch (error) {
+    console.error("PROPERTY INFO SERVER ERROR:", error);
+
+    return Response.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to load property info",
+      },
+      { status: 500 }
+    );
+  }
 }

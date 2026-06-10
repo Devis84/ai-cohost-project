@@ -1,6 +1,10 @@
- import { NextResponse } from "next/server";
 
-import { supabaseServer } from "@/lib/supabase/supabase-server";
+export const runtime = "nodejs";
+
+ import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+export const dynamic = "force-dynamic";
 
 type PropertyRecord = {
   id: string;
@@ -39,6 +43,17 @@ type MessageRecord = {
   requires_host?: boolean | null;
   issue_detected?: string | null;
 };
+
+function getSupabaseAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 function getConversationText(record: ConversationRecord | null) {
   if (!record) {
@@ -95,10 +110,12 @@ function getMessageSender(record: MessageRecord | null) {
 
 export async function GET() {
   try {
+    const supabase = getSupabaseAdminClient();
+
     const {
       data: propertiesData,
       error: propertiesError,
-    } = await supabaseServer
+    } = await supabase
       .from("properties")
       .select("*")
       .order("property_name", {
@@ -112,7 +129,7 @@ export async function GET() {
     const {
       data: conversationsData,
       error: conversationsError,
-    } = await supabaseServer
+    } = await supabase
       .from("conversations")
       .select("*")
       .order("created_at", {
@@ -129,7 +146,7 @@ export async function GET() {
     const {
       data: messagesData,
       error: messagesError,
-    } = await supabaseServer
+    } = await supabase
       .from("messages")
       .select("*")
       .order("created_at", {

@@ -1,3 +1,7 @@
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
  import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
