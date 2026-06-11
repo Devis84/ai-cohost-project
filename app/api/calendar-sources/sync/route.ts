@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -71,13 +71,49 @@ function unfoldIcsLines(icsText: string) {
     }, []);
 }
 
+function validateIcsContent(icsText: string) {
+  const trimmed = icsText.trim();
+
+  if (!trimmed) {
+    throw new Error(
+      "The calendar feed is empty. Please check the iCal URL."
+    );
+  }
+
+  const lower = trimmed.slice(0, 300).toLowerCase();
+
+  if (
+    lower.includes("<!doctype html") ||
+    lower.includes("<html") ||
+    lower.includes("<head") ||
+    lower.includes("<body")
+  ) {
+    throw new Error(
+      "This URL returns a web page, not an iCal feed. Please use the Airbnb/Booking.com iCal export URL ending in .ics or containing /calendar/ical/."
+    );
+  }
+
+  if (!trimmed.includes("BEGIN:VCALENDAR")) {
+    throw new Error(
+      "This does not look like a valid iCal feed. Please paste the full .ics calendar export URL."
+    );
+  }
+
+  if (!trimmed.includes("BEGIN:VEVENT")) {
+    throw new Error(
+      "The iCal feed is valid but contains no booking events."
+    );
+  }
+}
+
 function getIcsValue(
   eventLines: string[],
   key: string
 ) {
-  const line = eventLines.find((item) =>
-    item.startsWith(`${key}:`) ||
-    item.startsWith(`${key};`)
+  const line = eventLines.find(
+    (item) =>
+      item.startsWith(`${key}:`) ||
+      item.startsWith(`${key};`)
   );
 
   if (!line) {
@@ -122,6 +158,8 @@ function normalizeIcsDate(value: string) {
 }
 
 function parseIcsEvents(icsText: string) {
+  validateIcsContent(icsText);
+
   const lines = unfoldIcsLines(icsText);
 
   const events: IcsEvent[] = [];
@@ -182,10 +220,57 @@ function getGuestNameFromSummary(summary: string) {
     return "Imported booking";
   }
 
-  return cleanSummary
-    .replace(/^Reservation[:\s-]*/i, "")
-    .replace(/^Booking[:\s-]*/i, "")
-    .trim() || "Imported booking";
+  return (
+    cleanSummary
+      .replace(/^Reservation[:\s-]*/i, "")
+      .replace(/^Booking[:\s-]*/i, "")
+      .replace(/^Reserved[:\s-]*/i, "")
+      .trim() || "Imported booking"
+  );
+}
+
+async function writeSyncFailure({
+  supabase,
+  source,
+  errorMessage,
+  eventsFound,
+  bookingsCreated,
+  bookingsUpdated,
+  bookingsSkipped,
+}: {
+  supabase: ReturnType<typeof getSupabaseAdminClient>;
+  source: CalendarSource;
+  errorMessage: string;
+  eventsFound: number;
+  bookingsCreated: number;
+  bookingsUpdated: number;
+  bookingsSkipped: number;
+}) {
+  const syncedAt = new Date().toISOString();
+
+  await supabase
+    .from("booking_sources")
+    .update({
+      last_sync_at: syncedAt,
+      last_sync_status: "error",
+      last_sync_error: errorMessage,
+      updated_at: syncedAt,
+    })
+    .eq("id", source.id);
+
+  await supabase
+    .from("calendar_sync_logs")
+    .insert({
+      property_id: source.property_id,
+      source_id: source.id,
+      status: "error",
+      events_found: eventsFound,
+      bookings_created: bookingsCreated,
+      bookings_updated: bookingsUpdated,
+      bookings_skipped: bookingsSkipped,
+      error_message: errorMessage,
+      synced_at: syncedAt,
+    });
 }
 
 export async function POST(request: Request) {
@@ -259,6 +344,7 @@ export async function POST(request: Request) {
       method: "GET",
       headers: {
         Accept: "text/calendar,text/plain,*/*",
+        "User-Agent": "AI-CoHost-Light-Channel-Manager/1.0",
       },
       cache: "no-store",
     });
@@ -269,19 +355,40 @@ export async function POST(request: Request) {
       );
     }
 
+    const contentType =
+      icsResponse.headers.get("content-type") || "";
+
     const icsText = await icsResponse.text();
+
+    if (
+      contentType.includes("text/html") ||
+      contentType.includes("application/xhtml")
+    ) {
+      throw new Error(
+        "This URL returns a web page, not an iCal feed. Please use the real Airbnb/Booking.com iCal export URL."
+      );
+    }
+
     const events = parseIcsEvents(icsText);
 
     eventsFound = events.length;
 
+    if (events.length === 0) {
+      throw new Error(
+        "No importable events were found in this iCal feed."
+      );
+    }
+
     for (const event of events) {
-      const { data: existingBooking, error: existingError } =
-        await supabase
-          .from("bookings")
-          .select("id")
-          .eq("source_id", source.id)
-          .eq("external_event_id", event.uid)
-          .maybeSingle();
+      const {
+        data: existingBooking,
+        error: existingError,
+      } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("source_id", source.id)
+        .eq("external_event_id", event.uid)
+        .maybeSingle();
 
       if (existingError) {
         throw existingError;
@@ -306,10 +413,11 @@ export async function POST(request: Request) {
       };
 
       if (existingBooking?.id) {
-        const { error: updateError } = await supabase
-          .from("bookings")
-          .update(payload)
-          .eq("id", existingBooking.id);
+        const { error: updateError } =
+          await supabase
+            .from("bookings")
+            .update(payload)
+            .eq("id", existingBooking.id);
 
         if (updateError) {
           throw updateError;
@@ -317,9 +425,10 @@ export async function POST(request: Request) {
 
         bookingsUpdated += 1;
       } else {
-        const { error: insertError } = await supabase
-          .from("bookings")
-          .insert(payload);
+        const { error: insertError } =
+          await supabase
+            .from("bookings")
+            .insert(payload);
 
         if (insertError) {
           throw insertError;
@@ -372,31 +481,15 @@ export async function POST(request: Request) {
         : "Unable to sync calendar source";
 
     if (source) {
-      const syncedAt = new Date().toISOString();
-
-      await supabase
-        .from("booking_sources")
-        .update({
-          last_sync_at: syncedAt,
-          last_sync_status: "error",
-          last_sync_error: errorMessage,
-          updated_at: syncedAt,
-        })
-        .eq("id", source.id);
-
-      await supabase
-        .from("calendar_sync_logs")
-        .insert({
-          property_id: source.property_id,
-          source_id: source.id,
-          status: "error",
-          events_found: eventsFound,
-          bookings_created: bookingsCreated,
-          bookings_updated: bookingsUpdated,
-          bookings_skipped: bookingsSkipped,
-          error_message: errorMessage,
-          synced_at: syncedAt,
-        });
+      await writeSyncFailure({
+        supabase,
+        source,
+        errorMessage,
+        eventsFound,
+        bookingsCreated,
+        bookingsUpdated,
+        bookingsSkipped,
+      });
     }
 
     return NextResponse.json(
