@@ -1,163 +1,100 @@
-"use client";
+ "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-type PropertyOption = {
+type Property = {
   id: string;
-  name: string;
-  slug: string;
+  property_name: string;
+  slug?: string | null;
 };
 
-type BookingStatus =
-  | "confirmed"
-  | "pending"
-  | "cancelled"
-  | "blocked";
-
-type BookingSource =
-  | "Airbnb"
-  | "Booking.com"
-  | "Direct"
-  | "WhatsApp"
-  | "Manual"
-  | "Owner Stay"
-  | "Other";
+type RelatedProperty = {
+  id: string;
+  property_name: string;
+  slug?: string | null;
+};
 
 type Booking = {
   id: string;
-  propertySlug: string;
-  guestName: string;
-  source: BookingSource;
-  checkin: string;
-  checkout: string;
-  guests: number;
-  status: BookingStatus;
-  notes?: string;
+  property_id: string;
+  source_type: string;
+  source_name?: string | null;
+  guest_name?: string | null;
+  guest_email?: string | null;
+  guest_phone?: string | null;
+  checkin_date: string;
+  checkout_date: string;
+  guest_count: number;
+  status: string;
+  notes?: string | null;
+  properties?: RelatedProperty | null;
 };
 
 type BlockedDate = {
   id: string;
-  propertySlug: string;
-  startDate: string;
-  endDate: string;
+  property_id: string;
+  start_date: string;
+  end_date: string;
   reason: string;
-  notes?: string;
+  notes?: string | null;
+  properties?: RelatedProperty | null;
 };
 
-type CalendarSource = {
-  id: string;
-  propertySlug: string;
-  sourceName: string;
-  sourceType: string;
-  status: "Connected" | "Not connected" | "Error";
-  lastSync: string;
+type BookingForm = {
+  property_id: string;
+  guest_name: string;
+  source_type: string;
+  checkin_date: string;
+  checkout_date: string;
+  guest_count: string;
+  status: string;
+  notes: string;
 };
 
-const properties: PropertyOption[] = [
-  {
-    id: "1",
-    name: "Maltese Maisonette",
-    slug: "maltese-maisonette",
-  },
-  {
-    id: "2",
-    name: "Big House",
-    slug: "big-house",
-  },
-  {
-    id: "3",
-    name: "Test Apartment",
-    slug: "test-apartment",
-  },
-];
+type BlockedDateForm = {
+  property_id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  notes: string;
+};
 
-const demoBookings: Booking[] = [
-  {
-    id: "b1",
-    propertySlug: "maltese-maisonette",
-    guestName: "Sample Airbnb Guest",
-    source: "Airbnb",
-    checkin: "2026-06-18",
-    checkout: "2026-06-22",
-    guests: 2,
-    status: "confirmed",
-    notes: "Demo booking used to preview the Light Channel Manager layout.",
-  },
-  {
-    id: "b2",
-    propertySlug: "maltese-maisonette",
-    guestName: "Direct Guest",
-    source: "Direct",
-    checkin: "2026-06-25",
-    checkout: "2026-06-29",
-    guests: 2,
-    status: "confirmed",
-    notes: "Manual/direct booking example.",
-  },
-  {
-    id: "b3",
-    propertySlug: "big-house",
-    guestName: "Booking.com Guest",
-    source: "Booking.com",
-    checkin: "2026-06-20",
-    checkout: "2026-06-24",
-    guests: 4,
-    status: "confirmed",
-  },
-];
+const emptyBookingForm: BookingForm = {
+  property_id: "",
+  guest_name: "",
+  source_type: "manual",
+  checkin_date: "",
+  checkout_date: "",
+  guest_count: "1",
+  status: "confirmed",
+  notes: "",
+};
 
-const demoBlockedDates: BlockedDate[] = [
-  {
-    id: "bd1",
-    propertySlug: "maltese-maisonette",
-    startDate: "2026-06-30",
-    endDate: "2026-07-02",
-    reason: "Maintenance",
-    notes: "Demo blocked date.",
-  },
-  {
-    id: "bd2",
-    propertySlug: "big-house",
-    startDate: "2026-06-28",
-    endDate: "2026-06-30",
-    reason: "Owner stay",
-    notes: "Demo owner stay.",
-  },
-];
-
-const demoCalendarSources: CalendarSource[] = [
-  {
-    id: "s1",
-    propertySlug: "maltese-maisonette",
-    sourceName: "Airbnb Calendar",
-    sourceType: "Airbnb ICS",
-    status: "Not connected",
-    lastSync: "Not synced yet",
-  },
-  {
-    id: "s2",
-    propertySlug: "maltese-maisonette",
-    sourceName: "Booking.com Calendar",
-    sourceType: "Booking.com ICS",
-    status: "Not connected",
-    lastSync: "Not synced yet",
-  },
-  {
-    id: "s3",
-    propertySlug: "big-house",
-    sourceName: "Airbnb Calendar",
-    sourceType: "Airbnb ICS",
-    status: "Not connected",
-    lastSync: "Not synced yet",
-  },
-];
+const emptyBlockedDateForm: BlockedDateForm = {
+  property_id: "",
+  start_date: "",
+  end_date: "",
+  reason: "Unavailable",
+  notes: "",
+};
 
 function differenceInNights(
-  checkin: string,
-  checkout: string
+  startDate: string,
+  endDate: string
 ) {
-  const start = new Date(`${checkin}T00:00:00`);
-  const end = new Date(`${checkout}T00:00:00`);
+  if (!startDate || !endDate) {
+    return 0;
+  }
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime())
+  ) {
+    return 0;
+  }
 
   const diff =
     end.getTime() - start.getTime();
@@ -180,35 +117,52 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function getSourceBadgeClass(source: BookingSource) {
-  switch (source) {
-    case "Airbnb":
+function getSourceLabel(value: string) {
+  switch (value) {
+    case "airbnb":
+      return "Airbnb";
+    case "booking":
+      return "Booking.com";
+    case "direct":
+      return "Direct";
+    case "whatsapp":
+      return "WhatsApp";
+    case "manual":
+      return "Manual";
+    case "owner":
+      return "Owner Stay";
+    default:
+      return "Other";
+  }
+}
+
+function getSourceBadgeClass(value: string) {
+  switch (value) {
+    case "airbnb":
       return "bg-rose-50 text-rose-700 border-rose-100";
-    case "Booking.com":
+    case "booking":
       return "bg-blue-50 text-blue-700 border-blue-100";
-    case "Direct":
+    case "direct":
       return "bg-emerald-50 text-emerald-700 border-emerald-100";
-    case "WhatsApp":
+    case "whatsapp":
       return "bg-green-50 text-green-700 border-green-100";
-    case "Manual":
-      return "bg-zinc-50 text-zinc-700 border-zinc-100";
-    case "Owner Stay":
+    case "owner":
       return "bg-purple-50 text-purple-700 border-purple-100";
+    case "manual":
+      return "bg-zinc-50 text-zinc-700 border-zinc-100";
     default:
       return "bg-gray-50 text-gray-700 border-gray-100";
   }
 }
 
-function getStatusBadgeClass(status: BookingStatus) {
-  switch (status) {
+function getStatusBadgeClass(value: string) {
+  switch (value) {
     case "confirmed":
       return "bg-emerald-50 text-emerald-700 border-emerald-100";
     case "pending":
       return "bg-amber-50 text-amber-700 border-amber-100";
     case "cancelled":
       return "bg-red-50 text-red-700 border-red-100";
-    case "blocked":
-      return "bg-zinc-100 text-zinc-700 border-zinc-200";
     default:
       return "bg-gray-50 text-gray-700 border-gray-100";
   }
@@ -278,49 +232,173 @@ function Section({
   );
 }
 
+function FieldLabel({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="mb-2">
+      <label className="block text-sm font-bold text-gray-800">
+        {title}
+      </label>
+
+      {description && (
+        <p className="text-xs text-gray-400 leading-relaxed mt-1">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ChannelManagerPage() {
+  const [properties, setProperties] =
+    useState<Property[]>([]);
+
   const [selectedProperty, setSelectedProperty] =
     useState("all");
 
-  const filteredBookings = useMemo(() => {
-    if (selectedProperty === "all") {
-      return demoBookings;
+  const [bookings, setBookings] =
+    useState<Booking[]>([]);
+
+  const [blockedDates, setBlockedDates] =
+    useState<BlockedDate[]>([]);
+
+  const [bookingForm, setBookingForm] =
+    useState<BookingForm>(emptyBookingForm);
+
+  const [blockedDateForm, setBlockedDateForm] =
+    useState<BlockedDateForm>(emptyBlockedDateForm);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [savingBooking, setSavingBooking] =
+    useState(false);
+
+  const [savingBlockedDate, setSavingBlockedDate] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (properties.length === 0) {
+      return;
     }
 
-    return demoBookings.filter(
-      (booking) =>
-        booking.propertySlug === selectedProperty
+    setBookingForm((current) => ({
+      ...current,
+      property_id:
+        current.property_id || properties[0].id,
+    }));
+
+    setBlockedDateForm((current) => ({
+      ...current,
+      property_id:
+        current.property_id || properties[0].id,
+    }));
+  }, [properties]);
+
+  async function loadInitialData() {
+    try {
+      setLoading(true);
+      setErrorMessage("");
+
+      await Promise.all([
+        loadProperties(),
+        loadBookings(),
+        loadBlockedDates(),
+      ]);
+    } catch (error) {
+      console.error("CHANNEL MANAGER LOAD ERROR:", error);
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to load channel manager data"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadProperties() {
+    const response = await fetch("/api/properties");
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(
+        data.error || "Unable to load properties"
+      );
+    }
+
+    setProperties((data.properties || []) as Property[]);
+  }
+
+  async function loadBookings() {
+    const response = await fetch("/api/bookings");
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(
+        data.error || "Unable to load bookings"
+      );
+    }
+
+    setBookings((data.bookings || []) as Booking[]);
+  }
+
+  async function loadBlockedDates() {
+    const response = await fetch("/api/blocked-dates");
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(
+        data.error || "Unable to load blocked dates"
+      );
+    }
+
+    setBlockedDates(
+      (data.blocked_dates || []) as BlockedDate[]
     );
-  }, [selectedProperty]);
+  }
+
+  const filteredBookings = useMemo(() => {
+    if (selectedProperty === "all") {
+      return bookings;
+    }
+
+    return bookings.filter(
+      (booking) =>
+        booking.property_id === selectedProperty
+    );
+  }, [bookings, selectedProperty]);
 
   const filteredBlockedDates = useMemo(() => {
     if (selectedProperty === "all") {
-      return demoBlockedDates;
+      return blockedDates;
     }
 
-    return demoBlockedDates.filter(
+    return blockedDates.filter(
       (blockedDate) =>
-        blockedDate.propertySlug === selectedProperty
+        blockedDate.property_id === selectedProperty
     );
-  }, [selectedProperty]);
-
-  const filteredSources = useMemo(() => {
-    if (selectedProperty === "all") {
-      return demoCalendarSources;
-    }
-
-    return demoCalendarSources.filter(
-      (source) =>
-        source.propertySlug === selectedProperty
-    );
-  }, [selectedProperty]);
+  }, [blockedDates, selectedProperty]);
 
   const occupiedNights = filteredBookings.reduce(
     (total, booking) =>
       total +
       differenceInNights(
-        booking.checkin,
-        booking.checkout
+        booking.checkin_date,
+        booking.checkout_date
       ),
     0
   );
@@ -329,13 +407,14 @@ export default function ChannelManagerPage() {
     (total, blockedDate) =>
       total +
       differenceInNights(
-        blockedDate.startDate,
-        blockedDate.endDate
+        blockedDate.start_date,
+        blockedDate.end_date
       ),
     0
   );
 
   const totalPeriodNights = 30;
+
   const occupancyRate =
     totalPeriodNights > 0
       ? Math.round(
@@ -354,6 +433,236 @@ export default function ChannelManagerPage() {
       (booking) => booking.status === "confirmed"
     ).length;
 
+  async function createBooking() {
+    if (!bookingForm.property_id) {
+      alert("Select a property first");
+      return;
+    }
+
+    if (
+      !bookingForm.checkin_date ||
+      !bookingForm.checkout_date
+    ) {
+      alert("Check-in and check-out dates are required");
+      return;
+    }
+
+    try {
+      setSavingBooking(true);
+
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          property_id: bookingForm.property_id,
+          guest_name:
+            bookingForm.guest_name || "Manual booking",
+          source_type: bookingForm.source_type,
+          source_name: getSourceLabel(
+            bookingForm.source_type
+          ),
+          checkin_date: bookingForm.checkin_date,
+          checkout_date: bookingForm.checkout_date,
+          guest_count:
+            Number(bookingForm.guest_count) || 1,
+          status: bookingForm.status,
+          notes: bookingForm.notes || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.error || "Unable to create booking"
+        );
+      }
+
+      setBookingForm((current) => ({
+        ...emptyBookingForm,
+        property_id: current.property_id,
+      }));
+
+      await loadBookings();
+
+      alert("Booking added");
+    } catch (error) {
+      console.error("CREATE BOOKING UI ERROR:", error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to create booking"
+      );
+    } finally {
+      setSavingBooking(false);
+    }
+  }
+
+  async function deleteBooking(id: string) {
+    const confirmDelete = confirm(
+      "Delete this booking?"
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/bookings?id=${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.error || "Unable to delete booking"
+        );
+      }
+
+      await loadBookings();
+    } catch (error) {
+      console.error("DELETE BOOKING UI ERROR:", error);
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete booking"
+      );
+    }
+  }
+
+  async function createBlockedDate() {
+    if (!blockedDateForm.property_id) {
+      alert("Select a property first");
+      return;
+    }
+
+    if (
+      !blockedDateForm.start_date ||
+      !blockedDateForm.end_date
+    ) {
+      alert("Start and end dates are required");
+      return;
+    }
+
+    try {
+      setSavingBlockedDate(true);
+
+      const response = await fetch(
+        "/api/blocked-dates",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            property_id:
+              blockedDateForm.property_id,
+            start_date:
+              blockedDateForm.start_date,
+            end_date:
+              blockedDateForm.end_date,
+            reason:
+              blockedDateForm.reason ||
+              "Unavailable",
+            notes:
+              blockedDateForm.notes || null,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.error ||
+            "Unable to create blocked date"
+        );
+      }
+
+      setBlockedDateForm((current) => ({
+        ...emptyBlockedDateForm,
+        property_id: current.property_id,
+      }));
+
+      await loadBlockedDates();
+
+      alert("Blocked date added");
+    } catch (error) {
+      console.error(
+        "CREATE BLOCKED DATE UI ERROR:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to create blocked date"
+      );
+    } finally {
+      setSavingBlockedDate(false);
+    }
+  }
+
+  async function deleteBlockedDate(id: string) {
+    const confirmDelete = confirm(
+      "Delete this blocked date?"
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/blocked-dates?id=${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.error ||
+            "Unable to delete blocked date"
+        );
+      }
+
+      await loadBlockedDates();
+    } catch (error) {
+      console.error(
+        "DELETE BLOCKED DATE UI ERROR:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete blocked date"
+      );
+    }
+  }
+
+  function getPropertyName(propertyId: string) {
+    const property = properties.find(
+      (item) => item.id === propertyId
+    );
+
+    return (
+      property?.property_name ||
+      "Unknown property"
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-6 py-10 shadow-2xl">
@@ -369,8 +678,8 @@ export default function ChannelManagerPage() {
               </h1>
 
               <p className="text-white/70 text-lg max-w-2xl leading-relaxed">
-                Unified calendar foundation for bookings, blocked dates,
-                occupancy, turnovers and future ICS calendar sync.
+                Unified calendar foundation for manual bookings,
+                blocked dates, occupancy and cleaning turnover planning.
               </p>
             </div>
 
@@ -393,9 +702,9 @@ export default function ChannelManagerPage() {
                 {properties.map((property) => (
                   <option
                     key={property.id}
-                    value={property.slug}
+                    value={property.id}
                   >
-                    {property.name}
+                    {property.property_name}
                   </option>
                 ))}
               </select>
@@ -428,25 +737,37 @@ export default function ChannelManagerPage() {
           </a>
         </div>
 
+        {loading && (
+          <div className="bg-white rounded-3xl p-6 shadow-xl border border-black/5">
+            Loading channel manager data...
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="bg-red-50 text-red-700 rounded-3xl p-6 border border-red-100">
+            {errorMessage}
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-5">
           <Card
             title="Occupancy"
             value={`${occupancyRate}%`}
-            description="Demo occupancy for the selected 30-day period."
+            description="Current occupancy estimate based on stored bookings."
             icon="📈"
           />
 
           <Card
             title="Occupied nights"
             value={`${occupiedNights}`}
-            description="Booked nights from current demo bookings."
+            description="Booked nights from manual bookings."
             icon="🌙"
           />
 
           <Card
             title="Blocked nights"
             value={`${blockedNights}`}
-            description="Unavailable nights for maintenance or private use."
+            description="Unavailable nights from blocked dates."
             icon="⛔"
           />
 
@@ -460,65 +781,350 @@ export default function ChannelManagerPage() {
           <Card
             title="Cleaning needed"
             value={`${cleaningNeeded}`}
-            description="Confirmed departures that will require turnover."
+            description="Confirmed stays that will require turnover planning."
             icon="🧹"
           />
         </div>
 
-        <Section
-          icon="📅"
-          title="Calendar Overview"
-          description="Visual unified calendar placeholder. In the next blocks this will become the real monthly calendar with occupied nights, blocked dates and turnovers."
-        >
-          <div className="grid grid-cols-7 gap-2">
-            {Array.from({ length: 30 }).map((_, index) => {
-              const day = index + 1;
+        <div className="grid xl:grid-cols-2 gap-8">
+          <Section
+            icon="➕"
+            title="Add Manual Booking"
+            description="Create a booking manually for direct reservations, WhatsApp bookings, owner use or imported reservations not yet synced."
+          >
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <FieldLabel
+                  title="Property"
+                  description="Select the property for this booking."
+                />
 
-              const isOccupied =
-                day >= 18 && day <= 21;
-
-              const isBlocked =
-                day >= 28 && day <= 30;
-
-              return (
-                <div
-                  key={day}
-                  className={`min-h-[90px] rounded-2xl border p-3 text-sm ${
-                    isOccupied
-                      ? "bg-rose-50 border-rose-100 text-rose-900"
-                      : isBlocked
-                        ? "bg-zinc-100 border-zinc-200 text-zinc-800"
-                        : "bg-gray-50 border-gray-100 text-gray-500"
-                  }`}
+                <select
+                  className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                  value={bookingForm.property_id}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      property_id: event.target.value,
+                    }))
+                  }
                 >
-                  <div className="font-semibold">
-                    {day}
-                  </div>
+                  <option value="">
+                    Select property
+                  </option>
 
-                  {isOccupied && (
-                    <div className="mt-2 text-xs">
-                      Occupied
-                    </div>
-                  )}
+                  {properties.map((property) => (
+                    <option
+                      key={property.id}
+                      value={property.id}
+                    >
+                      {property.property_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  {isBlocked && (
-                    <div className="mt-2 text-xs">
-                      Blocked
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Section>
+              <div>
+                <FieldLabel
+                  title="Guest name"
+                  description="Guest name or booking reference."
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Example: John Smith"
+                  value={bookingForm.guest_name}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      guest_name: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Source"
+                  description="Where this booking came from."
+                />
+
+                <select
+                  className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                  value={bookingForm.source_type}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      source_type: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="manual">Manual</option>
+                  <option value="airbnb">Airbnb</option>
+                  <option value="booking">Booking.com</option>
+                  <option value="direct">Direct</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="owner">Owner Stay</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Guests"
+                  description="Number of guests."
+                />
+
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  value={bookingForm.guest_count}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      guest_count: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Check-in date"
+                  description="Arrival date."
+                />
+
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  value={bookingForm.checkin_date}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      checkin_date: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Check-out date"
+                  description="Departure date."
+                />
+
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  value={bookingForm.checkout_date}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      checkout_date: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Status"
+                  description="Booking status."
+                />
+
+                <select
+                  className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                  value={bookingForm.status}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="confirmed">
+                    Confirmed
+                  </option>
+                  <option value="pending">
+                    Pending
+                  </option>
+                  <option value="cancelled">
+                    Cancelled
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Notes"
+                  description="Optional booking notes."
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Optional notes"
+                  value={bookingForm.notes}
+                  onChange={(event) =>
+                    setBookingForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={createBooking}
+              disabled={savingBooking}
+              className="mt-5 bg-black text-white px-6 py-3 rounded-2xl font-semibold disabled:opacity-50"
+            >
+              {savingBooking
+                ? "Saving booking..."
+                : "Add Booking"}
+            </button>
+          </Section>
+
+          <Section
+            icon="⛔"
+            title="Add Blocked Date"
+            description="Block dates for owner stays, maintenance, deep cleaning or private use."
+          >
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <FieldLabel
+                  title="Property"
+                  description="Select the property to block."
+                />
+
+                <select
+                  className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                  value={blockedDateForm.property_id}
+                  onChange={(event) =>
+                    setBlockedDateForm((current) => ({
+                      ...current,
+                      property_id: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">
+                    Select property
+                  </option>
+
+                  {properties.map((property) => (
+                    <option
+                      key={property.id}
+                      value={property.id}
+                    >
+                      {property.property_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Reason"
+                  description="Reason for blocking these dates."
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Example: Maintenance"
+                  value={blockedDateForm.reason}
+                  onChange={(event) =>
+                    setBlockedDateForm((current) => ({
+                      ...current,
+                      reason: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Start date"
+                  description="First unavailable date."
+                />
+
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  value={blockedDateForm.start_date}
+                  onChange={(event) =>
+                    setBlockedDateForm((current) => ({
+                      ...current,
+                      start_date: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="End date"
+                  description="Date when availability resumes."
+                />
+
+                <input
+                  type="date"
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  value={blockedDateForm.end_date}
+                  onChange={(event) =>
+                    setBlockedDateForm((current) => ({
+                      ...current,
+                      end_date: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <FieldLabel
+                  title="Notes"
+                  description="Optional blocked date notes."
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Optional notes"
+                  value={blockedDateForm.notes}
+                  onChange={(event) =>
+                    setBlockedDateForm((current) => ({
+                      ...current,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={createBlockedDate}
+              disabled={savingBlockedDate}
+              className="mt-5 bg-black text-white px-6 py-3 rounded-2xl font-semibold disabled:opacity-50"
+            >
+              {savingBlockedDate
+                ? "Saving blocked date..."
+                : "Add Blocked Date"}
+            </button>
+          </Section>
+        </div>
 
         <div className="grid xl:grid-cols-2 gap-8">
           <Section
             icon="🛎️"
-            title="Manual Bookings"
-            description="Bookings entered manually by the host. Database and real forms will be added in the next blocks."
+            title="Bookings"
+            description="Stored bookings for the selected property view."
           >
             <div className="space-y-4">
+              {filteredBookings.length === 0 && (
+                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
+                  No bookings yet.
+                </div>
+              )}
+
               {filteredBookings.map((booking) => (
                 <div
                   key={booking.id}
@@ -527,27 +1133,26 @@ export default function ChannelManagerPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                     <div>
                       <h3 className="font-bold text-lg">
-                        {booking.guestName}
+                        {booking.guest_name ||
+                          "Unnamed booking"}
                       </h3>
 
                       <p className="text-sm text-gray-500">
-                        {
-                          properties.find(
-                            (property) =>
-                              property.slug ===
-                              booking.propertySlug
-                          )?.name
-                        }
+                        {getPropertyName(
+                          booking.property_id
+                        )}
                       </p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <span
                         className={`text-xs border px-3 py-1 rounded-full ${getSourceBadgeClass(
-                          booking.source
+                          booking.source_type
                         )}`}
                       >
-                        {booking.source}
+                        {getSourceLabel(
+                          booking.source_type
+                        )}
                       </span>
 
                       <span
@@ -567,7 +1172,7 @@ export default function ChannelManagerPage() {
                       </div>
 
                       <div className="font-semibold">
-                        {formatDate(booking.checkin)}
+                        {formatDate(booking.checkin_date)}
                       </div>
                     </div>
 
@@ -577,7 +1182,7 @@ export default function ChannelManagerPage() {
                       </div>
 
                       <div className="font-semibold">
-                        {formatDate(booking.checkout)}
+                        {formatDate(booking.checkout_date)}
                       </div>
                     </div>
 
@@ -587,10 +1192,10 @@ export default function ChannelManagerPage() {
                       </div>
 
                       <div className="font-semibold">
-                        {booking.guests} guests ·{" "}
+                        {booking.guest_count || 1} guests ·{" "}
                         {differenceInNights(
-                          booking.checkin,
-                          booking.checkout
+                          booking.checkin_date,
+                          booking.checkout_date
                         )}{" "}
                         nights
                       </div>
@@ -602,6 +1207,15 @@ export default function ChannelManagerPage() {
                       {booking.notes}
                     </p>
                   )}
+
+                  <button
+                    onClick={() =>
+                      deleteBooking(booking.id)
+                    }
+                    className="mt-4 text-sm text-red-600 font-semibold"
+                  >
+                    Delete booking
+                  </button>
                 </div>
               ))}
             </div>
@@ -610,9 +1224,15 @@ export default function ChannelManagerPage() {
           <Section
             icon="⛔"
             title="Blocked Dates"
-            description="Dates blocked for owner stays, maintenance, deep cleaning or private use."
+            description="Unavailable dates for the selected property view."
           >
             <div className="space-y-4">
+              {filteredBlockedDates.length === 0 && (
+                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
+                  No blocked dates yet.
+                </div>
+              )}
+
               {filteredBlockedDates.map((blockedDate) => (
                 <div
                   key={blockedDate.id}
@@ -625,13 +1245,9 @@ export default function ChannelManagerPage() {
                       </h3>
 
                       <p className="text-sm text-gray-500">
-                        {
-                          properties.find(
-                            (property) =>
-                              property.slug ===
-                              blockedDate.propertySlug
-                          )?.name
-                        }
+                        {getPropertyName(
+                          blockedDate.property_id
+                        )}
                       </p>
                     </div>
 
@@ -647,7 +1263,9 @@ export default function ChannelManagerPage() {
                       </div>
 
                       <div className="font-semibold">
-                        {formatDate(blockedDate.startDate)}
+                        {formatDate(
+                          blockedDate.start_date
+                        )}
                       </div>
                     </div>
 
@@ -657,7 +1275,9 @@ export default function ChannelManagerPage() {
                       </div>
 
                       <div className="font-semibold">
-                        {formatDate(blockedDate.endDate)}
+                        {formatDate(
+                          blockedDate.end_date
+                        )}
                       </div>
                     </div>
 
@@ -668,8 +1288,8 @@ export default function ChannelManagerPage() {
 
                       <div className="font-semibold">
                         {differenceInNights(
-                          blockedDate.startDate,
-                          blockedDate.endDate
+                          blockedDate.start_date,
+                          blockedDate.end_date
                         )}
                       </div>
                     </div>
@@ -680,88 +1300,15 @@ export default function ChannelManagerPage() {
                       {blockedDate.notes}
                     </p>
                   )}
-                </div>
-              ))}
-            </div>
-          </Section>
-        </div>
 
-        <div className="grid xl:grid-cols-2 gap-8">
-          <Section
-            icon="🔄"
-            title="Calendar Sources"
-            description="Future ICS sources from Airbnb, Booking.com, VRBO, Google Calendar or other external calendars."
-          >
-            <div className="space-y-4">
-              {filteredSources.map((source) => (
-                <div
-                  key={source.id}
-                  className="border border-gray-100 rounded-3xl p-5 bg-gray-50"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-lg">
-                        {source.sourceName}
-                      </h3>
-
-                      <p className="text-sm text-gray-500">
-                        {source.sourceType} ·{" "}
-                        {
-                          properties.find(
-                            (property) =>
-                              property.slug ===
-                              source.propertySlug
-                          )?.name
-                        }
-                      </p>
-                    </div>
-
-                    <span className="text-xs border px-3 py-1 rounded-full bg-amber-50 text-amber-700 border-amber-100">
-                      {source.status}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-gray-500 mt-4">
-                    Last sync: {source.lastSync}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Section>
-
-          <Section
-            icon="🧹"
-            title="Turnover & Cleaning"
-            description="Operational view connecting booking check-outs with cleaning tasks."
-          >
-            <div className="space-y-4">
-              {filteredBookings.map((booking) => (
-                <div
-                  key={`cleaning-${booking.id}`}
-                  className="border border-gray-100 rounded-3xl p-5 bg-gray-50"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-lg">
-                        Cleaning after{" "}
-                        {booking.guestName}
-                      </h3>
-
-                      <p className="text-sm text-gray-500">
-                        Check-out on{" "}
-                        {formatDate(booking.checkout)}
-                      </p>
-                    </div>
-
-                    <span className="text-xs border px-3 py-1 rounded-full bg-yellow-50 text-yellow-700 border-yellow-100">
-                      Cleaning needed
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-gray-500 mt-4">
-                    In a future block this card will create or link a real
-                    cleaning task from the booking check-out.
-                  </p>
+                  <button
+                    onClick={() =>
+                      deleteBlockedDate(blockedDate.id)
+                    }
+                    className="mt-4 text-sm text-red-600 font-semibold"
+                  >
+                    Delete blocked date
+                  </button>
                 </div>
               ))}
             </div>
