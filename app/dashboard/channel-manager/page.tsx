@@ -1110,6 +1110,13 @@ export default function ChannelManagerPage() {
           </a>
 
           <a
+            href="/dashboard/channel-manager/sources"
+            className="bg-white border border-gray-200 px-5 py-3 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition"
+          >
+            Calendar Sources
+          </a>
+
+          <a
             href="/dashboard/qr"
             className="bg-white border border-gray-200 px-5 py-3 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition"
           >

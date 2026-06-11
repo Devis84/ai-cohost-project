@@ -435,7 +435,7 @@ export default function CalendarSourcesPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
             <div>
               <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
-                AI CO-HOST CHANNEL MANAGER
+                AI CO-HOST LIGHT CHANNEL MANAGER
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -484,7 +484,7 @@ export default function CalendarSourcesPage() {
             href="/dashboard/channel-manager"
             className="bg-white border border-gray-200 px-5 py-3 rounded-2xl text-sm font-semibold hover:bg-black hover:text-white transition"
           >
-            ← Back to Channel Manager
+            ← Back to Light Channel Manager
           </a>
 
           <a
