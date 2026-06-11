@@ -27,6 +27,29 @@ type CalendarSource = {
   updated_at?: string | null;
 };
 
+type SyncLog = {
+  id: string;
+  property_id: string;
+  source_id: string | null;
+  status: string;
+  events_found: number;
+  bookings_created: number;
+  bookings_updated: number;
+  bookings_skipped: number;
+  error_message?: string | null;
+  synced_at: string;
+  booking_sources?: {
+    id: string;
+    source_name: string;
+    source_type: string;
+  } | null;
+  properties?: {
+    id: string;
+    property_name: string;
+    slug?: string | null;
+  } | null;
+};
+
 type CalendarSourceForm = {
   property_id: string;
   source_name: string;
@@ -195,6 +218,9 @@ export default function CalendarSourcesPage() {
   const [calendarSources, setCalendarSources] =
     useState<CalendarSource[]>([]);
 
+  const [syncLogs, setSyncLogs] =
+    useState<SyncLog[]>([]);
+
   const [selectedProperty, setSelectedProperty] =
     useState("all");
 
@@ -239,6 +265,7 @@ export default function CalendarSourcesPage() {
       await Promise.all([
         loadProperties(),
         loadCalendarSources(),
+        loadSyncLogs(),
       ]);
     } catch (error) {
       console.error(
@@ -285,6 +312,22 @@ export default function CalendarSourcesPage() {
     );
   }
 
+  async function loadSyncLogs() {
+    const response = await fetch("/api/calendar-sync-logs");
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(
+        data.error ||
+          "Unable to load calendar sync logs"
+      );
+    }
+
+    setSyncLogs(
+      (data.sync_logs || []) as SyncLog[]
+    );
+  }
+
   const filteredSources = useMemo(() => {
     if (selectedProperty === "all") {
       return calendarSources;
@@ -296,6 +339,16 @@ export default function CalendarSourcesPage() {
     );
   }, [calendarSources, selectedProperty]);
 
+  const filteredLogs = useMemo(() => {
+    if (selectedProperty === "all") {
+      return syncLogs;
+    }
+
+    return syncLogs.filter(
+      (log) => log.property_id === selectedProperty
+    );
+  }, [syncLogs, selectedProperty]);
+
   const activeSources = filteredSources.filter(
     (source) => source.is_active
   ).length;
@@ -306,6 +359,10 @@ export default function CalendarSourcesPage() {
 
   const bookingSources = filteredSources.filter(
     (source) => source.source_type === "booking"
+  ).length;
+
+  const errorSources = filteredSources.filter(
+    (source) => source.last_sync_status === "error"
   ).length;
 
   const notSyncedSources = filteredSources.filter(
@@ -365,7 +422,10 @@ export default function CalendarSourcesPage() {
         source_type: current.source_type,
       }));
 
-      await loadCalendarSources();
+      await Promise.all([
+        loadCalendarSources(),
+        loadSyncLogs(),
+      ]);
 
       alert("Calendar source added");
     } catch (error) {
@@ -410,7 +470,10 @@ export default function CalendarSourcesPage() {
         );
       }
 
-      await loadCalendarSources();
+      await Promise.all([
+        loadCalendarSources(),
+        loadSyncLogs(),
+      ]);
     } catch (error) {
       console.error(
         "DELETE CALENDAR SOURCE UI ERROR:",
@@ -444,14 +507,17 @@ export default function CalendarSourcesPage() {
 
       const data = await response.json();
 
+      await Promise.all([
+        loadCalendarSources(),
+        loadSyncLogs(),
+      ]);
+
       if (!data.success) {
         throw new Error(
           data.error ||
             "Unable to sync calendar source"
         );
       }
-
-      await loadCalendarSources();
 
       alert(
         `Calendar source synced. Events found: ${data.events_found}. Created: ${data.bookings_created}. Updated: ${data.bookings_updated}.`
@@ -462,7 +528,10 @@ export default function CalendarSourcesPage() {
         error
       );
 
-      await loadCalendarSources();
+      await Promise.all([
+        loadCalendarSources(),
+        loadSyncLogs(),
+      ]);
 
       alert(
         error instanceof Error
@@ -564,7 +633,7 @@ export default function CalendarSourcesPage() {
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
+        <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-5">
           <Card
             title="Sources"
             value={`${filteredSources.length}`}
@@ -589,8 +658,15 @@ export default function CalendarSourcesPage() {
           <Card
             title="Not synced"
             value={`${notSyncedSources}`}
-            description="Sources waiting for sync or reporting not synced."
+            description="Sources waiting for sync."
             icon="⏳"
+          />
+
+          <Card
+            title="Errors"
+            value={`${errorSources}`}
+            description="Sources with failed last sync."
+            icon="⚠️"
           />
         </div>
 
@@ -810,7 +886,7 @@ export default function CalendarSourcesPage() {
                     </div>
 
                     {source.last_sync_error && (
-                      <p className="text-sm text-red-600 mt-2">
+                      <p className="text-sm text-red-600 mt-2 leading-relaxed">
                         {source.last_sync_error}
                       </p>
                     )}
@@ -842,6 +918,98 @@ export default function CalendarSourcesPage() {
                     Delete Source
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          icon="📜"
+          title="Recent Sync Logs"
+          description="Latest calendar sync attempts with imported events, created bookings, updated bookings and errors."
+        >
+          <div className="space-y-4">
+            {filteredLogs.length === 0 && (
+              <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
+                No sync logs yet.
+              </div>
+            )}
+
+            {filteredLogs.map((log) => (
+              <div
+                key={log.id}
+                className="border border-gray-100 rounded-3xl p-5 bg-gray-50"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      {log.booking_sources?.source_name ||
+                        "Calendar source"}
+                    </h3>
+
+                    <p className="text-sm text-gray-500">
+                      {log.properties?.property_name ||
+                        "Unknown property"}{" "}
+                      · {formatDateTime(log.synced_at)}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`text-xs border px-3 py-1 rounded-full ${getSyncBadgeClass(
+                      log.status
+                    )}`}
+                  >
+                    {log.status}
+                  </span>
+                </div>
+
+                <div className="grid md:grid-cols-4 gap-3 text-sm">
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                    <div className="text-gray-400">
+                      Events found
+                    </div>
+
+                    <div className="font-bold text-lg">
+                      {log.events_found}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                    <div className="text-gray-400">
+                      Created
+                    </div>
+
+                    <div className="font-bold text-lg">
+                      {log.bookings_created}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                    <div className="text-gray-400">
+                      Updated
+                    </div>
+
+                    <div className="font-bold text-lg">
+                      {log.bookings_updated}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                    <div className="text-gray-400">
+                      Skipped
+                    </div>
+
+                    <div className="font-bold text-lg">
+                      {log.bookings_skipped}
+                    </div>
+                  </div>
+                </div>
+
+                {log.error_message && (
+                  <div className="mt-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm leading-relaxed">
+                    {log.error_message}
+                  </div>
+                )}
               </div>
             ))}
           </div>
