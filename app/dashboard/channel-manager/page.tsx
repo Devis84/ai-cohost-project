@@ -1,6 +1,11 @@
  "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 type Property = {
   id: string;
@@ -27,6 +32,7 @@ type Booking = {
   guest_count: number;
   status: string;
   notes?: string | null;
+  cleaning_task_id?: string | null;
   properties?: RelatedProperty | null;
 };
 
@@ -68,6 +74,14 @@ type CalendarDay = {
   checkins: Booking[];
   checkouts: Booking[];
   blockedDates: BlockedDate[];
+};
+
+type TurnoverItem = {
+  booking: Booking;
+  nextBooking: Booking | null;
+  daysToNextCheckin: number | null;
+  priority: "High" | "Normal";
+  label: string;
 };
 
 const emptyBookingForm: BookingForm = {
@@ -219,6 +233,10 @@ function daysInMonth(date: Date) {
   return getMonthEnd(date).getDate();
 }
 
+function daysBetween(startDate: string, endDate: string) {
+  return differenceInNights(startDate, endDate);
+}
+
 function formatDate(value: string) {
   if (!value) {
     return "-";
@@ -327,7 +345,7 @@ function Section({
   title: string;
   description: string;
   icon: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
@@ -574,11 +592,6 @@ export default function ChannelManagerPage() {
       )
     ).length;
 
-  const cleaningNeeded =
-    visibleBookings.filter(
-      (booking) => booking.status === "confirmed"
-    ).length;
-
   const calendarDays = useMemo<CalendarDay[]>(() => {
     const monthStart = getMonthStart(selectedMonth);
     const monthEnd = getMonthEnd(selectedMonth);
@@ -657,6 +670,80 @@ export default function ChannelManagerPage() {
     visibleBookings,
     visibleBlockedDates,
   ]);
+
+  const turnoverItems = useMemo<TurnoverItem[]>(() => {
+    const confirmedBookings = bookings
+      .filter((booking) => {
+        if (booking.status !== "confirmed") {
+          return false;
+        }
+
+        if (
+          selectedProperty !== "all" &&
+          booking.property_id !== selectedProperty
+        ) {
+          return false;
+        }
+
+        return datesOverlap(
+          booking.checkin_date,
+          booking.checkout_date,
+          getMonthStart(selectedMonth),
+          addDays(getMonthEnd(selectedMonth), 1)
+        );
+      })
+      .sort((a, b) =>
+        a.checkout_date.localeCompare(b.checkout_date)
+      );
+
+    return confirmedBookings.map((booking) => {
+      const nextBooking =
+        bookings
+          .filter(
+            (candidate) =>
+              candidate.property_id === booking.property_id &&
+              candidate.status === "confirmed" &&
+              candidate.id !== booking.id &&
+              candidate.checkin_date >= booking.checkout_date
+          )
+          .sort((a, b) =>
+            a.checkin_date.localeCompare(b.checkin_date)
+          )[0] || null;
+
+      const daysToNextCheckin = nextBooking
+        ? daysBetween(
+            booking.checkout_date,
+            nextBooking.checkin_date
+          )
+        : null;
+
+      let label = "No upcoming check-in";
+      let priority: "High" | "Normal" = "Normal";
+
+      if (daysToNextCheckin === 0) {
+        label = "Same-day turnover";
+        priority = "High";
+      } else if (daysToNextCheckin === 1) {
+        label = "Next-day turnover";
+        priority = "High";
+      } else if (
+        typeof daysToNextCheckin === "number" &&
+        daysToNextCheckin > 1
+      ) {
+        label = `${daysToNextCheckin}-day gap`;
+      }
+
+      return {
+        booking,
+        nextBooking,
+        daysToNextCheckin,
+        priority,
+        label,
+      };
+    });
+  }, [bookings, selectedProperty, selectedMonth]);
+
+  const cleaningNeeded = turnoverItems.length;
 
   async function createBooking() {
     if (!bookingForm.property_id) {
@@ -1037,7 +1124,7 @@ export default function ChannelManagerPage() {
           <Card
             title="Cleaning needed"
             value={`${cleaningNeeded}`}
-            description="Confirmed stays requiring turnover planning."
+            description="Detected booking departures requiring cleaning."
             icon="🧹"
           />
         </div>
@@ -1045,7 +1132,7 @@ export default function ChannelManagerPage() {
         <Section
           icon="📅"
           title="Monthly Calendar"
-          description="Visual monthly calendar showing bookings, check-ins, check-outs, blocked dates and occupancy."
+          description="Visual monthly calendar showing bookings, check-ins, check-outs, blocked dates and turnover days."
         >
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
@@ -1179,6 +1266,111 @@ export default function ChannelManagerPage() {
                 </div>
               );
             })}
+          </div>
+        </Section>
+
+        <Section
+          icon="🧹"
+          title="Turnover & Cleaning"
+          description="Detected cleaning needs based on confirmed booking check-outs. Cleaning task creation will be connected in the next block."
+        >
+          <div className="space-y-4">
+            {turnoverItems.length === 0 && (
+              <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
+                No turnover detected for this view.
+              </div>
+            )}
+
+            {turnoverItems.map((item) => (
+              <div
+                key={`turnover-${item.booking.id}`}
+                className="border border-gray-100 rounded-3xl p-5 bg-gray-50"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      Cleaning after{" "}
+                      {item.booking.guest_name || "Guest"}
+                    </h3>
+
+                    <p className="text-sm text-gray-500">
+                      {getPropertyName(item.booking.property_id)} ·
+                      Check-out on{" "}
+                      {formatDate(item.booking.checkout_date)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className={`text-xs border px-3 py-1 rounded-full ${
+                        item.priority === "High"
+                          ? "bg-red-50 text-red-700 border-red-100"
+                          : "bg-yellow-50 text-yellow-700 border-yellow-100"
+                      }`}
+                    >
+                      {item.priority} priority
+                    </span>
+
+                    <span className="text-xs border px-3 py-1 rounded-full bg-white text-gray-700 border-gray-200">
+                      {item.label}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <div className="text-gray-400">
+                      Current guest check-out
+                    </div>
+
+                    <div className="font-semibold">
+                      {formatDate(item.booking.checkout_date)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-400">
+                      Next check-in
+                    </div>
+
+                    <div className="font-semibold">
+                      {item.nextBooking
+                        ? formatDate(
+                            item.nextBooking.checkin_date
+                          )
+                        : "No upcoming booking"}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-400">
+                      Cleaning status
+                    </div>
+
+                    <div className="font-semibold">
+                      {item.booking.cleaning_task_id
+                        ? "Cleaning linked"
+                        : "Cleaning task not created"}
+                    </div>
+                  </div>
+                </div>
+
+                {item.nextBooking && (
+                  <p className="text-sm text-gray-500 mt-4">
+                    Next guest:{" "}
+                    {item.nextBooking.guest_name || "Guest"} ·{" "}
+                    {getSourceLabel(item.nextBooking.source_type)}
+                  </p>
+                )}
+
+                <button
+                  disabled
+                  className="mt-4 bg-gray-200 text-gray-500 px-5 py-3 rounded-2xl text-sm font-semibold cursor-not-allowed"
+                >
+                  Create Cleaning Task — coming next
+                </button>
+              </div>
+            ))}
           </div>
         </Section>
 
