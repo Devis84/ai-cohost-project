@@ -59,6 +59,17 @@ type BlockedDateForm = {
   notes: string;
 };
 
+type CalendarDay = {
+  date: Date;
+  dateKey: string;
+  dayNumber: number;
+  isCurrentMonth: boolean;
+  bookings: Booking[];
+  checkins: Booking[];
+  checkouts: Booking[];
+  blockedDates: BlockedDate[];
+};
+
 const emptyBookingForm: BookingForm = {
   property_id: "",
   guest_name: "",
@@ -78,6 +89,76 @@ const emptyBlockedDateForm: BlockedDateForm = {
   notes: "",
 };
 
+function toDate(value: string) {
+  return new Date(`${value}T00:00:00`);
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, amount: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+
+  return next;
+}
+
+function getMonthStart(date: Date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    1
+  );
+}
+
+function getMonthEnd(date: Date) {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    0
+  );
+}
+
+function getMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function datesOverlap(
+  firstStart: string,
+  firstEnd: string,
+  secondStart: Date,
+  secondEnd: Date
+) {
+  const start = toDate(firstStart);
+  const end = toDate(firstEnd);
+
+  return start < secondEnd && end > secondStart;
+}
+
+function isDateInsideStay(
+  dateKey: string,
+  checkinDate: string,
+  checkoutDate: string
+) {
+  const date = toDate(dateKey);
+  const checkin = toDate(checkinDate);
+  const checkout = toDate(checkoutDate);
+
+  return date >= checkin && date < checkout;
+}
+
+function isSameDate(dateKey: string, value: string) {
+  return dateKey === value;
+}
+
 function differenceInNights(
   startDate: string,
   endDate: string
@@ -86,8 +167,8 @@ function differenceInNights(
     return 0;
   }
 
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${endDate}T00:00:00`);
+  const start = toDate(startDate);
+  const end = toDate(endDate);
 
   if (
     Number.isNaN(start.getTime()) ||
@@ -96,13 +177,46 @@ function differenceInNights(
     return 0;
   }
 
-  const diff =
-    end.getTime() - start.getTime();
+  const diff = end.getTime() - start.getTime();
 
   return Math.max(
     0,
     Math.round(diff / (1000 * 60 * 60 * 24))
   );
+}
+
+function nightsInsideMonth(
+  startDate: string,
+  endDate: string,
+  monthDate: Date
+) {
+  const monthStart = getMonthStart(monthDate);
+  const monthEndExclusive = addDays(
+    getMonthEnd(monthDate),
+    1
+  );
+
+  const start = toDate(startDate);
+  const end = toDate(endDate);
+
+  const effectiveStart =
+    start > monthStart ? start : monthStart;
+
+  const effectiveEnd =
+    end < monthEndExclusive ? end : monthEndExclusive;
+
+  if (effectiveEnd <= effectiveStart) {
+    return 0;
+  }
+
+  return Math.round(
+    (effectiveEnd.getTime() - effectiveStart.getTime()) /
+      (1000 * 60 * 60 * 24)
+  );
+}
+
+function daysInMonth(date: Date) {
+  return getMonthEnd(date).getDate();
 }
 
 function formatDate(value: string) {
@@ -114,7 +228,7 @@ function formatDate(value: string) {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(toDate(value));
 }
 
 function getSourceLabel(value: string) {
@@ -261,6 +375,9 @@ export default function ChannelManagerPage() {
   const [selectedProperty, setSelectedProperty] =
     useState("all");
 
+  const [selectedMonth, setSelectedMonth] =
+    useState(() => getMonthStart(new Date()));
+
   const [bookings, setBookings] =
     useState<Booking[]>([]);
 
@@ -371,67 +488,175 @@ export default function ChannelManagerPage() {
     );
   }
 
-  const filteredBookings = useMemo(() => {
-    if (selectedProperty === "all") {
-      return bookings;
-    }
+  const visibleBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      if (
+        selectedProperty !== "all" &&
+        booking.property_id !== selectedProperty
+      ) {
+        return false;
+      }
 
-    return bookings.filter(
-      (booking) =>
-        booking.property_id === selectedProperty
-    );
-  }, [bookings, selectedProperty]);
+      return datesOverlap(
+        booking.checkin_date,
+        booking.checkout_date,
+        getMonthStart(selectedMonth),
+        addDays(getMonthEnd(selectedMonth), 1)
+      );
+    });
+  }, [bookings, selectedProperty, selectedMonth]);
 
-  const filteredBlockedDates = useMemo(() => {
-    if (selectedProperty === "all") {
-      return blockedDates;
-    }
+  const visibleBlockedDates = useMemo(() => {
+    return blockedDates.filter((blockedDate) => {
+      if (
+        selectedProperty !== "all" &&
+        blockedDate.property_id !== selectedProperty
+      ) {
+        return false;
+      }
 
-    return blockedDates.filter(
-      (blockedDate) =>
-        blockedDate.property_id === selectedProperty
-    );
-  }, [blockedDates, selectedProperty]);
+      return datesOverlap(
+        blockedDate.start_date,
+        blockedDate.end_date,
+        getMonthStart(selectedMonth),
+        addDays(getMonthEnd(selectedMonth), 1)
+      );
+    });
+  }, [blockedDates, selectedProperty, selectedMonth]);
 
-  const occupiedNights = filteredBookings.reduce(
+  const occupiedNights = visibleBookings.reduce(
     (total, booking) =>
       total +
-      differenceInNights(
+      nightsInsideMonth(
         booking.checkin_date,
-        booking.checkout_date
+        booking.checkout_date,
+        selectedMonth
       ),
     0
   );
 
-  const blockedNights = filteredBlockedDates.reduce(
+  const blockedNights = visibleBlockedDates.reduce(
     (total, blockedDate) =>
       total +
-      differenceInNights(
+      nightsInsideMonth(
         blockedDate.start_date,
-        blockedDate.end_date
+        blockedDate.end_date,
+        selectedMonth
       ),
     0
   );
 
-  const totalPeriodNights = 30;
+  const totalMonthNights = daysInMonth(selectedMonth);
+
+  const availableNights = Math.max(
+    0,
+    totalMonthNights - blockedNights
+  );
 
   const occupancyRate =
-    totalPeriodNights > 0
+    availableNights > 0
       ? Math.round(
-          (occupiedNights / totalPeriodNights) * 100
+          (occupiedNights / availableNights) * 100
         )
       : 0;
 
   const upcomingCheckins =
-    filteredBookings.length;
+    visibleBookings.filter((booking) =>
+      booking.checkin_date.startsWith(
+        `${selectedMonth.getFullYear()}-${`${selectedMonth.getMonth() + 1}`.padStart(2, "0")}`
+      )
+    ).length;
 
   const upcomingCheckouts =
-    filteredBookings.length;
+    visibleBookings.filter((booking) =>
+      booking.checkout_date.startsWith(
+        `${selectedMonth.getFullYear()}-${`${selectedMonth.getMonth() + 1}`.padStart(2, "0")}`
+      )
+    ).length;
 
   const cleaningNeeded =
-    filteredBookings.filter(
+    visibleBookings.filter(
       (booking) => booking.status === "confirmed"
     ).length;
+
+  const calendarDays = useMemo<CalendarDay[]>(() => {
+    const monthStart = getMonthStart(selectedMonth);
+    const monthEnd = getMonthEnd(selectedMonth);
+
+    const startDay = monthStart.getDay();
+    const mondayOffset =
+      startDay === 0 ? -6 : 1 - startDay;
+
+    const calendarStart = addDays(
+      monthStart,
+      mondayOffset
+    );
+
+    const endDay = monthEnd.getDay();
+    const sundayOffset =
+      endDay === 0 ? 0 : 7 - endDay;
+
+    const calendarEnd = addDays(
+      monthEnd,
+      sundayOffset
+    );
+
+    const days: CalendarDay[] = [];
+
+    let cursor = calendarStart;
+
+    while (cursor <= calendarEnd) {
+      const dateKey = toDateKey(cursor);
+
+      const dayBookings = visibleBookings.filter(
+        (booking) =>
+          isDateInsideStay(
+            dateKey,
+            booking.checkin_date,
+            booking.checkout_date
+          )
+      );
+
+      const checkins = visibleBookings.filter(
+        (booking) =>
+          isSameDate(dateKey, booking.checkin_date)
+      );
+
+      const checkouts = visibleBookings.filter(
+        (booking) =>
+          isSameDate(dateKey, booking.checkout_date)
+      );
+
+      const dayBlockedDates = visibleBlockedDates.filter(
+        (blockedDate) =>
+          isDateInsideStay(
+            dateKey,
+            blockedDate.start_date,
+            blockedDate.end_date
+          )
+      );
+
+      days.push({
+        date: new Date(cursor),
+        dateKey,
+        dayNumber: cursor.getDate(),
+        isCurrentMonth:
+          cursor.getMonth() === selectedMonth.getMonth(),
+        bookings: dayBookings,
+        checkins,
+        checkouts,
+        blockedDates: dayBlockedDates,
+      });
+
+      cursor = addDays(cursor, 1);
+    }
+
+    return days;
+  }, [
+    selectedMonth,
+    visibleBookings,
+    visibleBlockedDates,
+  ]);
 
   async function createBooking() {
     if (!bookingForm.property_id) {
@@ -663,6 +888,30 @@ export default function ChannelManagerPage() {
     );
   }
 
+  function goToPreviousMonth() {
+    setSelectedMonth(
+      new Date(
+        selectedMonth.getFullYear(),
+        selectedMonth.getMonth() - 1,
+        1
+      )
+    );
+  }
+
+  function goToNextMonth() {
+    setSelectedMonth(
+      new Date(
+        selectedMonth.getFullYear(),
+        selectedMonth.getMonth() + 1,
+        1
+      )
+    );
+  }
+
+  function goToCurrentMonth() {
+    setSelectedMonth(getMonthStart(new Date()));
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-6 py-10 shadow-2xl">
@@ -678,8 +927,8 @@ export default function ChannelManagerPage() {
               </h1>
 
               <p className="text-white/70 text-lg max-w-2xl leading-relaxed">
-                Unified calendar foundation for manual bookings,
-                blocked dates, occupancy and cleaning turnover planning.
+                Unified calendar for bookings, blocked dates, occupancy and
+                cleaning turnover planning.
               </p>
             </div>
 
@@ -749,48 +998,195 @@ export default function ChannelManagerPage() {
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-5">
+        <div className="grid md:grid-cols-2 xl:grid-cols-6 gap-5">
           <Card
             title="Occupancy"
             value={`${occupancyRate}%`}
-            description="Current occupancy estimate based on stored bookings."
+            description={`Occupancy for ${getMonthLabel(selectedMonth)}.`}
             icon="📈"
           />
 
           <Card
             title="Occupied nights"
             value={`${occupiedNights}`}
-            description="Booked nights from manual bookings."
+            description="Booked nights inside the selected month."
             icon="🌙"
+          />
+
+          <Card
+            title="Available nights"
+            value={`${availableNights}`}
+            description="Month nights minus blocked nights."
+            icon="✅"
           />
 
           <Card
             title="Blocked nights"
             value={`${blockedNights}`}
-            description="Unavailable nights from blocked dates."
+            description="Unavailable nights inside the selected month."
             icon="⛔"
           />
 
           <Card
             title="Check-ins"
             value={`${upcomingCheckins}`}
-            description="Upcoming arrivals in the current view."
+            description="Arrivals in the selected month."
             icon="🔑"
           />
 
           <Card
             title="Cleaning needed"
             value={`${cleaningNeeded}`}
-            description="Confirmed stays that will require turnover planning."
+            description="Confirmed stays requiring turnover planning."
             icon="🧹"
           />
         </div>
+
+        <Section
+          icon="📅"
+          title="Monthly Calendar"
+          description="Visual monthly calendar showing bookings, check-ins, check-outs, blocked dates and occupancy."
+        >
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h3 className="text-2xl font-bold">
+                {getMonthLabel(selectedMonth)}
+              </h3>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Occupied nights: {occupiedNights} · Blocked nights:{" "}
+                {blockedNights} · Available nights: {availableNights}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={goToPreviousMonth}
+                className="bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-2xl text-sm font-semibold"
+              >
+                ← Previous
+              </button>
+
+              <button
+                onClick={goToCurrentMonth}
+                className="bg-black text-white px-4 py-3 rounded-2xl text-sm font-semibold"
+              >
+                Current month
+              </button>
+
+              <button
+                onClick={goToNextMonth}
+                className="bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-2xl text-sm font-semibold"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+              (day) => (
+                <div
+                  key={day}
+                  className="text-xs font-bold text-gray-400 uppercase px-2"
+                >
+                  {day}
+                </div>
+              )
+            )}
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {calendarDays.map((day) => {
+              const hasBookings = day.bookings.length > 0;
+              const hasBlockedDates =
+                day.blockedDates.length > 0;
+              const hasTurnover =
+                day.checkins.length > 0 ||
+                day.checkouts.length > 0;
+
+              return (
+                <div
+                  key={day.dateKey}
+                  className={`min-h-[130px] rounded-2xl border p-3 text-sm overflow-hidden ${
+                    !day.isCurrentMonth
+                      ? "bg-gray-50 border-gray-100 text-gray-300"
+                      : hasBlockedDates
+                        ? "bg-zinc-100 border-zinc-200 text-zinc-900"
+                        : hasBookings
+                          ? "bg-rose-50 border-rose-100 text-rose-950"
+                          : "bg-white border-gray-100 text-gray-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="font-bold">
+                      {day.dayNumber}
+                    </div>
+
+                    {hasTurnover && (
+                      <span className="text-[10px] bg-white/80 border border-gray-200 rounded-full px-2 py-0.5">
+                        Turnover
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    {day.checkins.slice(0, 1).map((booking) => (
+                      <div
+                        key={`checkin-${booking.id}`}
+                        className="text-[11px] bg-emerald-100 text-emerald-800 rounded-lg px-2 py-1 truncate"
+                      >
+                        IN · {booking.guest_name || "Guest"}
+                      </div>
+                    ))}
+
+                    {day.checkouts.slice(0, 1).map((booking) => (
+                      <div
+                        key={`checkout-${booking.id}`}
+                        className="text-[11px] bg-yellow-100 text-yellow-800 rounded-lg px-2 py-1 truncate"
+                      >
+                        OUT · {booking.guest_name || "Guest"}
+                      </div>
+                    ))}
+
+                    {day.bookings.slice(0, 2).map((booking) => (
+                      <div
+                        key={`stay-${booking.id}`}
+                        className="text-[11px] bg-rose-100 text-rose-800 rounded-lg px-2 py-1 truncate"
+                      >
+                        {getSourceLabel(booking.source_type)} ·{" "}
+                        {booking.guest_name || "Guest"}
+                      </div>
+                    ))}
+
+                    {day.blockedDates.slice(0, 2).map((blockedDate) => (
+                      <div
+                        key={`blocked-${blockedDate.id}`}
+                        className="text-[11px] bg-zinc-200 text-zinc-800 rounded-lg px-2 py-1 truncate"
+                      >
+                        Blocked · {blockedDate.reason}
+                      </div>
+                    ))}
+
+                    {day.bookings.length +
+                      day.blockedDates.length >
+                      2 && (
+                      <div className="text-[11px] text-gray-500">
+                        + more
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
 
         <div className="grid xl:grid-cols-2 gap-8">
           <Section
             icon="➕"
             title="Add Manual Booking"
-            description="Create a booking manually for direct reservations, WhatsApp bookings, owner use or imported reservations not yet synced."
+            description="Create a booking manually for direct reservations, WhatsApp bookings, owner use or reservations not yet synced."
           >
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -1116,16 +1512,16 @@ export default function ChannelManagerPage() {
           <Section
             icon="🛎️"
             title="Bookings"
-            description="Stored bookings for the selected property view."
+            description="Stored bookings for the selected month and property view."
           >
             <div className="space-y-4">
-              {filteredBookings.length === 0 && (
+              {visibleBookings.length === 0 && (
                 <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
-                  No bookings yet.
+                  No bookings for this view.
                 </div>
               )}
 
-              {filteredBookings.map((booking) => (
+              {visibleBookings.map((booking) => (
                 <div
                   key={booking.id}
                   className="border border-gray-100 rounded-3xl p-5 bg-gray-50"
@@ -1224,16 +1620,16 @@ export default function ChannelManagerPage() {
           <Section
             icon="⛔"
             title="Blocked Dates"
-            description="Unavailable dates for the selected property view."
+            description="Unavailable dates for the selected month and property view."
           >
             <div className="space-y-4">
-              {filteredBlockedDates.length === 0 && (
+              {visibleBlockedDates.length === 0 && (
                 <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
-                  No blocked dates yet.
+                  No blocked dates for this view.
                 </div>
               )}
 
-              {filteredBlockedDates.map((blockedDate) => (
+              {visibleBlockedDates.map((blockedDate) => (
                 <div
                   key={blockedDate.id}
                   className="border border-gray-100 rounded-3xl p-5 bg-gray-50"
@@ -1314,54 +1710,6 @@ export default function ChannelManagerPage() {
             </div>
           </Section>
         </div>
-
-        <Section
-          icon="📊"
-          title="Reports Foundation"
-          description="Basic reporting area for occupancy, check-ins, check-outs, blocked nights and future CSV/PDF exports."
-        >
-          <div className="grid md:grid-cols-4 gap-4">
-            <div className="bg-gray-50 rounded-3xl p-5 border border-gray-100">
-              <div className="text-sm text-gray-500 mb-2">
-                Current period
-              </div>
-
-              <div className="font-bold text-lg">
-                Next 30 days
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-3xl p-5 border border-gray-100">
-              <div className="text-sm text-gray-500 mb-2">
-                Bookings
-              </div>
-
-              <div className="font-bold text-lg">
-                {filteredBookings.length}
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-3xl p-5 border border-gray-100">
-              <div className="text-sm text-gray-500 mb-2">
-                Occupancy
-              </div>
-
-              <div className="font-bold text-lg">
-                {occupancyRate}%
-              </div>
-            </div>
-
-            <div className="bg-gray-50 rounded-3xl p-5 border border-gray-100">
-              <div className="text-sm text-gray-500 mb-2">
-                Cleanings needed
-              </div>
-
-              <div className="font-bold text-lg">
-                {cleaningNeeded}
-              </div>
-            </div>
-          </div>
-        </Section>
       </main>
     </div>
   );
