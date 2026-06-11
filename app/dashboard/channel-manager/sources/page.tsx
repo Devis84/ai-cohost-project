@@ -1,6 +1,11 @@
-"use client";
+ "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 type Property = {
   id: string;
@@ -142,7 +147,7 @@ function Section({
   title: string;
   description: string;
   icon: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
@@ -203,6 +208,9 @@ export default function CalendarSourcesPage() {
 
   const [saving, setSaving] =
     useState(false);
+
+  const [syncingSourceId, setSyncingSourceId] =
+    useState("");
 
   const [errorMessage, setErrorMessage] =
     useState("");
@@ -417,6 +425,55 @@ export default function CalendarSourcesPage() {
     }
   }
 
+  async function syncCalendarSource(id: string) {
+    try {
+      setSyncingSourceId(id);
+
+      const response = await fetch(
+        "/api/calendar-sources/sync",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            source_id: id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.error ||
+            "Unable to sync calendar source"
+        );
+      }
+
+      await loadCalendarSources();
+
+      alert(
+        `Calendar source synced. Events found: ${data.events_found}. Created: ${data.bookings_created}. Updated: ${data.bookings_updated}.`
+      );
+    } catch (error) {
+      console.error(
+        "SYNC CALENDAR SOURCE UI ERROR:",
+        error
+      );
+
+      await loadCalendarSources();
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to sync calendar source"
+      );
+    } finally {
+      setSyncingSourceId("");
+    }
+  }
+
   function getPropertyName(propertyId: string) {
     const property = properties.find(
       (item) => item.id === propertyId
@@ -443,8 +500,8 @@ export default function CalendarSourcesPage() {
               </h1>
 
               <p className="text-white/70 text-lg max-w-2xl leading-relaxed">
-                Save Airbnb, Booking.com and other iCal links before enabling
-                automatic calendar sync.
+                Save Airbnb, Booking.com and other iCal links, then sync
+                active sources into the Light Channel Manager.
               </p>
             </div>
 
@@ -532,7 +589,7 @@ export default function CalendarSourcesPage() {
           <Card
             title="Not synced"
             value={`${notSyncedSources}`}
-            description="Sources waiting for the sync engine."
+            description="Sources waiting for sync or reporting not synced."
             icon="⏳"
           />
         </div>
@@ -601,7 +658,7 @@ export default function CalendarSourcesPage() {
             <div>
               <FieldLabel
                 title="Source name"
-                description="Friendly name shown inside the Channel Manager."
+                description="Friendly name shown inside the Light Channel Manager."
               />
 
               <input
@@ -620,7 +677,7 @@ export default function CalendarSourcesPage() {
             <div>
               <FieldLabel
                 title="Status"
-                description="Inactive sources will be ignored by the future sync engine."
+                description="Inactive sources will be ignored by the sync engine."
               />
 
               <select
@@ -673,7 +730,7 @@ export default function CalendarSourcesPage() {
         <Section
           icon="📡"
           title="Saved Calendar Sources"
-          description="Existing iCal sources saved in the database. The sync engine will be connected in the next block."
+          description="Existing iCal sources saved in the database. Use Sync Now to import bookings from active iCal sources."
         >
           <div className="space-y-4">
             {filteredSources.length === 0 && (
@@ -762,10 +819,18 @@ export default function CalendarSourcesPage() {
 
                 <div className="flex flex-wrap gap-3 mt-4">
                   <button
-                    disabled
-                    className="bg-gray-200 text-gray-500 px-5 py-3 rounded-2xl text-sm font-semibold cursor-not-allowed"
+                    onClick={() =>
+                      syncCalendarSource(source.id)
+                    }
+                    disabled={
+                      syncingSourceId === source.id ||
+                      !source.is_active
+                    }
+                    className="bg-black text-white px-5 py-3 rounded-2xl text-sm font-semibold disabled:opacity-50"
                   >
-                    Sync Now — coming next
+                    {syncingSourceId === source.id
+                      ? "Syncing..."
+                      : "Sync Now"}
                   </button>
 
                   <button
