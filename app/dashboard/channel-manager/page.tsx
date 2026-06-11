@@ -417,6 +417,9 @@ export default function ChannelManagerPage() {
   const [savingBlockedDate, setSavingBlockedDate] =
     useState(false);
 
+  const [creatingCleaningTaskId, setCreatingCleaningTaskId] =
+    useState("");
+
   const [errorMessage, setErrorMessage] =
     useState("");
 
@@ -585,13 +588,6 @@ export default function ChannelManagerPage() {
       )
     ).length;
 
-  const upcomingCheckouts =
-    visibleBookings.filter((booking) =>
-      booking.checkout_date.startsWith(
-        `${selectedMonth.getFullYear()}-${`${selectedMonth.getMonth() + 1}`.padStart(2, "0")}`
-      )
-    ).length;
-
   const calendarDays = useMemo<CalendarDay[]>(() => {
     const monthStart = getMonthStart(selectedMonth);
     const monthEnd = getMonthEnd(selectedMonth);
@@ -743,7 +739,10 @@ export default function ChannelManagerPage() {
     });
   }, [bookings, selectedProperty, selectedMonth]);
 
-  const cleaningNeeded = turnoverItems.length;
+  const cleaningNeeded =
+    turnoverItems.filter(
+      (item) => !item.booking.cleaning_task_id
+    ).length;
 
   async function createBooking() {
     if (!bookingForm.property_id) {
@@ -964,6 +963,51 @@ export default function ChannelManagerPage() {
     }
   }
 
+  async function createCleaningTask(bookingId: string) {
+    try {
+      setCreatingCleaningTaskId(bookingId);
+
+      const response = await fetch(
+        "/api/channel-manager/create-cleaning-task",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            booking_id: bookingId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(
+          data.error ||
+            "Unable to create cleaning task"
+        );
+      }
+
+      await loadBookings();
+
+      alert("Cleaning task created");
+    } catch (error) {
+      console.error(
+        "CREATE CLEANING TASK UI ERROR:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to create cleaning task"
+      );
+    } finally {
+      setCreatingCleaningTaskId("");
+    }
+  }
+
   function getPropertyName(propertyId: string) {
     const property = properties.find(
       (item) => item.id === propertyId
@@ -1124,7 +1168,7 @@ export default function ChannelManagerPage() {
           <Card
             title="Cleaning needed"
             value={`${cleaningNeeded}`}
-            description="Detected booking departures requiring cleaning."
+            description="Departures not yet linked to a cleaning task."
             icon="🧹"
           />
         </div>
@@ -1272,7 +1316,7 @@ export default function ChannelManagerPage() {
         <Section
           icon="🧹"
           title="Turnover & Cleaning"
-          description="Detected cleaning needs based on confirmed booking check-outs. Cleaning task creation will be connected in the next block."
+          description="Create cleaning tasks directly from confirmed booking check-outs."
         >
           <div className="space-y-4">
             {turnoverItems.length === 0 && (
@@ -1314,6 +1358,12 @@ export default function ChannelManagerPage() {
                     <span className="text-xs border px-3 py-1 rounded-full bg-white text-gray-700 border-gray-200">
                       {item.label}
                     </span>
+
+                    {item.booking.cleaning_task_id && (
+                      <span className="text-xs border px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border-emerald-100">
+                        Cleaning linked
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1349,7 +1399,7 @@ export default function ChannelManagerPage() {
 
                     <div className="font-semibold">
                       {item.booking.cleaning_task_id
-                        ? "Cleaning linked"
+                        ? "Cleaning task created"
                         : "Cleaning task not created"}
                     </div>
                   </div>
@@ -1364,10 +1414,24 @@ export default function ChannelManagerPage() {
                 )}
 
                 <button
-                  disabled
-                  className="mt-4 bg-gray-200 text-gray-500 px-5 py-3 rounded-2xl text-sm font-semibold cursor-not-allowed"
+                  onClick={() =>
+                    createCleaningTask(item.booking.id)
+                  }
+                  disabled={
+                    Boolean(item.booking.cleaning_task_id) ||
+                    creatingCleaningTaskId === item.booking.id
+                  }
+                  className={`mt-4 px-5 py-3 rounded-2xl text-sm font-semibold ${
+                    item.booking.cleaning_task_id
+                      ? "bg-emerald-100 text-emerald-700 cursor-not-allowed"
+                      : "bg-black text-white hover:opacity-90"
+                  } disabled:opacity-60`}
                 >
-                  Create Cleaning Task — coming next
+                  {item.booking.cleaning_task_id
+                    ? "Cleaning Task Created"
+                    : creatingCleaningTaskId === item.booking.id
+                      ? "Creating..."
+                      : "Create Cleaning Task"}
                 </button>
               </div>
             ))}
@@ -1750,6 +1814,12 @@ export default function ChannelManagerPage() {
                       >
                         {booking.status}
                       </span>
+
+                      {booking.cleaning_task_id && (
+                        <span className="text-xs border px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border-emerald-100">
+                          Cleaning linked
+                        </span>
+                      )}
                     </div>
                   </div>
 
