@@ -780,6 +780,13 @@ export default function Dashboard() {
             </a>
 
             <a
+              href="/dashboard/channel-manager"
+              className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
+            >
+              📅 Light Channel Manager
+            </a>
+
+            <a
               href="/dashboard/billing"
               className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
             >
