@@ -106,6 +106,24 @@ function getPhoneHref(value?: string | null) {
   return cleanPhone ? `tel:${cleanPhone}` : "";
 }
 
+function getMapsHref(property?: Property | null) {
+  const address = safeText(property?.address);
+  const city = safeText(property?.city);
+  const country = safeText(property?.country);
+
+  const query = [address, city, country]
+    .filter(Boolean)
+    .join(", ");
+
+  if (!query) {
+    return "";
+  }
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    query
+  )}`;
+}
+
 function SectionCard({
   icon,
   title,
@@ -128,9 +146,9 @@ function SectionCard({
 
   return (
     <section
-      className={`rounded-[30px] border shadow-xl p-5 md:p-7 ${classes}`}
+      className={`rounded-[32px] border shadow-xl p-5 md:p-7 ${classes}`}
     >
-      <h2 className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-3">
+      <h2 className="text-xl md:text-2xl font-black mb-4 flex items-center gap-3">
         <span>{icon}</span>
         <span>{title}</span>
       </h2>
@@ -142,28 +160,41 @@ function SectionCard({
   );
 }
 
-function QuickButton({
+function QuickAction({
   href,
-  label,
   icon,
+  title,
+  subtitle,
   dark = false,
 }: {
   href: string;
-  label: string;
   icon: string;
+  title: string;
+  subtitle: string;
   dark?: boolean;
 }) {
   return (
     <a
       href={href}
-      className={`rounded-2xl px-4 py-4 font-bold shadow-xl border flex items-center justify-center gap-2 hover:scale-[1.02] transition ${
+      className={`rounded-[28px] p-5 border shadow-xl hover:scale-[1.015] transition ${
         dark
           ? "bg-black text-white border-black"
-          : "bg-white text-black border-white/10"
+          : "bg-white text-black border-black/5"
       }`}
     >
-      <span>{icon}</span>
-      <span>{label}</span>
+      <div className="text-3xl mb-4">{icon}</div>
+
+      <div className="font-black text-lg mb-1">
+        {title}
+      </div>
+
+      <div
+        className={`text-sm leading-relaxed ${
+          dark ? "text-white/60" : "text-gray-500"
+        }`}
+      >
+        {subtitle}
+      </div>
     </a>
   );
 }
@@ -176,7 +207,7 @@ function InfoPill({
   label: string;
 }) {
   return (
-    <div className="bg-white/10 border border-white/10 rounded-full px-4 py-3 text-sm md:text-base">
+    <div className="bg-white/10 border border-white/10 rounded-full px-4 py-3 text-sm md:text-base backdrop-blur">
       <span className="mr-2">{icon}</span>
       <span>{label}</span>
     </div>
@@ -193,14 +224,14 @@ function MiniInfoCard({
   value: string;
 }) {
   return (
-    <div className="bg-white rounded-3xl p-5 shadow-xl border border-black/5">
+    <div className="bg-white rounded-[28px] p-5 shadow-xl border border-black/5">
       <div className="text-3xl mb-3">{icon}</div>
 
       <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-2">
         {label}
       </div>
 
-      <div className="font-bold text-lg break-words">
+      <div className="font-black text-lg break-words">
         {value || "Not available"}
       </div>
     </div>
@@ -271,10 +302,14 @@ export default function GuestPage() {
     return getPhoneHref(property?.host_phone);
   }, [property]);
 
+  const mapsHref = useMemo(() => {
+    return getMapsHref(property);
+  }, [property]);
+
   const description =
     safeText(welcomeBook.description) ||
     safeText(property?.description) ||
-    "Welcome. Everything you need for your stay is available here.";
+    "Everything you need for a smooth stay is available here.";
 
   const houseRules =
     safeText(welcomeBook.house_rules) ||
@@ -449,11 +484,11 @@ export default function GuestPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
-        <div className="bg-white rounded-[32px] p-8 shadow-xl border border-black/5 text-center">
-          <div className="text-4xl mb-4">🏡</div>
+      <div className="min-h-screen bg-[#f4f1eb] flex items-center justify-center p-6">
+        <div className="bg-white rounded-[36px] p-8 shadow-xl border border-black/5 text-center">
+          <div className="text-5xl mb-4">🏡</div>
 
-          <div className="text-2xl font-bold mb-2">
+          <div className="text-2xl font-black mb-2">
             Loading your stay guide
           </div>
 
@@ -467,11 +502,11 @@ export default function GuestPage() {
 
   if (loadError || !property) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
-        <div className="bg-white rounded-[32px] p-8 shadow-xl border border-black/5 text-center max-w-lg">
-          <div className="text-4xl mb-4">⚠️</div>
+      <div className="min-h-screen bg-[#f4f1eb] flex items-center justify-center p-6">
+        <div className="bg-white rounded-[36px] p-8 shadow-xl border border-black/5 text-center max-w-lg">
+          <div className="text-5xl mb-4">⚠️</div>
 
-          <div className="text-2xl font-bold mb-2">
+          <div className="text-2xl font-black mb-2">
             Guest page unavailable
           </div>
 
@@ -485,70 +520,113 @@ export default function GuestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-gray-950">
-      <header className="relative overflow-hidden bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-4 md:px-8 py-8 md:py-16">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_white,_transparent_35%)]" />
-
-        <div className="relative max-w-6xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs md:text-sm text-white/70 mb-5">
-            <span>✨</span>
-            <span>Your digital stay guide</span>
-          </div>
-
-          <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/40 mb-4">
-            AI CO-HOST EXPERIENCE
-          </div>
-
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4 leading-tight">
-            Welcome to {propertyName}
-          </h1>
-
-          <p className="text-white/70 text-base md:text-xl max-w-3xl leading-relaxed mb-6">
-            {description}
-          </p>
-
-          <div className="flex flex-wrap gap-3 mb-7">
-            <InfoPill icon="📍" label={locationText} />
-
-            {property.checkin_time && (
-              <InfoPill
-                icon="🔑"
-                label={`Check-in: ${property.checkin_time}`}
+    <div className="min-h-screen bg-[#f4f1eb] text-gray-950 pb-28 md:pb-0">
+      <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl">
+            {property.image_url && (
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-35"
+                style={{
+                  backgroundImage: `url(${property.image_url})`,
+                }}
               />
             )}
 
-            {property.checkout_time && (
-              <InfoPill
-                icon="🚪"
-                label={`Check-out: ${property.checkout_time}`}
-              />
-            )}
-          </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-black via-black/85 to-black/50" />
+            <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl" />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <QuickButton
-              href="#wifi"
-              icon="📶"
-              label="WiFi"
-            />
+            <div className="relative p-6 md:p-12 lg:p-14">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-10">
+                <div>
+                  <div className="inline-flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs md:text-sm text-white/75 mb-5">
+                    <span>✨</span>
+                    <span>Your digital stay guide</span>
+                  </div>
 
-            <QuickButton
-              href="#ai-concierge"
-              icon="🤖"
-              label="Ask AI"
-            />
+                  <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/40 mb-4">
+                    AI CO-HOST EXPERIENCE
+                  </div>
 
-            <QuickButton
-              href="#welcome-book"
-              icon="📘"
-              label="Stay Guide"
-            />
+                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95]">
+                    Welcome to {propertyName}
+                  </h1>
 
-            <QuickButton
-              href="#emergency"
-              icon="🚨"
-              label="Emergency"
-            />
+                  <p className="text-white/75 text-base md:text-xl max-w-3xl leading-relaxed">
+                    {description}
+                  </p>
+                </div>
+
+                <div className="bg-white text-black rounded-[28px] p-5 min-w-[210px] shadow-xl">
+                  <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-2">
+                    Stay support
+                  </div>
+
+                  <div className="text-2xl font-black mb-1">
+                    AI Concierge
+                  </div>
+
+                  <div className="text-sm text-gray-500 leading-relaxed">
+                    Multilingual help for your stay, WiFi, rules,
+                    transport and local tips.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3 mb-8">
+                <InfoPill icon="📍" label={locationText} />
+
+                {property.checkin_time && (
+                  <InfoPill
+                    icon="🔑"
+                    label={`Check-in: ${property.checkin_time}`}
+                  />
+                )}
+
+                {property.checkout_time && (
+                  <InfoPill
+                    icon="🚪"
+                    label={`Check-out: ${property.checkout_time}`}
+                  />
+                )}
+
+                <InfoPill
+                  icon="🌍"
+                  label="Multilingual assistance"
+                />
+              </div>
+
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <QuickAction
+                  href="#wifi"
+                  icon="📶"
+                  title="WiFi"
+                  subtitle="Network and password"
+                />
+
+                <QuickAction
+                  href="#ai-concierge"
+                  icon="🤖"
+                  title="Ask AI"
+                  subtitle="Help in your language"
+                />
+
+                <QuickAction
+                  href="#welcome-book"
+                  icon="📘"
+                  title="Stay Guide"
+                  subtitle="Rules, tips and services"
+                />
+
+                <QuickAction
+                  href="#help"
+                  icon="🚨"
+                  title="Need Help"
+                  subtitle="Emergency and host support"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -579,56 +657,58 @@ export default function GuestPage() {
             value={
               property.host_phone
                 ? "Host contact available"
-                : "Ask AI Concierge"
+                : "AI Concierge available"
             }
           />
         </section>
 
         <section
           id="wifi"
-          className="bg-black text-white rounded-[32px] p-6 md:p-8 shadow-2xl border border-black"
+          className="relative overflow-hidden bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5"
         >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-black/5 blur-3xl" />
+
+          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
-              <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-4">
+              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-4">
                 QUICK ACCESS
               </div>
 
-              <h2 className="text-3xl md:text-4xl font-black mb-3">
-                📶 Connect to WiFi
+              <h2 className="text-3xl md:text-5xl font-black mb-3">
+                Connect to WiFi
               </h2>
 
-              <p className="text-white/60 leading-relaxed max-w-2xl">
-                These are the WiFi details for your stay. Tap copy and
-                paste them into your phone settings if needed.
+              <p className="text-gray-500 leading-relaxed max-w-2xl">
+                Tap copy and paste the network details into your
+                phone settings if needed.
               </p>
             </div>
 
             <button
               onClick={copyWifi}
-              className="bg-white text-black rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition"
+              className="bg-black text-white rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition"
             >
               Copy WiFi
             </button>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4 mt-7">
-            <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-              <div className="text-white/40 text-xs uppercase tracking-[0.2em] mb-2">
+            <div className="bg-[#f4f1eb] border border-black/5 rounded-[28px] p-5">
+              <div className="text-gray-400 text-xs uppercase tracking-[0.2em] mb-2">
                 Network
               </div>
 
-              <div className="text-2xl font-bold break-words">
+              <div className="text-2xl md:text-3xl font-black break-words">
                 {property.wifi_name || "Not available"}
               </div>
             </div>
 
-            <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
+            <div className="bg-black text-white border border-black rounded-[28px] p-5">
               <div className="text-white/40 text-xs uppercase tracking-[0.2em] mb-2">
                 Password
               </div>
 
-              <div className="text-2xl font-bold break-words">
+              <div className="text-2xl md:text-3xl font-black break-words">
                 {property.wifi_password || "Not available"}
               </div>
             </div>
@@ -636,7 +716,7 @@ export default function GuestPage() {
         </section>
 
         <section className="grid lg:grid-cols-3 gap-6">
-          <SectionCard icon="🔑" title="Arrival & Access">
+          <SectionCard icon="🏡" title="Arrival">
             <div className="space-y-3">
               <p>
                 <strong>Check-in:</strong>{" "}
@@ -648,18 +728,28 @@ export default function GuestPage() {
                 {property.checkout_time || "Not available"}
               </p>
 
-              {property.lockbox_code && (
-                <p>
-                  <strong>Lockbox code:</strong>{" "}
-                  {property.lockbox_code}
-                </p>
-              )}
-
               {property.address && (
                 <p>
                   <strong>Address:</strong>{" "}
                   {property.address}
                 </p>
+              )}
+
+              <p className="text-sm text-gray-500 pt-2">
+                For security reasons, private access codes are shared
+                only through the host’s private message, not on this
+                public guest page.
+              </p>
+
+              {mapsHref && (
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex bg-black text-white rounded-2xl px-5 py-3 font-semibold mt-2"
+                >
+                  Open in Maps
+                </a>
               )}
             </div>
           </SectionCard>
@@ -669,7 +759,7 @@ export default function GuestPage() {
             title="Emergency"
             tone="danger"
           >
-            <div id="emergency">
+            <div id="help">
               {emergency ||
                 "For emergencies, contact local emergency services."}
             </div>
@@ -678,14 +768,14 @@ export default function GuestPage() {
           <SectionCard icon="💬" title="Need help?">
             <div className="space-y-4">
               <p>
-                Ask the AI Concierge for quick help about the
-                apartment, WiFi, parking, rules, restaurants,
-                transport, check-in and checkout.
+                Ask the AI Concierge for quick help about WiFi,
+                check-in, checkout, parking, house rules, appliances,
+                restaurants, transport and local tips.
               </p>
 
               <p className="text-sm text-gray-500">
-                The AI Concierge is limited to questions related to
-                your stay.
+                The AI Concierge replies in the guest’s language and
+                is limited to questions related to the stay.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -693,7 +783,7 @@ export default function GuestPage() {
                   href="#ai-concierge"
                   className="inline-flex bg-black text-white rounded-2xl px-5 py-3 font-semibold"
                 >
-                  Ask AI Concierge
+                  Ask AI
                 </a>
 
                 {hostPhoneHref && (
@@ -711,57 +801,64 @@ export default function GuestPage() {
 
         {property.checkin_instructions && (
           <SectionCard
-            icon="🏡"
+            icon="🔑"
             title="Arrival Instructions"
           >
-            {property.checkin_instructions}
+            <div className="space-y-4">
+              <p>{property.checkin_instructions}</p>
+
+              <p className="text-sm text-gray-500">
+                Private access codes are not displayed on this public
+                guest page. Please check the host’s private message if
+                an access code is required.
+              </p>
+            </div>
           </SectionCard>
         )}
 
         <section
           id="ai-concierge"
-          className="bg-black text-white rounded-[32px] p-5 md:p-8 shadow-2xl"
+          className="relative overflow-hidden bg-black text-white rounded-[40px] p-5 md:p-8 shadow-2xl"
         >
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-6">
+          <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+
+          <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-6">
             <div>
               <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-4">
                 AI CONCIERGE
               </div>
 
-              <h2 className="text-3xl md:text-4xl font-black mb-3">
-                Need help during your stay?
+              <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
+                Ask anything about your stay
               </h2>
 
               <p className="text-white/60 text-base md:text-lg max-w-2xl">
-                Ask about WiFi, check-in, checkout, parking, house
-                rules, appliances, restaurants, transport and local
-                tips.
+                WiFi, check-in, checkout, parking, house rules,
+                appliances, restaurants, transport and local tips.
               </p>
 
-              <div className="mt-4 bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white/70">
-                This assistant is limited to questions related to your
-                stay and the apartment.
+              <div className="mt-4 grid md:grid-cols-2 gap-3">
+                <div className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white/70">
+                  Replies in your language.
+                </div>
+
+                <div className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white/70">
+                  Stay-related questions only.
+                </div>
               </div>
             </div>
 
-            <div className="text-5xl">🤖</div>
+            <div className="text-6xl">🤖</div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-3 mb-6">
+          <div className="relative grid md:grid-cols-3 gap-3 mb-6">
             <PromptButton
               onClick={() =>
                 sendMessage("What is the WiFi password?")
               }
             >
               What is the WiFi password?
-            </PromptButton>
-
-            <PromptButton
-              onClick={() =>
-                sendMessage("How do I check in?")
-              }
-            >
-              How do I check in?
             </PromptButton>
 
             <PromptButton
@@ -795,12 +892,20 @@ export default function GuestPage() {
             >
               How do I use the air conditioning?
             </PromptButton>
+
+            <PromptButton
+              onClick={() =>
+                sendMessage("I need help with check-in.")
+              }
+            >
+              I need help with check-in.
+            </PromptButton>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-[28px] overflow-hidden">
+          <div className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden">
             <div
               ref={chatRef}
-              className="h-[380px] md:h-[420px] overflow-y-auto p-4 md:p-6 space-y-4"
+              className="h-[400px] md:h-[460px] overflow-y-auto p-4 md:p-6 space-y-4"
             >
               {messages.length === 0 && (
                 <div className="h-full flex items-center justify-center text-white/40 text-center px-4">
@@ -863,18 +968,18 @@ export default function GuestPage() {
         </section>
 
         <section id="welcome-book" className="space-y-6">
-          <div>
+          <div className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
             <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
               WELCOME BOOK
             </div>
 
-            <h2 className="text-3xl md:text-4xl font-black">
-              Useful information for your stay
+            <h2 className="text-3xl md:text-5xl font-black">
+              Everything useful in one place
             </h2>
 
             <p className="text-gray-500 mt-3 max-w-2xl">
-              House rules, local recommendations and practical notes
-              for a smooth stay.
+              House rules, practical notes, local recommendations and
+              checkout information for a smooth stay.
             </p>
           </div>
 
@@ -947,14 +1052,14 @@ export default function GuestPage() {
           </div>
         </section>
 
-        <section className="bg-white rounded-[32px] p-6 md:p-8 shadow-xl border border-black/5">
+        <section className="bg-black text-white rounded-[40px] p-6 md:p-8 shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
             <div>
-              <h2 className="text-2xl md:text-3xl font-black mb-2">
+              <h2 className="text-2xl md:text-4xl font-black mb-2">
                 Still need help?
               </h2>
 
-              <p className="text-gray-500 leading-relaxed">
+              <p className="text-white/60 leading-relaxed max-w-2xl">
                 Ask the AI Concierge for stay-related questions, or
                 contact the host directly for urgent matters.
               </p>
@@ -963,7 +1068,7 @@ export default function GuestPage() {
             <div className="flex flex-wrap gap-3">
               <a
                 href="#ai-concierge"
-                className="bg-black text-white rounded-2xl px-5 py-3 font-semibold"
+                className="bg-white text-black rounded-2xl px-5 py-3 font-semibold"
               >
                 Ask AI
               </a>
@@ -971,7 +1076,7 @@ export default function GuestPage() {
               {hostPhoneHref && (
                 <a
                   href={hostPhoneHref}
-                  className="bg-white border border-gray-200 text-black rounded-2xl px-5 py-3 font-semibold"
+                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 font-semibold"
                 >
                   Contact Host
                 </a>
@@ -982,7 +1087,7 @@ export default function GuestPage() {
       </main>
 
       <div className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
-        <div className="bg-black text-white rounded-3xl shadow-2xl p-3 grid grid-cols-3 gap-2 border border-white/10">
+        <div className="bg-black text-white rounded-[28px] shadow-2xl p-3 grid grid-cols-3 gap-2 border border-white/10">
           <a
             href="#wifi"
             className="bg-white/10 rounded-2xl py-3 text-center text-sm font-semibold"
