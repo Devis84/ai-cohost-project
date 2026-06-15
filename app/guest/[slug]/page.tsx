@@ -158,7 +158,7 @@ function getHeroDescription(
     propertyName.includes("maltese maisonette") ||
     city === "sliema"
   ) {
-    return "Enjoy an authentic stay in a cozy Maltese maisonette in the heart of Sliema, just 100m from the promenade, cafés, shops and transport.";
+    return "A cozy Maltese maisonette in central Sliema, designed for a simple, comfortable and authentic stay by the sea.";
   }
 
   const rawDescription =
@@ -166,20 +166,65 @@ function getHeroDescription(
     safeText(property?.description);
 
   if (!rawDescription) {
-    return "Everything you need for a smooth stay is available here.";
+    return "A comfortable private stay with everything you need in one place.";
   }
 
   const punctuationIndex = rawDescription.search(/[.!?]/);
 
-  if (punctuationIndex > 40 && punctuationIndex < 220) {
+  if (punctuationIndex > 40 && punctuationIndex < 180) {
     return rawDescription.slice(0, punctuationIndex + 1);
   }
 
-  if (rawDescription.length > 220) {
-    return `${rawDescription.slice(0, 217).trim()}...`;
+  if (rawDescription.length > 180) {
+    return `${rawDescription.slice(0, 177).trim()}...`;
   }
 
   return rawDescription;
+}
+
+function getAboutThisStayCopy(
+  property?: Property | null,
+  welcomeBook?: WelcomeBook
+) {
+  const propertyName = getPropertyName(property).toLowerCase();
+  const city = safeText(property?.city).toLowerCase();
+
+  if (
+    propertyName.includes("maltese maisonette") ||
+    city === "sliema"
+  ) {
+    return {
+      title: "About this stay",
+      intro:
+        "This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself.",
+      body:
+        "Inside, you’ll find a queen-size bedroom with A/C, a living area with sofa, a fully equipped kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk for work or study, and a small outdoor space. The apartment is set on a quiet Maltese street in central Sliema, close to the promenade, cafés, shops, public transport, Balluta Bay and St Julian’s nightlife.",
+      highlights: [
+        "Private one-bedroom maisonette",
+        "Central Sliema location",
+        "High-speed WiFi and desk",
+        "Kitchen and washing machine",
+      ],
+    };
+  }
+
+  const description =
+    safeText(welcomeBook?.description) ||
+    safeText(property?.description) ||
+    "This private stay includes the essential comforts you need for a smooth visit, with practical information, local tips and guest support available from this page.";
+
+  return {
+    title: "About this stay",
+    intro:
+      "A private stay designed to make your visit simple, comfortable and easy to manage.",
+    body: description,
+    highlights: [
+      "Private guest space",
+      "Useful stay information",
+      "AI Concierge support",
+      "Local tips and essentials",
+    ],
+  };
 }
 
 function SectionCard({
@@ -265,7 +310,7 @@ function InfoPill({
   label: string;
 }) {
   return (
-    <div className="bg-white/10 border border-white/10 rounded-full px-4 py-3 text-sm md:text-base backdrop-blur">
+    <div className="bg-white/15 border border-white/20 rounded-full px-4 py-3 text-sm md:text-base backdrop-blur-md shadow-lg">
       <span className="mr-2">{icon}</span>
       <span>{label}</span>
     </div>
@@ -362,6 +407,10 @@ export default function GuestPage() {
 
   const heroDescription = useMemo(() => {
     return getHeroDescription(property, welcomeBook);
+  }, [property, welcomeBook]);
+
+  const aboutThisStay = useMemo(() => {
+    return getAboutThisStayCopy(property, welcomeBook);
   }, [property, welcomeBook]);
 
   const hostPhoneHref = useMemo(() => {
@@ -584,43 +633,42 @@ export default function GuestPage() {
     <div className="min-h-screen bg-[#f4f1eb] text-gray-950 pb-28 md:pb-0">
       <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
         <div className="max-w-6xl mx-auto">
-          <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl min-h-[720px] md:min-h-[680px]">
+          <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl min-h-[620px] md:min-h-[660px]">
             {heroImageUrl && (
               <div
-                className="absolute inset-0 bg-cover bg-center opacity-65"
+                className="absolute inset-0 bg-cover bg-center opacity-100"
                 style={{
                   backgroundImage: `url(${heroImageUrl})`,
                 }}
               />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
-            <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-            <div className="absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-black/5" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/10" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_35%,rgba(255,255,255,0.16),transparent_32%)]" />
 
-            <div className="relative p-6 md:p-12 lg:p-14 min-h-[720px] md:min-h-[680px] flex flex-col justify-between">
-              <div>
-                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-4 py-2 text-xs md:text-sm text-white/85 mb-5 backdrop-blur">
+            <div className="relative p-6 md:p-12 lg:p-14 min-h-[620px] md:min-h-[660px] flex flex-col justify-between">
+              <div className="max-w-4xl">
+                <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-4 py-2 text-xs md:text-sm text-white/90 mb-5 backdrop-blur-md shadow-lg">
                   <span>✨</span>
                   <span>Your digital stay guide</span>
                 </div>
 
-                <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/50 mb-4">
+                <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/60 mb-4">
                   AI CO-HOST EXPERIENCE
                 </div>
 
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95] max-w-5xl">
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95] max-w-4xl drop-shadow-2xl">
                   Welcome to {propertyName}
                 </h1>
 
-                <p className="text-white/85 text-base md:text-xl max-w-3xl leading-relaxed">
+                <p className="text-white/90 text-base md:text-xl max-w-2xl leading-relaxed drop-shadow-xl">
                   {heroDescription}
                 </p>
               </div>
 
               <div className="mt-10">
-                <div className="flex flex-wrap gap-3 mb-8">
+                <div className="flex flex-wrap gap-3">
                   <InfoPill icon="📍" label={locationText} />
 
                   {property.checkin_time && (
@@ -642,43 +690,43 @@ export default function GuestPage() {
                     label="Multilingual assistance"
                   />
                 </div>
-
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <QuickAction
-                    href="#wifi"
-                    icon="📶"
-                    title="WiFi"
-                    subtitle="Network and password"
-                  />
-
-                  <QuickAction
-                    href="#ai-concierge"
-                    icon="🤖"
-                    title="Ask AI"
-                    subtitle="Help in your language"
-                  />
-
-                  <QuickAction
-                    href="#welcome-book"
-                    icon="📘"
-                    title="Stay Guide"
-                    subtitle="Rules, tips and services"
-                  />
-
-                  <QuickAction
-                    href="#help"
-                    icon="🚨"
-                    title="Need Help"
-                    subtitle="Emergency and host support"
-                  />
-                </div>
               </div>
             </div>
           </div>
+
+          <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 -mt-8 relative z-10 px-3 md:px-8">
+            <QuickAction
+              href="#wifi"
+              icon="📶"
+              title="WiFi"
+              subtitle="Network and password"
+            />
+
+            <QuickAction
+              href="#ai-concierge"
+              icon="🤖"
+              title="Ask AI"
+              subtitle="Help in your language"
+            />
+
+            <QuickAction
+              href="#welcome-book"
+              icon="📘"
+              title="Stay Guide"
+              subtitle="Rules, tips and services"
+            />
+
+            <QuickAction
+              href="#help"
+              icon="🚨"
+              title="Need Help"
+              subtitle="Emergency and host support"
+            />
+          </section>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-7 md:space-y-8">
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-7 md:space-y-8">
         <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
           <MiniInfoCard
             icon="📍"
@@ -707,6 +755,46 @@ export default function GuestPage() {
                 : "AI Concierge available"
             }
           />
+        </section>
+
+        <section className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
+            <div>
+              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-4">
+                THE APARTMENT
+              </div>
+
+              <h2 className="text-3xl md:text-5xl font-black mb-5 leading-tight">
+                {aboutThisStay.title}
+              </h2>
+
+              <p className="text-lg md:text-xl leading-relaxed text-gray-800 mb-5">
+                {aboutThisStay.intro}
+              </p>
+
+              <p className="text-gray-500 leading-relaxed text-base md:text-lg">
+                {aboutThisStay.body}
+              </p>
+            </div>
+
+            <div className="bg-[#f4f1eb] rounded-[32px] p-5 md:p-6 border border-black/5">
+              <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-5">
+                Highlights
+              </div>
+
+              <div className="space-y-3">
+                {aboutThisStay.highlights.map((item) => (
+                  <div
+                    key={item}
+                    className="bg-white rounded-2xl px-4 py-4 font-bold shadow-sm border border-black/5 flex items-center gap-3"
+                  >
+                    <span>✓</span>
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
 
         <section
