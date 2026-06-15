@@ -2,6 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type GuestPageContent = {
+  hero_title: string;
+  hero_intro: string;
+  hero_image_url: string;
+  about_title: string;
+  about_intro: string;
+  about_description: string;
+  about_highlights: string;
+};
+
 type WelcomeBook = {
   description: string;
   amenities: string;
@@ -46,12 +56,14 @@ type AiTraining = {
 };
 
 type KnowledgeBase = {
+  guest_page: GuestPageContent;
   welcome_book: WelcomeBook;
   local_guide: LocalGuide;
   ai_training: AiTraining;
 };
 
 type StoredKnowledgeBase = {
+  guest_page?: Partial<GuestPageContent>;
   welcome_book?: Partial<WelcomeBook>;
   local_guide?: Partial<LocalGuide>;
   ai_training?: Partial<AiTraining>;
@@ -87,6 +99,16 @@ type Property = {
 
 function createEmptyKnowledgeBase(): KnowledgeBase {
   return {
+    guest_page: {
+      hero_title: "",
+      hero_intro: "",
+      hero_image_url: "",
+      about_title: "",
+      about_intro: "",
+      about_description: "",
+      about_highlights: "",
+    },
+
     welcome_book: {
       description: "",
       amenities: "",
@@ -147,6 +169,9 @@ function safeString(value: unknown) {
 function mergeKnowledgeBase(property: Property): KnowledgeBase {
   const empty = createEmptyKnowledgeBase();
 
+  const savedGuestPage: Partial<GuestPageContent> =
+    property.knowledge_base?.guest_page || {};
+
   const savedWelcome: Partial<WelcomeBook> =
     property.knowledge_base?.welcome_book || {};
 
@@ -157,6 +182,33 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
     property.knowledge_base?.ai_training || {};
 
   return {
+    guest_page: {
+      ...empty.guest_page,
+      ...savedGuestPage,
+      hero_title:
+        savedGuestPage.hero_title ||
+        safeString(property.property_name),
+      hero_intro:
+        savedGuestPage.hero_intro ||
+        "",
+      hero_image_url:
+        savedGuestPage.hero_image_url ||
+        "",
+      about_title:
+        savedGuestPage.about_title ||
+        "About this stay",
+      about_intro:
+        savedGuestPage.about_intro ||
+        "",
+      about_description:
+        savedGuestPage.about_description ||
+        safeString(savedWelcome.description) ||
+        safeString(property.description),
+      about_highlights:
+        savedGuestPage.about_highlights ||
+        "",
+    },
+
     welcome_book: {
       ...empty.welcome_book,
       ...savedWelcome,
@@ -613,6 +665,19 @@ export default function Dashboard() {
     }
   }
 
+  function updateGuestPage(
+    field: keyof GuestPageContent,
+    value: string
+  ) {
+    setKnowledgeBase((current) => ({
+      ...current,
+      guest_page: {
+        ...current.guest_page,
+        [field]: value,
+      },
+    }));
+  }
+
   function updateWelcomeBook(
     field: keyof WelcomeBook,
     value: string
@@ -712,6 +777,17 @@ export default function Dashboard() {
             </button>
 
             <button
+              onClick={() => setActiveTab("guestpage")}
+              className={`w-full text-left px-5 py-4 rounded-2xl transition ${
+                activeTab === "guestpage"
+                  ? "bg-black text-white shadow-xl"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              ✨ Guest Page
+            </button>
+
+            <button
               onClick={() => setActiveTab("welcomebook")}
               className={`w-full text-left px-5 py-4 rounded-2xl transition ${
                 activeTab === "welcomebook"
@@ -802,6 +878,193 @@ export default function Dashboard() {
           </aside>
 
           <div className="space-y-8">
+            {activeTab === "guestpage" && (
+              <>
+                <section className="bg-black text-white rounded-[32px] p-7 shadow-xl border border-black">
+                  <SectionHeader
+                    icon="✨"
+                    title="Guest Page Experience"
+                    description="Control the first impression guests see when they scan your QR/NFC link. Use a short emotional intro, a strong hero image and a clear About This Stay section."
+                  />
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
+                      <div className="text-white/50 text-sm mb-2">
+                        Guest page URL
+                      </div>
+
+                      <div className="font-bold break-all">
+                        {selectedSlug
+                          ? `/guest/${selectedSlug}`
+                          : "Select a property first"}
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
+                      <div className="text-white/50 text-sm mb-2">
+                        Style goal
+                      </div>
+
+                      <div className="font-bold">
+                        Premium, mobile-first, emotional and credible
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedSlug && (
+                    <div className="mt-5">
+                      <a
+                        href={`/guest/${selectedSlug}`}
+                        target="_blank"
+                        className="inline-flex bg-white text-black px-5 py-3 rounded-2xl font-semibold"
+                      >
+                        Open Guest Page
+                      </a>
+                    </div>
+                  )}
+                </section>
+
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                  <SectionHeader
+                    icon="🖼️"
+                    title="Hero Section"
+                    description="This is the top section of the guest page. Keep it short, emotional and visual. Do not paste the full Airbnb description here."
+                  />
+
+                  <div className="grid md:grid-cols-2 gap-4 mb-5">
+                    <div>
+                      <FieldLabel
+                        title="Hero title"
+                        description="Main headline shown on the guest page. Usually the property name or a warmer welcome title."
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="Example: Welcome to Maltese Maisonette"
+                        value={knowledgeBase.guest_page.hero_title}
+                        onChange={(event) =>
+                          updateGuestPage(
+                            "hero_title",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <FieldLabel
+                        title="Hero image URL"
+                        description="Use a public image URL or a local image path such as /guest-images/maltese-maisonette-hero-bedroom.jpg"
+                      />
+
+                      <input
+                        className="w-full border border-gray-200 rounded-2xl p-4"
+                        placeholder="/guest-images/maltese-maisonette-hero-bedroom.jpg"
+                        value={knowledgeBase.guest_page.hero_image_url}
+                        onChange={(event) =>
+                          updateGuestPage(
+                            "hero_image_url",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <TextArea
+                    placeholder="Hero intro. Short emotional intro shown in the hero. Keep this around 1–2 lines."
+                    value={knowledgeBase.guest_page.hero_intro}
+                    onChange={(value) =>
+                      updateGuestPage("hero_intro", value)
+                    }
+                  />
+
+                  <div className="mt-6 bg-[#f4f1eb] rounded-[28px] p-5 border border-black/5">
+                    <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-3">
+                      Recommended style
+                    </div>
+
+                    <p className="text-gray-600 leading-relaxed">
+                      Example: “A cozy Maltese maisonette in central
+                      Sliema, designed for a simple, comfortable and
+                      authentic stay by the sea.”
+                    </p>
+                  </div>
+                </section>
+
+                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                  <SectionHeader
+                    icon="🏡"
+                    title="About This Stay"
+                    description="This section sits below the hero and gives guests a richer, more complete description of the apartment without overloading the first screen."
+                  />
+
+                  <div className="mb-5">
+                    <FieldLabel
+                      title="Section title"
+                      description="Usually 'About this stay', but you can customize it."
+                    />
+
+                    <input
+                      className="w-full border border-gray-200 rounded-2xl p-4"
+                      placeholder="About this stay"
+                      value={knowledgeBase.guest_page.about_title}
+                      onChange={(event) =>
+                        updateGuestPage(
+                          "about_title",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <TextArea
+                    placeholder="About intro. Short premium intro, 1–2 sentences. This should feel warm and emotional."
+                    value={knowledgeBase.guest_page.about_intro}
+                    onChange={(value) =>
+                      updateGuestPage("about_intro", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="About description. Add the full guest-friendly apartment description. This can include bedroom, kitchen, WiFi, location, nearby promenade, cafés, transport and other practical details."
+                    value={knowledgeBase.guest_page.about_description}
+                    onChange={(value) =>
+                      updateGuestPage(
+                        "about_description",
+                        value
+                      )
+                    }
+                    large
+                  />
+
+                  <TextArea
+                    placeholder="Highlights. Add one highlight per line. These will be shown as short premium bullet points on the guest page."
+                    value={knowledgeBase.guest_page.about_highlights}
+                    onChange={(value) =>
+                      updateGuestPage(
+                        "about_highlights",
+                        value
+                      )
+                    }
+                  />
+
+                  <div className="mt-6 bg-[#f4f1eb] rounded-[28px] p-5 border border-black/5">
+                    <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-3">
+                      Suggested highlights
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-600">
+                      <div>✓ Private one-bedroom maisonette</div>
+                      <div>✓ Central Sliema location</div>
+                      <div>✓ High-speed WiFi and desk</div>
+                      <div>✓ Kitchen and washing machine</div>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
             {activeTab === "general" && (
               <>
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
