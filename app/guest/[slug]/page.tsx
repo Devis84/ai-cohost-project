@@ -9,6 +9,16 @@ import {
 } from "react";
 import { useParams } from "next/navigation";
 
+type GuestPageContent = {
+  hero_title?: string;
+  hero_intro?: string;
+  hero_image_url?: string;
+  about_title?: string;
+  about_intro?: string;
+  about_description?: string;
+  about_highlights?: string;
+};
+
 type WelcomeBook = {
   description?: string;
   amenities?: string;
@@ -34,6 +44,7 @@ type AiTraining = {
 };
 
 type KnowledgeBase = {
+  guest_page?: GuestPageContent;
   welcome_book?: WelcomeBook;
   ai_training?: AiTraining;
 };
@@ -90,6 +101,10 @@ function getPropertyName(property?: Property | null) {
   );
 }
 
+function getGuestPage(property?: Property | null): GuestPageContent {
+  return property?.knowledge_base?.guest_page || {};
+}
+
 function getWelcomeBook(property?: Property | null): WelcomeBook {
   return property?.knowledge_base?.welcome_book || {};
 }
@@ -128,10 +143,14 @@ function getHeroImageUrl(
   property?: Property | null,
   slug?: string
 ) {
-  const imageUrl = safeText(property?.image_url);
+  const guestPage = getGuestPage(property);
 
-  if (imageUrl) {
-    return imageUrl;
+  const configuredHeroImage =
+    safeText(guestPage.hero_image_url) ||
+    safeText(property?.image_url);
+
+  if (configuredHeroImage) {
+    return configuredHeroImage;
   }
 
   const cleanSlug = safeText(slug).toLowerCase();
@@ -147,10 +166,28 @@ function getHeroImageUrl(
   return "";
 }
 
+function getHeroTitle(property?: Property | null) {
+  const guestPage = getGuestPage(property);
+  const configuredTitle = safeText(guestPage.hero_title);
+
+  if (configuredTitle) {
+    return configuredTitle;
+  }
+
+  return `Welcome to ${getPropertyName(property)}`;
+}
+
 function getHeroDescription(
   property?: Property | null,
   welcomeBook?: WelcomeBook
 ) {
+  const guestPage = getGuestPage(property);
+  const configuredIntro = safeText(guestPage.hero_intro);
+
+  if (configuredIntro) {
+    return configuredIntro;
+  }
+
   const propertyName = getPropertyName(property).toLowerCase();
   const city = safeText(property?.city).toLowerCase();
 
@@ -182,48 +219,66 @@ function getHeroDescription(
   return rawDescription;
 }
 
+function splitHighlights(value?: string | null) {
+  return safeText(value)
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function getAboutThisStayCopy(
   property?: Property | null,
   welcomeBook?: WelcomeBook
 ) {
+  const guestPage = getGuestPage(property);
+
+  const configuredHighlights = splitHighlights(
+    guestPage.about_highlights
+  );
+
   const propertyName = getPropertyName(property).toLowerCase();
   const city = safeText(property?.city).toLowerCase();
 
-  if (
+  const fallbackForMalteseMaisonette =
     propertyName.includes("maltese maisonette") ||
-    city === "sliema"
-  ) {
-    return {
-      title: "About this stay",
-      intro:
-        "This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself.",
-      body:
-        "Inside, you’ll find a queen-size bedroom with A/C, a living area with sofa, a fully equipped kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk for work or study, and a small outdoor space. The apartment is set on a quiet Maltese street in central Sliema, close to the promenade, cafés, shops, public transport, Balluta Bay and St Julian’s nightlife.",
-      highlights: [
+    city === "sliema";
+
+  const fallbackTitle = "About this stay";
+
+  const fallbackIntro = fallbackForMalteseMaisonette
+    ? "This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself."
+    : "A private stay designed to make your visit simple, comfortable and easy to manage.";
+
+  const fallbackDescription = fallbackForMalteseMaisonette
+    ? "Inside, you’ll find a queen-size bedroom with A/C, a living area with sofa, a fully equipped kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk for work or study, and a small outdoor space. The apartment is set on a quiet Maltese street in central Sliema, close to the promenade, cafés, shops, public transport, Balluta Bay and St Julian’s nightlife."
+    : safeText(welcomeBook?.description) ||
+      safeText(property?.description) ||
+      "This private stay includes the essential comforts you need for a smooth visit, with practical information, local tips and guest support available from this page.";
+
+  const fallbackHighlights = fallbackForMalteseMaisonette
+    ? [
         "Private one-bedroom maisonette",
         "Central Sliema location",
         "High-speed WiFi and desk",
         "Kitchen and washing machine",
-      ],
-    };
-  }
-
-  const description =
-    safeText(welcomeBook?.description) ||
-    safeText(property?.description) ||
-    "This private stay includes the essential comforts you need for a smooth visit, with practical information, local tips and guest support available from this page.";
+      ]
+    : [
+        "Private guest space",
+        "Useful stay information",
+        "AI Concierge support",
+        "Local tips and essentials",
+      ];
 
   return {
-    title: "About this stay",
-    intro:
-      "A private stay designed to make your visit simple, comfortable and easy to manage.",
-    body: description,
-    highlights: [
-      "Private guest space",
-      "Useful stay information",
-      "AI Concierge support",
-      "Local tips and essentials",
-    ],
+    title: safeText(guestPage.about_title) || fallbackTitle,
+    intro: safeText(guestPage.about_intro) || fallbackIntro,
+    body:
+      safeText(guestPage.about_description) ||
+      fallbackDescription,
+    highlights:
+      configuredHighlights.length > 0
+        ? configuredHighlights
+        : fallbackHighlights,
   };
 }
 
@@ -399,6 +454,10 @@ export default function GuestPage() {
     }
 
     return city || country || "Location";
+  }, [property]);
+
+  const heroTitle = useMemo(() => {
+    return getHeroTitle(property);
   }, [property]);
 
   const heroImageUrl = useMemo(() => {
@@ -659,7 +718,7 @@ export default function GuestPage() {
                 </div>
 
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95] max-w-4xl drop-shadow-2xl">
-                  Welcome to {propertyName}
+                  {heroTitle}
                 </h1>
 
                 <p className="text-white/90 text-base md:text-xl max-w-2xl leading-relaxed drop-shadow-xl">
@@ -772,7 +831,7 @@ export default function GuestPage() {
                 {aboutThisStay.intro}
               </p>
 
-              <p className="text-gray-500 leading-relaxed text-base md:text-lg">
+              <p className="text-gray-500 leading-relaxed text-base md:text-lg whitespace-pre-line">
                 {aboutThisStay.body}
               </p>
             </div>
