@@ -124,6 +124,64 @@ function getMapsHref(property?: Property | null) {
   )}`;
 }
 
+function getHeroImageUrl(
+  property?: Property | null,
+  slug?: string
+) {
+  const imageUrl = safeText(property?.image_url);
+
+  if (imageUrl) {
+    return imageUrl;
+  }
+
+  const cleanSlug = safeText(slug).toLowerCase();
+  const propertyName = getPropertyName(property).toLowerCase();
+
+  if (
+    cleanSlug.includes("maltese-maisonette") ||
+    propertyName.includes("maltese maisonette")
+  ) {
+    return "/guest-images/maltese-maisonette-hero-bedroom.jpg";
+  }
+
+  return "";
+}
+
+function getHeroDescription(
+  property?: Property | null,
+  welcomeBook?: WelcomeBook
+) {
+  const propertyName = getPropertyName(property).toLowerCase();
+  const city = safeText(property?.city).toLowerCase();
+
+  if (
+    propertyName.includes("maltese maisonette") ||
+    city === "sliema"
+  ) {
+    return "Enjoy an authentic stay in a cozy Maltese maisonette in the heart of Sliema, just 100m from the promenade, cafés, shops and transport.";
+  }
+
+  const rawDescription =
+    safeText(welcomeBook?.description) ||
+    safeText(property?.description);
+
+  if (!rawDescription) {
+    return "Everything you need for a smooth stay is available here.";
+  }
+
+  const punctuationIndex = rawDescription.search(/[.!?]/);
+
+  if (punctuationIndex > 40 && punctuationIndex < 220) {
+    return rawDescription.slice(0, punctuationIndex + 1);
+  }
+
+  if (rawDescription.length > 220) {
+    return `${rawDescription.slice(0, 217).trim()}...`;
+  }
+
+  return rawDescription;
+}
+
 function SectionCard({
   icon,
   title,
@@ -298,6 +356,14 @@ export default function GuestPage() {
     return city || country || "Location";
   }, [property]);
 
+  const heroImageUrl = useMemo(() => {
+    return getHeroImageUrl(property, slug);
+  }, [property, slug]);
+
+  const heroDescription = useMemo(() => {
+    return getHeroDescription(property, welcomeBook);
+  }, [property, welcomeBook]);
+
   const hostPhoneHref = useMemo(() => {
     return getPhoneHref(property?.host_phone);
   }, [property]);
@@ -305,11 +371,6 @@ export default function GuestPage() {
   const mapsHref = useMemo(() => {
     return getMapsHref(property);
   }, [property]);
-
-  const description =
-    safeText(welcomeBook.description) ||
-    safeText(property?.description) ||
-    "Everything you need for a smooth stay is available here.";
 
   const houseRules =
     safeText(welcomeBook.house_rules) ||
@@ -523,108 +584,94 @@ export default function GuestPage() {
     <div className="min-h-screen bg-[#f4f1eb] text-gray-950 pb-28 md:pb-0">
       <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
         <div className="max-w-6xl mx-auto">
-          <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl">
-            {property.image_url && (
+          <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl min-h-[720px] md:min-h-[680px]">
+            {heroImageUrl && (
               <div
-                className="absolute inset-0 bg-cover bg-center opacity-35"
+                className="absolute inset-0 bg-cover bg-center opacity-65"
                 style={{
-                  backgroundImage: `url(${property.image_url})`,
+                  backgroundImage: `url(${heroImageUrl})`,
                 }}
               />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-br from-black via-black/85 to-black/50" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
             <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
             <div className="absolute -bottom-32 -left-24 h-80 w-80 rounded-full bg-amber-300/20 blur-3xl" />
 
-            <div className="relative p-6 md:p-12 lg:p-14">
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-10">
-                <div>
-                  <div className="inline-flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs md:text-sm text-white/75 mb-5">
-                    <span>✨</span>
-                    <span>Your digital stay guide</span>
-                  </div>
-
-                  <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/40 mb-4">
-                    AI CO-HOST EXPERIENCE
-                  </div>
-
-                  <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95]">
-                    Welcome to {propertyName}
-                  </h1>
-
-                  <p className="text-white/75 text-base md:text-xl max-w-3xl leading-relaxed">
-                    {description}
-                  </p>
+            <div className="relative p-6 md:p-12 lg:p-14 min-h-[720px] md:min-h-[680px] flex flex-col justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-4 py-2 text-xs md:text-sm text-white/85 mb-5 backdrop-blur">
+                  <span>✨</span>
+                  <span>Your digital stay guide</span>
                 </div>
 
-                <div className="bg-white text-black rounded-[28px] p-5 min-w-[210px] shadow-xl">
-                  <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-2">
-                    Stay support
-                  </div>
-
-                  <div className="text-2xl font-black mb-1">
-                    AI Concierge
-                  </div>
-
-                  <div className="text-sm text-gray-500 leading-relaxed">
-                    Multilingual help for your stay, WiFi, rules,
-                    transport and local tips.
-                  </div>
+                <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/50 mb-4">
+                  AI CO-HOST EXPERIENCE
                 </div>
+
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95] max-w-5xl">
+                  Welcome to {propertyName}
+                </h1>
+
+                <p className="text-white/85 text-base md:text-xl max-w-3xl leading-relaxed">
+                  {heroDescription}
+                </p>
               </div>
 
-              <div className="flex flex-wrap gap-3 mb-8">
-                <InfoPill icon="📍" label={locationText} />
+              <div className="mt-10">
+                <div className="flex flex-wrap gap-3 mb-8">
+                  <InfoPill icon="📍" label={locationText} />
 
-                {property.checkin_time && (
+                  {property.checkin_time && (
+                    <InfoPill
+                      icon="🔑"
+                      label={`Check-in: ${property.checkin_time}`}
+                    />
+                  )}
+
+                  {property.checkout_time && (
+                    <InfoPill
+                      icon="🚪"
+                      label={`Check-out: ${property.checkout_time}`}
+                    />
+                  )}
+
                   <InfoPill
-                    icon="🔑"
-                    label={`Check-in: ${property.checkin_time}`}
+                    icon="🌍"
+                    label="Multilingual assistance"
                   />
-                )}
+                </div>
 
-                {property.checkout_time && (
-                  <InfoPill
-                    icon="🚪"
-                    label={`Check-out: ${property.checkout_time}`}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <QuickAction
+                    href="#wifi"
+                    icon="📶"
+                    title="WiFi"
+                    subtitle="Network and password"
                   />
-                )}
 
-                <InfoPill
-                  icon="🌍"
-                  label="Multilingual assistance"
-                />
-              </div>
+                  <QuickAction
+                    href="#ai-concierge"
+                    icon="🤖"
+                    title="Ask AI"
+                    subtitle="Help in your language"
+                  />
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <QuickAction
-                  href="#wifi"
-                  icon="📶"
-                  title="WiFi"
-                  subtitle="Network and password"
-                />
+                  <QuickAction
+                    href="#welcome-book"
+                    icon="📘"
+                    title="Stay Guide"
+                    subtitle="Rules, tips and services"
+                  />
 
-                <QuickAction
-                  href="#ai-concierge"
-                  icon="🤖"
-                  title="Ask AI"
-                  subtitle="Help in your language"
-                />
-
-                <QuickAction
-                  href="#welcome-book"
-                  icon="📘"
-                  title="Stay Guide"
-                  subtitle="Rules, tips and services"
-                />
-
-                <QuickAction
-                  href="#help"
-                  icon="🚨"
-                  title="Need Help"
-                  subtitle="Emergency and host support"
-                />
+                  <QuickAction
+                    href="#help"
+                    icon="🚨"
+                    title="Need Help"
+                    subtitle="Emergency and host support"
+                  />
+                </div>
               </div>
             </div>
           </div>
