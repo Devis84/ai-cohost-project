@@ -6,7 +6,18 @@ import { useParams } from "next/navigation"
 
 import DashboardSection from "@/components/DashboardSection"
 
+type GuestPageContent = {
+  hero_title?: string
+  hero_intro?: string
+  hero_image_url?: string
+  about_title?: string
+  about_intro?: string
+  about_description?: string
+  about_highlights?: string
+}
+
 type KnowledgeBase = {
+  guest_page?: GuestPageContent
   welcome_book?: {
     description?: string
     amenities?: string
@@ -54,6 +65,15 @@ type PropertyPayload = {
 }
 
 const emptyKnowledgeBase: KnowledgeBase = {
+  guest_page: {
+    hero_title: "",
+    hero_intro: "",
+    hero_image_url: "",
+    about_title: "",
+    about_intro: "",
+    about_description: "",
+    about_highlights: "",
+  },
   welcome_book: {
     description: "",
     amenities: "",
@@ -124,6 +144,16 @@ export default function PropertyPage() {
     useState("")
   const [contactsText, setContactsText] = useState("")
 
+  const [heroTitle, setHeroTitle] = useState("")
+  const [heroIntro, setHeroIntro] = useState("")
+  const [heroImageUrl, setHeroImageUrl] = useState("")
+  const [aboutTitle, setAboutTitle] = useState("")
+  const [aboutIntro, setAboutIntro] = useState("")
+  const [aboutDescription, setAboutDescription] =
+    useState("")
+  const [aboutHighlights, setAboutHighlights] =
+    useState("")
+
   const [description, setDescription] = useState("")
   const [amenities, setAmenities] = useState("")
   const [houseRules, setHouseRules] = useState("")
@@ -171,6 +201,9 @@ export default function PropertyPage() {
         const knowledgeBase =
           property.knowledge_base || emptyKnowledgeBase
 
+        const guestPage =
+          knowledgeBase.guest_page || {}
+
         const welcomeBook =
           knowledgeBase.welcome_book || {}
 
@@ -201,6 +234,26 @@ export default function PropertyPage() {
           Array.isArray(property.contacts)
             ? property.contacts.join("\n")
             : ""
+        )
+
+        setHeroTitle(
+          guestPage.hero_title ||
+            `Welcome to ${property.property_name || ""}`
+        )
+        setHeroIntro(guestPage.hero_intro || "")
+        setHeroImageUrl(guestPage.hero_image_url || "")
+        setAboutTitle(
+          guestPage.about_title || "About this stay"
+        )
+        setAboutIntro(guestPage.about_intro || "")
+        setAboutDescription(
+          guestPage.about_description ||
+            welcomeBook.description ||
+            property.description ||
+            ""
+        )
+        setAboutHighlights(
+          guestPage.about_highlights || ""
         )
 
         setDescription(welcomeBook.description || "")
@@ -286,6 +339,15 @@ export default function PropertyPage() {
         contacts,
 
         knowledge_base: {
+          guest_page: {
+            hero_title: heroTitle,
+            hero_intro: heroIntro,
+            hero_image_url: heroImageUrl,
+            about_title: aboutTitle,
+            about_intro: aboutIntro,
+            about_description: aboutDescription,
+            about_highlights: aboutHighlights,
+          },
           welcome_book: {
             description,
             amenities,
@@ -401,6 +463,16 @@ export default function PropertyPage() {
               Back
             </Link>
 
+            {slug && (
+              <Link
+                href={`/guest/${slug}`}
+                target="_blank"
+                className="bg-white border border-gray-200 text-gray-900 px-5 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition"
+              >
+                Open Guest Page
+              </Link>
+            )}
+
             <button
               onClick={saveProperty}
               disabled={saving}
@@ -494,6 +566,134 @@ export default function PropertyPage() {
               rows={3}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
             />
+          </div>
+        </DashboardSection>
+
+        <DashboardSection
+          title="Guest Page Experience"
+          subtitle="Control the first impression guests see when they scan the QR/NFC link. Keep the hero short and emotional, then use About This Stay for the richer apartment description."
+          icon="✨"
+        >
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Hero Title
+              </label>
+              <input
+                value={heroTitle}
+                onChange={(event) =>
+                  setHeroTitle(event.target.value)
+                }
+                placeholder="Welcome to Maltese Maisonette"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
+              />
+              <div className="text-xs text-gray-400 mt-2">
+                Main title shown over the hero image.
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Hero Image URL
+              </label>
+              <input
+                value={heroImageUrl}
+                onChange={(event) =>
+                  setHeroImageUrl(event.target.value)
+                }
+                placeholder="/guest-images/maltese-maisonette-hero-bedroom.jpg"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
+              />
+              <div className="text-xs text-gray-400 mt-2">
+                Use a public URL or a local path from the public folder.
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Hero Intro
+            </label>
+            <textarea
+              value={heroIntro}
+              onChange={(event) =>
+                setHeroIntro(event.target.value)
+              }
+              rows={3}
+              placeholder="A cozy Maltese maisonette in central Sliema, designed for a simple, comfortable and authentic stay by the sea."
+              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+            />
+            <div className="text-xs text-gray-400 mt-2">
+              Keep this short: one or two lines only.
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 pt-6 mt-6">
+            <div className="uppercase tracking-[0.25em] text-[11px] text-gray-400 font-semibold mb-4">
+              About This Stay
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                About Section Title
+              </label>
+              <input
+                value={aboutTitle}
+                onChange={(event) =>
+                  setAboutTitle(event.target.value)
+                }
+                placeholder="About this stay"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                About Intro
+              </label>
+              <textarea
+                value={aboutIntro}
+                onChange={(event) =>
+                  setAboutIntro(event.target.value)
+                }
+                rows={3}
+                placeholder="This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                About Description
+              </label>
+              <textarea
+                value={aboutDescription}
+                onChange={(event) =>
+                  setAboutDescription(event.target.value)
+                }
+                rows={6}
+                placeholder="Inside, guests will find a queen-size bedroom with A/C, a living area, a kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk and a small outdoor space..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Highlights
+              </label>
+              <textarea
+                value={aboutHighlights}
+                onChange={(event) =>
+                  setAboutHighlights(event.target.value)
+                }
+                rows={5}
+                placeholder={"Private one-bedroom maisonette\nCentral Sliema location\nHigh-speed WiFi and desk\nKitchen and washing machine"}
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+              <div className="text-xs text-gray-400 mt-2">
+                Add one highlight per line.
+              </div>
+            </div>
           </div>
         </DashboardSection>
 
