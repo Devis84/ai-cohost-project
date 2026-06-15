@@ -1,6 +1,12 @@
  "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useParams } from "next/navigation";
 
 type WelcomeBook = {
@@ -88,6 +94,18 @@ function getWelcomeBook(property?: Property | null): WelcomeBook {
   return property?.knowledge_base?.welcome_book || {};
 }
 
+function getPhoneHref(value?: string | null) {
+  const phone = safeText(value);
+
+  if (!phone) {
+    return "";
+  }
+
+  const cleanPhone = phone.replace(/[^\d+]/g, "");
+
+  return cleanPhone ? `tel:${cleanPhone}` : "";
+}
+
 function SectionCard({
   icon,
   title,
@@ -96,15 +114,17 @@ function SectionCard({
 }: {
   icon: string;
   title: string;
-  children: React.ReactNode;
-  tone?: "default" | "dark" | "danger";
+  children: ReactNode;
+  tone?: "default" | "dark" | "danger" | "soft";
 }) {
   const classes =
     tone === "dark"
       ? "bg-black text-white border-black"
       : tone === "danger"
         ? "bg-red-50 border-red-100 text-gray-950"
-        : "bg-white border-black/5 text-gray-950";
+        : tone === "soft"
+          ? "bg-zinc-50 border-zinc-100 text-gray-950"
+          : "bg-white border-black/5 text-gray-950";
 
   return (
     <section
@@ -126,15 +146,21 @@ function QuickButton({
   href,
   label,
   icon,
+  dark = false,
 }: {
   href: string;
   label: string;
   icon: string;
+  dark?: boolean;
 }) {
   return (
     <a
       href={href}
-      className="bg-white text-black rounded-2xl px-4 py-4 font-bold shadow-xl border border-white/10 flex items-center justify-center gap-2 hover:scale-[1.02] transition"
+      className={`rounded-2xl px-4 py-4 font-bold shadow-xl border flex items-center justify-center gap-2 hover:scale-[1.02] transition ${
+        dark
+          ? "bg-black text-white border-black"
+          : "bg-white text-black border-white/10"
+      }`}
     >
       <span>{icon}</span>
       <span>{label}</span>
@@ -157,11 +183,35 @@ function InfoPill({
   );
 }
 
+function MiniInfoCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="bg-white rounded-3xl p-5 shadow-xl border border-black/5">
+      <div className="text-3xl mb-3">{icon}</div>
+
+      <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-2">
+        {label}
+      </div>
+
+      <div className="font-bold text-lg break-words">
+        {value || "Not available"}
+      </div>
+    </div>
+  );
+}
+
 function PromptButton({
   children,
   onClick,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -178,13 +228,23 @@ export default function GuestPage() {
   const params = useParams();
   const slug = String(params?.slug || "");
 
-  const [property, setProperty] = useState<Property | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [property, setProperty] =
+    useState<Property | null>(null);
 
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [loadError, setLoadError] =
+    useState("");
+
+  const [chatInput, setChatInput] =
+    useState("");
+
+  const [chatLoading, setChatLoading] =
+    useState(false);
+
+  const [messages, setMessages] =
+    useState<ChatMessage[]>([]);
 
   const chatRef = useRef<HTMLDivElement | null>(null);
 
@@ -205,6 +265,10 @@ export default function GuestPage() {
     }
 
     return city || country || "Location";
+  }, [property]);
+
+  const hostPhoneHref = useMemo(() => {
+    return getPhoneHref(property?.host_phone);
   }, [property]);
 
   const description =
@@ -233,13 +297,26 @@ export default function GuestPage() {
     safeText(property?.emergency_info) ||
     safeText(property?.emergency_numbers);
 
-  const restaurants = safeText(welcomeBook.restaurants);
-  const transport = safeText(welcomeBook.transport);
-  const checkoutNotes = safeText(welcomeBook.checkout_notes);
-  const extraNotes = safeText(welcomeBook.extra_notes);
-  const trash = safeText(welcomeBook.trash);
-  const ac = safeText(welcomeBook.ac);
-  const boiler = safeText(welcomeBook.boiler);
+  const restaurants =
+    safeText(welcomeBook.restaurants);
+
+  const transport =
+    safeText(welcomeBook.transport);
+
+  const checkoutNotes =
+    safeText(welcomeBook.checkout_notes);
+
+  const extraNotes =
+    safeText(welcomeBook.extra_notes);
+
+  const trash =
+    safeText(welcomeBook.trash);
+
+  const ac =
+    safeText(welcomeBook.ac);
+
+  const boiler =
+    safeText(welcomeBook.boiler);
 
   useEffect(() => {
     loadProperty();
@@ -288,9 +365,9 @@ export default function GuestPage() {
     const wifiName = safeText(property?.wifi_name);
     const wifiPassword = safeText(property?.wifi_password);
 
-    const value = `Network: ${wifiName || "Not available"} | Password: ${
-      wifiPassword || "Not available"
-    }`;
+    const value = `Network: ${
+      wifiName || "Not available"
+    } | Password: ${wifiPassword || "Not available"}`;
 
     try {
       await navigator.clipboard.writeText(value);
@@ -314,7 +391,11 @@ export default function GuestPage() {
       content: message,
     };
 
-    setMessages((current) => [...current, userMessage]);
+    setMessages((current) => [
+      ...current,
+      userMessage,
+    ]);
+
     setChatInput("");
     setChatLoading(true);
 
@@ -337,7 +418,7 @@ export default function GuestPage() {
 
       const reply =
         data.reply ||
-        "Sorry, I could not answer right now. The host has been notified if this is urgent.";
+        "Sorry, I could not answer right now. Please contact the host if this is urgent.";
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
@@ -371,9 +452,11 @@ export default function GuestPage() {
       <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
         <div className="bg-white rounded-[32px] p-8 shadow-xl border border-black/5 text-center">
           <div className="text-4xl mb-4">🏡</div>
+
           <div className="text-2xl font-bold mb-2">
             Loading your stay guide
           </div>
+
           <div className="text-gray-500">
             Please wait a moment.
           </div>
@@ -387,9 +470,11 @@ export default function GuestPage() {
       <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
         <div className="bg-white rounded-[32px] p-8 shadow-xl border border-black/5 text-center max-w-lg">
           <div className="text-4xl mb-4">⚠️</div>
+
           <div className="text-2xl font-bold mb-2">
             Guest page unavailable
           </div>
+
           <div className="text-gray-500">
             {loadError ||
               "We could not find this property."}
@@ -401,13 +486,20 @@ export default function GuestPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] text-gray-950">
-      <header className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-4 md:px-8 py-8 md:py-14">
-        <div className="max-w-6xl mx-auto">
+      <header className="relative overflow-hidden bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white px-4 md:px-8 py-8 md:py-16">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_white,_transparent_35%)]" />
+
+        <div className="relative max-w-6xl mx-auto">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs md:text-sm text-white/70 mb-5">
+            <span>✨</span>
+            <span>Your digital stay guide</span>
+          </div>
+
           <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/40 mb-4">
             AI CO-HOST EXPERIENCE
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4">
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-4 leading-tight">
             Welcome to {propertyName}
           </h1>
 
@@ -433,17 +525,17 @@ export default function GuestPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <QuickButton
               href="#wifi"
               icon="📶"
-              label="Connect WiFi"
+              label="WiFi"
             />
 
             <QuickButton
               href="#ai-concierge"
               icon="🤖"
-              label="Ask AI Concierge"
+              label="Ask AI"
             />
 
             <QuickButton
@@ -451,11 +543,47 @@ export default function GuestPage() {
               icon="📘"
               label="Stay Guide"
             />
+
+            <QuickButton
+              href="#emergency"
+              icon="🚨"
+              label="Emergency"
+            />
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-7 md:space-y-8">
+        <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <MiniInfoCard
+            icon="📍"
+            label="Location"
+            value={locationText}
+          />
+
+          <MiniInfoCard
+            icon="🔑"
+            label="Check-in"
+            value={property.checkin_time || "Not available"}
+          />
+
+          <MiniInfoCard
+            icon="🚪"
+            label="Check-out"
+            value={property.checkout_time || "Not available"}
+          />
+
+          <MiniInfoCard
+            icon="💬"
+            label="Support"
+            value={
+              property.host_phone
+                ? "Host contact available"
+                : "Ask AI Concierge"
+            }
+          />
+        </section>
+
         <section
           id="wifi"
           className="bg-black text-white rounded-[32px] p-6 md:p-8 shadow-2xl border border-black"
@@ -467,11 +595,12 @@ export default function GuestPage() {
               </div>
 
               <h2 className="text-3xl md:text-4xl font-black mb-3">
-                📶 WiFi
+                📶 Connect to WiFi
               </h2>
 
               <p className="text-white/60 leading-relaxed max-w-2xl">
-                Use these details to connect during your stay.
+                These are the WiFi details for your stay. Tap copy and
+                paste them into your phone settings if needed.
               </p>
             </div>
 
@@ -507,7 +636,7 @@ export default function GuestPage() {
         </section>
 
         <section className="grid lg:grid-cols-3 gap-6">
-          <SectionCard icon="🔑" title="Check-in">
+          <SectionCard icon="🔑" title="Arrival & Access">
             <div className="space-y-3">
               <p>
                 <strong>Check-in:</strong>{" "}
@@ -521,8 +650,15 @@ export default function GuestPage() {
 
               {property.lockbox_code && (
                 <p>
-                  <strong>Lockbox:</strong>{" "}
+                  <strong>Lockbox code:</strong>{" "}
                   {property.lockbox_code}
+                </p>
+              )}
+
+              {property.address && (
+                <p>
+                  <strong>Address:</strong>{" "}
+                  {property.address}
                 </p>
               )}
             </div>
@@ -533,24 +669,42 @@ export default function GuestPage() {
             title="Emergency"
             tone="danger"
           >
-            {emergency ||
-              "For emergencies, contact local emergency services."}
+            <div id="emergency">
+              {emergency ||
+                "For emergencies, contact local emergency services."}
+            </div>
           </SectionCard>
 
           <SectionCard icon="💬" title="Need help?">
             <div className="space-y-4">
               <p>
-                Ask the AI Concierge for quick answers about the
+                Ask the AI Concierge for quick help about the
                 apartment, WiFi, parking, rules, restaurants,
-                transport and checkout.
+                transport, check-in and checkout.
               </p>
 
-              <a
-                href="#ai-concierge"
-                className="inline-flex bg-black text-white rounded-2xl px-5 py-3 font-semibold"
-              >
-                Ask AI Concierge
-              </a>
+              <p className="text-sm text-gray-500">
+                The AI Concierge is limited to questions related to
+                your stay.
+              </p>
+
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="#ai-concierge"
+                  className="inline-flex bg-black text-white rounded-2xl px-5 py-3 font-semibold"
+                >
+                  Ask AI Concierge
+                </a>
+
+                {hostPhoneHref && (
+                  <a
+                    href={hostPhoneHref}
+                    className="inline-flex bg-white border border-gray-200 text-black rounded-2xl px-5 py-3 font-semibold"
+                  >
+                    Contact Host
+                  </a>
+                )}
+              </div>
             </div>
           </SectionCard>
         </section>
@@ -579,9 +733,15 @@ export default function GuestPage() {
               </h2>
 
               <p className="text-white/60 text-base md:text-lg max-w-2xl">
-                Ask about WiFi, parking, house rules, restaurants,
-                transport, check-in, checkout and more.
+                Ask about WiFi, check-in, checkout, parking, house
+                rules, appliances, restaurants, transport and local
+                tips.
               </p>
+
+              <div className="mt-4 bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white/70">
+                This assistant is limited to questions related to your
+                stay and the apartment.
+              </div>
             </div>
 
             <div className="text-5xl">🤖</div>
@@ -606,10 +766,34 @@ export default function GuestPage() {
 
             <PromptButton
               onClick={() =>
+                sendMessage("What time is checkout?")
+              }
+            >
+              What time is checkout?
+            </PromptButton>
+
+            <PromptButton
+              onClick={() =>
                 sendMessage("Where can I park?")
               }
             >
               Where can I park?
+            </PromptButton>
+
+            <PromptButton
+              onClick={() =>
+                sendMessage("Any restaurants nearby?")
+              }
+            >
+              Any restaurants nearby?
+            </PromptButton>
+
+            <PromptButton
+              onClick={() =>
+                sendMessage("How do I use the air conditioning?")
+              }
+            >
+              How do I use the air conditioning?
             </PromptButton>
           </div>
 
@@ -663,7 +847,7 @@ export default function GuestPage() {
                     sendMessage();
                   }
                 }}
-                placeholder="Ask your AI Concierge..."
+                placeholder="Ask about your stay..."
                 className="flex-1 bg-white text-black rounded-2xl px-5 py-4 outline-none"
               />
 
@@ -762,10 +946,43 @@ export default function GuestPage() {
             )}
           </div>
         </section>
+
+        <section className="bg-white rounded-[32px] p-6 md:p-8 shadow-xl border border-black/5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-black mb-2">
+                Still need help?
+              </h2>
+
+              <p className="text-gray-500 leading-relaxed">
+                Ask the AI Concierge for stay-related questions, or
+                contact the host directly for urgent matters.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="#ai-concierge"
+                className="bg-black text-white rounded-2xl px-5 py-3 font-semibold"
+              >
+                Ask AI
+              </a>
+
+              {hostPhoneHref && (
+                <a
+                  href={hostPhoneHref}
+                  className="bg-white border border-gray-200 text-black rounded-2xl px-5 py-3 font-semibold"
+                >
+                  Contact Host
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
       </main>
 
       <div className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
-        <div className="bg-black text-white rounded-3xl shadow-2xl p-3 grid grid-cols-3 gap-2">
+        <div className="bg-black text-white rounded-3xl shadow-2xl p-3 grid grid-cols-3 gap-2 border border-white/10">
           <a
             href="#wifi"
             className="bg-white/10 rounded-2xl py-3 text-center text-sm font-semibold"
