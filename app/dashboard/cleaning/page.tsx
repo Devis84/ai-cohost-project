@@ -1,6 +1,7 @@
  "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 
 type Checklist = {
   bathroom: boolean
@@ -66,6 +67,15 @@ const defaultChecklist: Checklist = {
   trash: false,
   towels: false,
   final_check: false,
+}
+
+const checklistLabels: Record<keyof Checklist, string> = {
+  bathroom: "Bathroom",
+  kitchen: "Kitchen",
+  bedroom: "Bedroom",
+  trash: "Trash",
+  towels: "Towels & linen",
+  final_check: "Final check",
 }
 
 const statusOptions = [
@@ -349,6 +359,10 @@ function getTaskWarnings(task: CleaningTask) {
   return warnings
 }
 
+function getStatusLabel(status?: string | null) {
+  return (status || "pending").replaceAll("_", " ")
+}
+
 function FieldLabel({
   title,
   description,
@@ -419,8 +433,32 @@ function StatusBadge({
     <span
       className={`px-4 py-2 rounded-2xl text-sm font-semibold capitalize ${className}`}
     >
-      {status.replace("_", " ")}
+      {getStatusLabel(status)}
     </span>
+  )
+}
+
+function FilterButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-5 py-3 rounded-2xl capitalize transition ${
+        active
+          ? "bg-black text-white"
+          : "bg-white border border-gray-200"
+      }`}
+    >
+      {label}
+    </button>
   )
 }
 
@@ -431,6 +469,7 @@ export default function CleaningDashboard() {
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState("all")
   const [periodFilter, setPeriodFilter] = useState("all")
+  const [search, setSearch] = useState("")
 
   const [propertyName, setPropertyName] = useState("")
   const [cleaningDate, setCleaningDate] = useState("")
@@ -466,7 +505,7 @@ export default function CleaningDashboard() {
       setTasks(nextTasks)
       rebuildDrafts(nextTasks)
     } catch (err) {
-      console.error(err)
+      console.error("FETCH CLEANING TASKS ERROR:", err)
     } finally {
       setLoading(false)
     }
@@ -553,7 +592,7 @@ export default function CleaningDashboard() {
 
       await fetchTasks()
     } catch (err) {
-      console.error(err)
+      console.error("CREATE CLEANING TASK ERROR:", err)
     } finally {
       setSaving(false)
     }
@@ -584,7 +623,7 @@ export default function CleaningDashboard() {
 
       await fetchTasks()
     } catch (err) {
-      console.error(err)
+      console.error("UPDATE CLEANING TASK ERROR:", err)
     }
   }
 
@@ -633,7 +672,7 @@ export default function CleaningDashboard() {
 
       await fetchTasks()
     } catch (err) {
-      console.error(err)
+      console.error("DELETE CLEANING TASK ERROR:", err)
     }
   }
 
@@ -660,6 +699,21 @@ export default function CleaningDashboard() {
     task: CleaningTask,
     status: string
   ) {
+    const checklist = {
+      ...defaultChecklist,
+      ...(task.checklist || {}),
+    }
+
+    if (status === "completed" && !checklist.final_check) {
+      const confirmed = confirm(
+        "Final check is not completed yet. Are you sure you want to mark this task as completed?"
+      )
+
+      if (!confirmed) {
+        return
+      }
+    }
+
     const payload: Partial<CleaningTask> = {
       status,
     }
@@ -694,14 +748,38 @@ export default function CleaningDashboard() {
   }, [tasks, periodFilter])
 
   const filteredTasks = useMemo(() => {
-    const source = periodTasks
+    const normalizedSearch = search.trim().toLowerCase()
 
-    if (filter === "all") {
-      return source
-    }
+    return periodTasks.filter((task) => {
+      const matchesStatus =
+        filter === "all" || task.status === filter
 
-    return source.filter((task) => task.status === filter)
-  }, [periodTasks, filter])
+      if (!matchesStatus) {
+        return false
+      }
+
+      if (!normalizedSearch) {
+        return true
+      }
+
+      const searchableText = [
+        task.property_name,
+        task.cleaner_name,
+        task.cleaner_contact,
+        task.status,
+        task.priority,
+        task.notes,
+        task.cleaning_date,
+        task.checkout_date,
+        task.next_checkin_date,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+      return searchableText.includes(normalizedSearch)
+    })
+  }, [periodTasks, filter, search])
 
   const pendingCount = periodTasks.filter(
     (task) => task.status === "pending"
@@ -805,18 +883,32 @@ export default function CleaningDashboard() {
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-8">
             <div>
               <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
-                AI CO-HOST
+                AI CO-HOST OPERATIONS
               </div>
 
               <h1 className="text-4xl md:text-5xl font-black mb-4">
-                Cleaning Operations
+                Cleaning Dashboard
               </h1>
 
               <p className="text-white/60 max-w-2xl leading-relaxed">
-                Manage manual turnovers, assign cleaners, track
-                checkout and next check-in windows, and estimate
-                cleaner payments based on actual working time.
+                Manage turnovers, assign cleaners, track checkout and next check-in windows, monitor checklist progress and estimate cleaner payments.
               </p>
+
+              <div className="flex flex-wrap gap-3 mt-6">
+                <Link
+                  href="/dashboard"
+                  className="bg-white text-black rounded-2xl px-5 py-3 text-sm font-semibold"
+                >
+                  Back to Dashboard
+                </Link>
+
+                <Link
+                  href="/dashboard/cleaning/mobile"
+                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                >
+                  Open Cleaner Mobile
+                </Link>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -859,20 +951,38 @@ export default function CleaningDashboard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          {periodOptions.map((period) => (
+        <div className="bg-white rounded-[32px] p-5 md:p-6 shadow-xl border border-black/5">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+            <div className="flex flex-wrap gap-3">
+              {periodOptions.map((period) => (
+                <FilterButton
+                  key={period}
+                  label={period.replace("_", " ")}
+                  active={periodFilter === period}
+                  onClick={() => setPeriodFilter(period)}
+                />
+              ))}
+            </div>
+
+            <div className="flex-1 xl:max-w-md">
+              <input
+                value={search}
+                onChange={(event) =>
+                  setSearch(event.target.value)
+                }
+                placeholder="Search property, cleaner, notes or status..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
+
             <button
-              key={period}
-              onClick={() => setPeriodFilter(period)}
-              className={`px-5 py-3 rounded-2xl capitalize transition ${
-                periodFilter === period
-                  ? "bg-black text-white"
-                  : "bg-white border border-gray-200"
-              }`}
+              type="button"
+              onClick={fetchTasks}
+              className="bg-black text-white rounded-2xl px-5 py-4 font-semibold"
             >
-              {period.replace("_", " ")}
+              Refresh
             </button>
-          ))}
+          </div>
         </div>
 
         <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-8">
@@ -883,10 +993,7 @@ export default function CleaningDashboard() {
               </h2>
 
               <p className="text-gray-500 leading-relaxed">
-                Create a manual cleaning task for a turnover. Use the
-                check-out and next check-in fields to understand the
-                available window, then assign a cleaner and planned
-                cleaning time.
+                Create a manual turnover task. Use the checkout and next check-in fields to understand the available window, then assign a cleaner and planned cleaning time.
               </p>
             </div>
 
@@ -1215,7 +1322,7 @@ export default function CleaningDashboard() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-4 gap-4">
+        <div className="grid lg:grid-cols-5 gap-4">
           <div className="bg-white rounded-3xl p-5 shadow border border-black/5">
             <div className="text-gray-500 text-sm mb-2">
               Pending
@@ -1233,6 +1340,16 @@ export default function CleaningDashboard() {
 
             <div className="text-3xl font-bold">
               {acceptedCount}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 shadow border border-black/5">
+            <div className="text-gray-500 text-sm mb-2">
+              In Progress
+            </div>
+
+            <div className="text-3xl font-bold">
+              {inProgressCount}
             </div>
           </div>
 
@@ -1259,17 +1376,12 @@ export default function CleaningDashboard() {
 
         <div className="flex flex-wrap gap-3">
           {statusOptions.map((status) => (
-            <button
+            <FilterButton
               key={status}
+              label={status.replace("_", " ")}
+              active={filter === status}
               onClick={() => setFilter(status)}
-              className={`px-5 py-3 rounded-2xl capitalize transition ${
-                filter === status
-                  ? "bg-black text-white"
-                  : "bg-white border border-gray-200"
-              }`}
-            >
-              {status.replace("_", " ")}
-            </button>
+            />
           ))}
         </div>
 
@@ -1286,12 +1398,12 @@ export default function CleaningDashboard() {
               </p>
             </div>
 
-            <a
+            <Link
               href="/dashboard/cleaning/mobile"
               className="bg-black text-white rounded-2xl px-5 py-3 font-semibold"
             >
               Open Cleaner Mobile
-            </a>
+            </Link>
           </div>
 
           {loading && (
@@ -1360,6 +1472,31 @@ export default function CleaningDashboard() {
                                   Checklist {progress.completed}/
                                   {progress.total}
                                 </span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-sm font-bold text-gray-900">
+                                  Checklist progress
+                                </div>
+
+                                <div className="text-sm text-gray-500">
+                                  {progress.percent}%
+                                </div>
+                              </div>
+
+                              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full transition-all ${
+                                    progress.percent === 100
+                                      ? "bg-green-600"
+                                      : "bg-black"
+                                  }`}
+                                  style={{
+                                    width: `${progress.percent}%`,
+                                  }}
+                                />
                               </div>
                             </div>
 
@@ -1553,33 +1690,40 @@ export default function CleaningDashboard() {
                               </div>
 
                               <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                {Object.entries(
-                                  progress.checklist
-                                ).map(([key, value]) => (
-                                  <label
-                                    key={key}
-                                    className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
-                                      value
-                                        ? "bg-green-50 border border-green-100"
-                                        : "bg-gray-50"
-                                    }`}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={value}
-                                      onChange={() =>
-                                        toggleChecklistItem(
-                                          task,
-                                          key as keyof Checklist
-                                        )
-                                      }
-                                    />
+                                {(
+                                  Object.keys(
+                                    progress.checklist
+                                  ) as Array<keyof Checklist>
+                                ).map((key) => {
+                                  const value =
+                                    progress.checklist[key]
 
-                                    <span className="capitalize">
-                                      {key.replace("_", " ")}
-                                    </span>
-                                  </label>
-                                ))}
+                                  return (
+                                    <label
+                                      key={key}
+                                      className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${
+                                        value
+                                          ? "bg-green-50 border border-green-100"
+                                          : "bg-gray-50"
+                                      }`}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={value}
+                                        onChange={() =>
+                                          toggleChecklistItem(
+                                            task,
+                                            key
+                                          )
+                                        }
+                                      />
+
+                                      <span>
+                                        {checklistLabels[key]}
+                                      </span>
+                                    </label>
+                                  )
+                                })}
                               </div>
                             </div>
 
@@ -1669,8 +1813,16 @@ export default function CleaningDashboard() {
             ))}
 
           {!loading && filteredTasks.length === 0 && (
-            <div className="bg-gray-50 rounded-[28px] p-10 text-center text-gray-500">
-              No cleaning tasks found
+            <div className="bg-gray-50 rounded-[28px] p-10 text-center">
+              <div className="text-5xl mb-4">✅</div>
+
+              <div className="text-2xl font-black text-gray-900 mb-2">
+                No cleaning tasks found
+              </div>
+
+              <div className="text-gray-500">
+                Try changing the search, status filter or period filter.
+              </div>
             </div>
           )}
         </div>
