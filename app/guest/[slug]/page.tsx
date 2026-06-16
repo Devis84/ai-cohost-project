@@ -724,6 +724,29 @@ export default function GuestPage() {
                 <p className="text-white/90 text-base md:text-xl max-w-2xl leading-relaxed drop-shadow-xl">
                   {heroDescription}
                 </p>
+
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <a
+                    href="#ai-concierge"
+                    className="bg-white text-black rounded-2xl px-5 py-4 font-black shadow-xl hover:scale-[1.015] transition"
+                  >
+                    Ask AI Concierge
+                  </a>
+
+                  <a
+                    href="#wifi"
+                    className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
+                  >
+                    View WiFi
+                  </a>
+
+                  <a
+                    href="#welcome-book"
+                    className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
+                  >
+                    Stay Guide
+                  </a>
+                </div>
               </div>
 
               <div className="mt-10">
@@ -766,6 +789,7 @@ export default function GuestPage() {
               icon="🤖"
               title="Ask AI"
               subtitle="Help in your language"
+              dark
             />
 
             <QuickAction
@@ -786,6 +810,50 @@ export default function GuestPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-7 md:space-y-8">
+        <section className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
+          <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+            BEFORE YOU START
+          </div>
+
+          <h2 className="text-3xl md:text-5xl font-black mb-5">
+            Everything you need for a smooth stay
+          </h2>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
+              <div className="text-3xl mb-3">📶</div>
+              <div className="font-black mb-2">Connect to WiFi</div>
+              <div className="text-gray-500 text-sm">
+                The network and password are available below.
+              </div>
+            </div>
+
+            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
+              <div className="text-3xl mb-3">🔑</div>
+              <div className="font-black mb-2">Check access info</div>
+              <div className="text-gray-500 text-sm">
+                Private access codes are only shared in host messages.
+              </div>
+            </div>
+
+            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
+              <div className="text-3xl mb-3">🤖</div>
+              <div className="font-black mb-2">Ask the AI Concierge</div>
+              <div className="text-gray-500 text-sm">
+                Use it for stay-related questions in your language.
+              </div>
+            </div>
+
+            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
+              <div className="text-3xl mb-3">🚨</div>
+              <div className="font-black mb-2">Need urgent help?</div>
+              <div className="text-gray-500 text-sm">
+                Use the emergency section or contact the host when available.
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
           <MiniInfoCard
             icon="📍"
@@ -873,8 +941,7 @@ export default function GuestPage() {
               </h2>
 
               <p className="text-gray-500 leading-relaxed max-w-2xl">
-                Tap copy and paste the network details into your
-                phone settings if needed.
+                Tap copy and paste the network details into your phone settings if needed.
               </p>
             </div>
 
@@ -930,9 +997,7 @@ export default function GuestPage() {
               )}
 
               <p className="text-sm text-gray-500 pt-2">
-                For security reasons, private access codes are shared
-                only through the host’s private message, not on this
-                public guest page.
+                For security reasons, private access codes are shared only through the host’s private message, not on this public guest page.
               </p>
 
               {mapsHref && (
@@ -962,14 +1027,11 @@ export default function GuestPage() {
           <SectionCard icon="💬" title="Need help?">
             <div className="space-y-4">
               <p>
-                Ask the AI Concierge for quick help about WiFi,
-                check-in, checkout, parking, house rules, appliances,
-                restaurants, transport and local tips.
+                Ask the AI Concierge for quick help about WiFi, check-in, checkout, parking, house rules, appliances, restaurants, transport and local tips.
               </p>
 
               <p className="text-sm text-gray-500">
-                The AI Concierge replies in the guest’s language and
-                is limited to questions related to the stay.
+                The AI Concierge replies in the guest’s language and is limited to questions related to the stay.
               </p>
 
               <div className="flex flex-wrap gap-3">
@@ -1002,9 +1064,7 @@ export default function GuestPage() {
               <p>{property.checkin_instructions}</p>
 
               <p className="text-sm text-gray-500">
-                Private access codes are not displayed on this public
-                guest page. Please check the host’s private message if
-                an access code is required.
+                Private access codes are not displayed on this public guest page. Please check the host’s private message if an access code is required.
               </p>
             </div>
           </SectionCard>
@@ -1028,8 +1088,7 @@ export default function GuestPage() {
               </h2>
 
               <p className="text-white/60 text-base md:text-lg max-w-2xl">
-                WiFi, check-in, checkout, parking, house rules,
-                appliances, restaurants, transport and local tips.
+                WiFi, check-in, checkout, parking, house rules, appliances, restaurants, transport and local tips.
               </p>
 
               <div className="mt-4 grid md:grid-cols-2 gap-3">
@@ -1172,8 +1231,7 @@ export default function GuestPage() {
             </h2>
 
             <p className="text-gray-500 mt-3 max-w-2xl">
-              House rules, practical notes, local recommendations and
-              checkout information for a smooth stay.
+              House rules, practical notes, local recommendations and checkout information for a smooth stay.
             </p>
           </div>
 
@@ -1254,8 +1312,7 @@ export default function GuestPage() {
               </h2>
 
               <p className="text-white/60 leading-relaxed max-w-2xl">
-                Ask the AI Concierge for stay-related questions, or
-                contact the host directly for urgent matters.
+                Ask the AI Concierge for stay-related questions, or contact the host directly for urgent matters.
               </p>
             </div>
 
