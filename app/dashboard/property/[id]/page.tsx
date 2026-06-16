@@ -116,6 +116,95 @@ function splitHighlights(value: string) {
     .filter(Boolean)
 }
 
+function CommandActionCard({
+  icon,
+  title,
+  description,
+  href,
+  onClick,
+  dark = false,
+  disabled = false,
+}: {
+  icon: string
+  title: string
+  description: string
+  href?: string
+  onClick?: () => void
+  dark?: boolean
+  disabled?: boolean
+}) {
+  const className = `block w-full text-left rounded-3xl p-5 transition border ${
+    dark
+      ? "bg-black text-white border-black hover:opacity-90"
+      : "bg-white text-gray-950 border-gray-200 hover:border-black/20 hover:shadow-lg"
+  } ${disabled ? "opacity-50 pointer-events-none" : ""}`
+
+  const content = (
+    <>
+      <div className="text-3xl mb-4">{icon}</div>
+
+      <div className="font-black text-lg mb-2">
+        {title}
+      </div>
+
+      <div
+        className={`text-sm leading-relaxed ${
+          dark ? "text-white/60" : "text-gray-500"
+        }`}
+      >
+        {description}
+      </div>
+    </>
+  )
+
+  if (href) {
+    return (
+      <Link href={href} target={href.startsWith("/guest") ? "_blank" : undefined} className={className}>
+        {content}
+      </Link>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+    >
+      {content}
+    </button>
+  )
+}
+
+function StatusPill({
+  label,
+  value,
+  active,
+}: {
+  label: string
+  value: string
+  active: boolean
+}) {
+  return (
+    <div
+      className={`rounded-3xl p-4 border ${
+        active
+          ? "bg-green-50 border-green-100 text-green-800"
+          : "bg-gray-50 border-gray-100 text-gray-500"
+      }`}
+    >
+      <div className="text-xs uppercase tracking-[0.2em] mb-2 opacity-60">
+        {label}
+      </div>
+
+      <div className="text-xl font-black">
+        {value}
+      </div>
+    </div>
+  )
+}
+
 export default function PropertyPage() {
   const params = useParams()
 
@@ -268,6 +357,39 @@ export default function PropertyPage() {
     ]
   }, [aboutHighlights])
 
+  const guestPageReady = Boolean(
+    guestPageUrl &&
+      heroPreviewTitle.trim() &&
+      aboutPreviewDescription.trim()
+  )
+
+  const accessReady = Boolean(
+    wifiName.trim() ||
+      wifiPassword.trim() ||
+      checkinTime.trim() ||
+      checkoutTime.trim() ||
+      checkinInstructions.trim()
+  )
+
+  const welcomeReady = Boolean(
+    welcomebookEnabled &&
+      (description.trim() ||
+        houseRules.trim() ||
+        checkoutNotes.trim())
+  )
+
+  const aiReady = Boolean(
+    aiEnabled &&
+      (faq.trim() ||
+        troubleshooting.trim() ||
+        guestStyle.trim() ||
+        hiddenNotes.trim())
+  )
+
+  const locationLabel = [city, country]
+    .filter(Boolean)
+    .join(", ")
+
   useEffect(() => {
     if (!propertyId) return
 
@@ -409,6 +531,19 @@ export default function PropertyPage() {
     } catch (error) {
       console.error("COPY GUEST URL ERROR:", error)
       alert("Unable to copy guest page URL")
+    }
+  }
+
+  async function copyWifi() {
+    try {
+      await navigator.clipboard.writeText(
+        `Network: ${wifiName} | Password: ${wifiPassword}`
+      )
+
+      setSaveMessage("WiFi copied.")
+    } catch (error) {
+      console.error("COPY WIFI ERROR:", error)
+      alert("Unable to copy WiFi")
     }
   }
 
@@ -612,27 +747,27 @@ export default function PropertyPage() {
   return (
     <div className="min-h-screen bg-[#f3f4f6]">
       <div className="sticky top-0 z-50 backdrop-blur-2xl bg-white/80 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
           <div>
             <div className="uppercase tracking-[0.25em] text-[11px] text-gray-400 font-semibold mb-2">
-              PROPERTY MANAGEMENT
+              PROPERTY CONTROL PANEL
             </div>
 
             <h1 className="text-3xl font-bold text-gray-900">
-              Edit Property
+              {propertyName || "Edit Property"}
             </h1>
 
             <div className="text-gray-500 mt-2">
-              Manage the main guest-facing information for this property.
+              {locationLabel || "Manage the main guest-facing information for this property."}
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Link
               href="/dashboard"
               className="bg-white border border-gray-200 text-gray-900 px-5 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition"
             >
-              Back
+              Dashboard
             </Link>
 
             {guestPageUrl && (
@@ -641,7 +776,7 @@ export default function PropertyPage() {
                 target="_blank"
                 className="bg-white border border-gray-200 text-gray-900 px-5 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition"
               >
-                Open Guest Page
+                Guest Page
               </Link>
             )}
 
@@ -656,12 +791,176 @@ export default function PropertyPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
         {saveMessage && (
           <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-3xl px-6 py-4 font-medium">
             {saveMessage}
           </div>
         )}
+
+        <section className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-7 md:p-8 shadow-2xl">
+          <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-8 mb-8">
+            <div>
+              <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
+                SINGLE PROPERTY COMMAND CENTER
+              </div>
+
+              <h2 className="text-4xl md:text-5xl font-black mb-4">
+                {propertyName || "Property Setup"}
+              </h2>
+
+              <p className="text-white/60 max-w-2xl leading-relaxed">
+                Control the guest-facing page, QR/NFC access, AI concierge, welcome book, operational alerts and cleaning workflows for this property.
+              </p>
+
+              <div className="flex flex-wrap gap-3 mt-6">
+                <Link
+                  href="/dashboard"
+                  className="bg-white text-black rounded-2xl px-5 py-3 text-sm font-semibold"
+                >
+                  Back to Dashboard
+                </Link>
+
+                {guestPageUrl && (
+                  <Link
+                    href={guestPageUrl}
+                    target="_blank"
+                    className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                  >
+                    Open Guest Page
+                  </Link>
+                )}
+
+                <button
+                  type="button"
+                  onClick={copyGuestUrl}
+                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                >
+                  Copy Guest URL
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white/10 border border-white/10 rounded-3xl p-5 min-w-full xl:min-w-[340px]">
+              <div className="text-white/50 text-xs uppercase tracking-[0.25em] mb-3">
+                Guest URL
+              </div>
+
+              <div className="font-bold break-all">
+                {guestPageUrl || "Guest page URL not available"}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-5">
+                <div className="bg-white/10 rounded-2xl p-4">
+                  <div className="text-white/50 text-xs mb-1">
+                    City
+                  </div>
+
+                  <div className="font-bold">
+                    {city || "Not set"}
+                  </div>
+                </div>
+
+                <div className="bg-white/10 rounded-2xl p-4">
+                  <div className="text-white/50 text-xs mb-1">
+                    AI
+                  </div>
+
+                  <div className="font-bold">
+                    {aiEnabled ? "ON" : "OFF"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <CommandActionCard
+              icon="📲"
+              title="QR / NFC"
+              description="Manage guest access QR and NFC-ready links."
+              href="/dashboard/qr"
+              dark
+            />
+
+            <CommandActionCard
+              icon="💬"
+              title="Inbox"
+              description="Review conversations and AI guest messages."
+              href="/dashboard/inbox"
+              dark
+            />
+
+            <CommandActionCard
+              icon="🚨"
+              title="Issues"
+              description="Check escalations, complaints and guest problems."
+              href="/dashboard/issues"
+              dark
+            />
+
+            <CommandActionCard
+              icon="🧹"
+              title="Cleaning"
+              description="Manage cleaning tasks and turnover status."
+              href="/dashboard/cleaning"
+              dark
+            />
+
+            <CommandActionCard
+              icon="📶"
+              title="Copy WiFi"
+              description="Copy WiFi details for quick guest support."
+              onClick={copyWifi}
+              dark
+              disabled={!wifiName && !wifiPassword}
+            />
+          </div>
+        </section>
+
+        <section className="bg-white rounded-[32px] p-6 md:p-7 shadow-xl border border-black/5">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 mb-7">
+            <div>
+              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+                PROPERTY STATUS
+              </div>
+
+              <h2 className="text-3xl font-black text-gray-950">
+                Setup Health
+              </h2>
+            </div>
+
+            <div className="text-gray-500 max-w-2xl leading-relaxed">
+              Use this panel to quickly understand whether the guest-facing and operational parts of this property are ready.
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatusPill
+              label="Guest Page"
+              value={guestPageReady ? "Ready" : "Needs setup"}
+              active={guestPageReady}
+            />
+
+            <StatusPill
+              label="Access Info"
+              value={accessReady ? "Configured" : "Incomplete"}
+              active={accessReady}
+            />
+
+            <StatusPill
+              label="Welcome Book"
+              value={welcomeReady ? "Ready" : "Needs content"}
+              active={welcomeReady}
+            />
+
+            <StatusPill
+              label="AI Concierge"
+              value={aiEnabled ? "ON" : "OFF"}
+              active={aiReady}
+            />
+          </div>
+        </section>
 
         <DashboardSection
           title="General Information"
