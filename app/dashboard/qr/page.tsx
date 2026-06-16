@@ -1,4 +1,4 @@
-/* eslint-disable @next/next/no-img-element */
+ /* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -46,7 +46,7 @@ function createWifiQrValue({
 async function generateQr(value: string) {
   try {
     return await QRCode.toDataURL(value, {
-      width: 720,
+      width: 900,
       margin: 2,
       errorCorrectionLevel: "H",
     });
@@ -54,6 +54,87 @@ async function generateQr(value: string) {
     console.error("QR GENERATION ERROR:", error);
     return "";
   }
+}
+
+function StatusPill({
+  label,
+  active,
+}: {
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-full px-4 py-2 text-sm font-semibold border ${
+        active
+          ? "bg-emerald-50 text-emerald-800 border-emerald-100"
+          : "bg-amber-50 text-amber-800 border-amber-100"
+      }`}
+    >
+      {active ? "✅" : "⚠️"} {label}
+    </div>
+  );
+}
+
+function UseCaseCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="bg-white rounded-[28px] p-5 shadow-xl border border-black/5">
+      <div className="text-3xl mb-4">{icon}</div>
+
+      <div className="font-black text-lg mb-2">
+        {title}
+      </div>
+
+      <div className="text-gray-500 text-sm leading-relaxed">
+        {description}
+      </div>
+    </div>
+  );
+}
+
+function UrlBox({
+  label,
+  value,
+  onCopy,
+  copied,
+}: {
+  label: string;
+  value: string;
+  onCopy: () => void;
+  copied: boolean;
+}) {
+  return (
+    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-sm text-gray-400 mb-2">
+            {label}
+          </div>
+
+          <div className="font-mono text-sm break-all text-gray-900">
+            {value || "Not available"}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onCopy}
+          disabled={!value}
+          className="bg-black text-white rounded-2xl px-5 py-3 font-semibold hover:opacity-90 transition disabled:opacity-40"
+        >
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardQrPage() {
@@ -98,6 +179,22 @@ export default function DashboardQrPage() {
   }, [origin, propertySlug]);
 
   const nfcUrl = guestUrl;
+
+  const propertyLocation = useMemo(() => {
+    if (!selectedProperty) {
+      return "";
+    }
+
+    return [selectedProperty.city, selectedProperty.country]
+      .filter(Boolean)
+      .join(", ");
+  }, [selectedProperty]);
+
+  const hasGuestAccess = Boolean(guestUrl && propertySlug);
+
+  const hasWifiDetails = Boolean(
+    selectedProperty?.wifi_name || selectedProperty?.wifi_password
+  );
 
   const wifiQrValue = useMemo(() => {
     if (!selectedProperty) {
@@ -200,63 +297,135 @@ export default function DashboardQrPage() {
                 AI CO-HOST PLATFORM
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              <h1 className="text-4xl md:text-6xl font-black mb-4 leading-tight">
                 Guest Access QR / NFC
               </h1>
 
               <p className="text-white/70 text-lg max-w-3xl leading-relaxed">
-                Generate the smart guest access link, QR code and NFC-ready URL for each property.
-                This connects the physical Wi-Fi Porter with the digital welcome book and AI Concierge.
+                Create the physical access layer for each property: QR code,
+                NFC-ready link, guest welcome page, WiFi details and AI
+                Concierge access in one place.
               </p>
             </div>
 
-            <a
-              href="/dashboard"
-              className="bg-white text-black rounded-2xl px-6 py-4 font-semibold hover:opacity-90 transition text-center"
-            >
-              Back to Dashboard
-            </a>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href="/dashboard"
+                className="bg-white text-black rounded-2xl px-6 py-4 font-semibold hover:opacity-90 transition text-center"
+              >
+                Back to Dashboard
+              </a>
+
+              {guestUrl && (
+                <a
+                  href={guestUrl}
+                  target="_blank"
+                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-6 py-4 font-semibold hover:bg-white/15 transition text-center"
+                >
+                  Open Guest Page
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4 mt-10">
+            <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
+              <div className="text-white/50 text-sm mb-2">
+                Properties
+              </div>
+
+              <div className="text-3xl font-black">
+                {properties.length}
+              </div>
+            </div>
+
+            <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
+              <div className="text-white/50 text-sm mb-2">
+                Selected
+              </div>
+
+              <div className="text-xl font-black truncate">
+                {selectedProperty?.property_name || "None"}
+              </div>
+            </div>
+
+            <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
+              <div className="text-white/50 text-sm mb-2">
+                Guest Access
+              </div>
+
+              <div className="text-3xl font-black">
+                {hasGuestAccess ? "READY" : "SETUP"}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-8 space-y-8 pb-20">
         <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-          <h2 className="text-2xl font-bold mb-6">
-            🏡 Select Property
-          </h2>
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div>
+              <div className="uppercase tracking-[0.25em] text-xs text-gray-400 mb-3">
+                Select Property
+              </div>
 
-          {loading && (
-            <div className="text-gray-500">
-              Loading properties...
+              <h2 className="text-3xl font-black mb-3">
+                Choose the property to generate guest access
+              </h2>
+
+              <p className="text-gray-500 leading-relaxed max-w-3xl">
+                The main QR/NFC link should point to the guest page, not only to WiFi.
+                This gives guests a full welcome book, house rules, local guide and AI support.
+              </p>
             </div>
-          )}
 
-          {!loading && properties.length === 0 && (
-            <div className="text-gray-500">
-              No properties found.
+            <div className="flex flex-wrap gap-3">
+              <StatusPill
+                label={hasGuestAccess ? "Guest link ready" : "Missing guest link"}
+                active={hasGuestAccess}
+              />
+
+              <StatusPill
+                label={hasWifiDetails ? "WiFi details found" : "WiFi optional"}
+                active={hasWifiDetails}
+              />
             </div>
-          )}
+          </div>
 
-          {!loading && properties.length > 0 && (
-            <select
-              value={selectedPropertyId}
-              onChange={(event) =>
-                setSelectedPropertyId(event.target.value)
-              }
-              className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
-            >
-              {properties.map((property) => (
-                <option
-                  key={property.id}
-                  value={property.id}
-                >
-                  {property.property_name}
-                  {property.city ? ` — ${property.city}` : ""}
-                </option>
-              ))}
-            </select>
-          )}
+          <div className="mt-6">
+            {loading && (
+              <div className="text-gray-500">
+                Loading properties...
+              </div>
+            )}
+
+            {!loading && properties.length === 0 && (
+              <div className="bg-amber-50 border border-amber-100 text-amber-900 rounded-3xl p-5">
+                No properties found. Add a property first from the main dashboard.
+              </div>
+            )}
+
+            {!loading && properties.length > 0 && (
+              <select
+                value={selectedPropertyId}
+                onChange={(event) =>
+                  setSelectedPropertyId(event.target.value)
+                }
+                className="w-full border border-gray-200 rounded-2xl p-4 bg-white font-semibold"
+              >
+                {properties.map((property) => (
+                  <option
+                    key={property.id}
+                    value={property.id}
+                  >
+                    {property.property_name}
+                    {property.city ? ` — ${property.city}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </section>
 
         {selectedProperty && (
@@ -268,15 +437,21 @@ export default function DashboardQrPage() {
                     Smart Guest Access
                   </div>
 
-                  <h2 className="text-3xl font-bold mb-3">
+                  <h2 className="text-4xl font-black mb-3">
                     {selectedProperty.property_name}
                   </h2>
 
                   <p className="text-gray-500 leading-relaxed max-w-3xl">
-                    This is the main link for the Wi-Fi Porter, NFC tag and QR code.
-                    Guests will use it to open the welcome page with WiFi, house rules,
-                    local guide, extra services and AI Concierge.
+                    This is the main public link for printed cards, QR stickers,
+                    WiFi Porter displays and NFC tags. Guests scan or tap once and
+                    land on the full digital stay experience.
                   </p>
+
+                  {propertyLocation && (
+                    <div className="mt-4 inline-flex bg-[#f4f1eb] border border-black/5 rounded-full px-4 py-2 text-sm font-semibold">
+                      📍 {propertyLocation}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -301,39 +476,35 @@ export default function DashboardQrPage() {
                 </div>
               </div>
 
-              <div className="mt-6 bg-gray-50 border border-gray-100 rounded-3xl p-5">
-                <div className="text-sm text-gray-400 mb-2">
-                  Guest Page URL
-                </div>
+              <div className="grid lg:grid-cols-2 gap-5 mt-7">
+                <UrlBox
+                  label="Guest Page URL"
+                  value={guestUrl}
+                  copied={copied === "guest-url-box"}
+                  onCopy={() =>
+                    copyToClipboard(guestUrl, "guest-url-box")
+                  }
+                />
 
-                <div className="font-mono text-sm break-all">
-                  {guestUrl}
-                </div>
-              </div>
-
-              <div className="mt-5 bg-gray-50 border border-gray-100 rounded-3xl p-5">
-                <div className="text-sm text-gray-400 mb-2">
-                  NFC-ready URL
-                </div>
-
-                <div className="font-mono text-sm break-all mb-4">
-                  {nfcUrl}
-                </div>
-
-                <button
-                  onClick={() =>
+                <UrlBox
+                  label="NFC-ready URL"
+                  value={nfcUrl}
+                  copied={copied === "nfc"}
+                  onCopy={() =>
                     copyToClipboard(nfcUrl, "nfc")
                   }
-                  className="bg-black text-white rounded-2xl px-5 py-3 font-semibold hover:opacity-90 transition"
-                >
-                  {copied === "nfc"
-                    ? "Copied!"
-                    : "Copy NFC Link"}
-                </button>
+                />
+              </div>
 
-                <p className="text-gray-500 text-sm mt-4 leading-relaxed">
-                  Write this URL to the NFC tag using NFC Tools, NXP TagWriter or another NFC writing app.
-                  Do not write localhost URLs to real NFC tags. Use the final deployed public URL.
+              <div className="mt-5 bg-amber-50 border border-amber-100 rounded-3xl p-5">
+                <div className="font-black text-amber-950 mb-2">
+                  NFC setup note
+                </div>
+
+                <p className="text-amber-900/70 text-sm leading-relaxed">
+                  Write the NFC-ready URL to a physical NFC tag using NFC Tools,
+                  NXP TagWriter or a similar app. Do not write localhost URLs to
+                  real NFC tags. Always use the final deployed public URL.
                 </p>
               </div>
             </section>
@@ -344,21 +515,21 @@ export default function DashboardQrPage() {
                   Main QR Code
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3">
-                  📘 Welcome Page QR
+                <h2 className="text-3xl font-black mb-3">
+                  📘 Guest Welcome Page QR
                 </h2>
 
                 <p className="text-gray-500 mb-6 leading-relaxed">
-                  This is the main QR code for the physical Wi-Fi Porter.
-                  It opens the guest welcome page and AI Concierge.
+                  This is the main QR code to print and place inside the property.
+                  It opens the guest page with WiFi, stay guide, local tips and AI Concierge.
                 </p>
 
-                <div className="bg-gray-50 rounded-3xl border border-gray-100 p-6 flex items-center justify-center min-h-[360px]">
+                <div className="bg-gray-50 rounded-3xl border border-gray-100 p-6 flex items-center justify-center min-h-[380px]">
                   {guestQr ? (
                     <img
                       src={guestQr}
                       alt="Guest welcome page QR code"
-                      className="w-full max-w-[320px] rounded-2xl"
+                      className="w-full max-w-[330px] rounded-2xl"
                     />
                   ) : (
                     <div className="text-gray-400">
@@ -367,17 +538,30 @@ export default function DashboardQrPage() {
                   )}
                 </div>
 
-                <button
-                  onClick={() =>
-                    downloadQr(
-                      guestQr,
-                      `${propertySlug}-guest-page-qr.png`
-                    )
-                  }
-                  className="mt-6 w-full bg-black text-white rounded-2xl px-5 py-4 font-semibold hover:opacity-90 transition"
-                >
-                  Download Guest QR
-                </button>
+                <div className="grid sm:grid-cols-2 gap-3 mt-6">
+                  <button
+                    onClick={() =>
+                      downloadQr(
+                        guestQr,
+                        `${propertySlug}-guest-page-qr.png`
+                      )
+                    }
+                    className="bg-black text-white rounded-2xl px-5 py-4 font-semibold hover:opacity-90 transition"
+                  >
+                    Download Guest QR
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      copyToClipboard(guestUrl, "guest-qr-copy")
+                    }
+                    className="bg-gray-100 text-black rounded-2xl px-5 py-4 font-semibold hover:bg-gray-200 transition"
+                  >
+                    {copied === "guest-qr-copy"
+                      ? "Copied!"
+                      : "Copy Link"}
+                  </button>
+                </div>
               </div>
 
               <div className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
@@ -385,33 +569,33 @@ export default function DashboardQrPage() {
                   Optional WiFi QR
                 </div>
 
-                <h2 className="text-2xl font-bold mb-3">
+                <h2 className="text-3xl font-black mb-3">
                   📶 Direct WiFi QR
                 </h2>
 
                 <p className="text-gray-500 mb-6 leading-relaxed">
-                  Optional QR code for direct WiFi connection.
-                  The main QR/NFC should still point to the guest welcome page.
+                  Optional QR code for direct WiFi connection. Use this only as
+                  a secondary QR. The main QR/NFC should point to the guest page.
                 </p>
 
                 <div className="space-y-3 mb-6 text-gray-700">
-                  <p>
+                  <div className="bg-[#f4f1eb] rounded-2xl p-4">
                     <strong>Network:</strong>{" "}
                     {selectedProperty.wifi_name || "Not available"}
-                  </p>
+                  </div>
 
-                  <p>
+                  <div className="bg-[#f4f1eb] rounded-2xl p-4">
                     <strong>Password:</strong>{" "}
                     {selectedProperty.wifi_password || "Not available"}
-                  </p>
+                  </div>
                 </div>
 
-                <div className="bg-gray-50 rounded-3xl border border-gray-100 p-6 flex items-center justify-center min-h-[360px]">
+                <div className="bg-gray-50 rounded-3xl border border-gray-100 p-6 flex items-center justify-center min-h-[380px]">
                   {wifiQr ? (
                     <img
                       src={wifiQr}
                       alt="WiFi QR code"
-                      className="w-full max-w-[320px] rounded-2xl"
+                      className="w-full max-w-[330px] rounded-2xl"
                     />
                   ) : (
                     <div className="text-gray-400">
@@ -436,12 +620,12 @@ export default function DashboardQrPage() {
 
             <section className="bg-black text-white rounded-[32px] p-8 shadow-2xl">
               <div className="uppercase tracking-[0.25em] text-xs text-white/40 mb-4">
-                Wi-Fi Porter Preview
+                WiFi Porter / Welcome Card Preview
               </div>
 
-              <div className="grid lg:grid-cols-[1fr_320px] gap-8 items-center">
+              <div className="grid lg:grid-cols-[1fr_340px] gap-8 items-center">
                 <div>
-                  <h2 className="text-4xl font-bold mb-4">
+                  <h2 className="text-4xl md:text-5xl font-black mb-4">
                     Welcome 👋
                   </h2>
 
@@ -470,6 +654,10 @@ export default function DashboardQrPage() {
                     <div className="bg-white/10 border border-white/10 rounded-full px-5 py-3 text-sm">
                       📍 Local Guide
                     </div>
+
+                    <div className="bg-white/10 border border-white/10 rounded-full px-5 py-3 text-sm">
+                      🛎️ Guest Support
+                    </div>
                   </div>
                 </div>
 
@@ -477,7 +665,7 @@ export default function DashboardQrPage() {
                   {guestQr ? (
                     <img
                       src={guestQr}
-                      alt="Wi-Fi Porter guest QR preview"
+                      alt="WiFi Porter guest QR preview"
                       className="w-full rounded-2xl"
                     />
                   ) : (
@@ -487,6 +675,32 @@ export default function DashboardQrPage() {
                   )}
                 </div>
               </div>
+            </section>
+
+            <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <UseCaseCard
+                icon="🖨️"
+                title="Printed welcome cards"
+                description="Print the main guest QR on a small card and place it near the entrance or bedside table."
+              />
+
+              <UseCaseCard
+                icon="🏷️"
+                title="QR stickers"
+                description="Use QR stickers on a WiFi Porter, fridge magnet, desk card or inside the welcome book."
+              />
+
+              <UseCaseCard
+                icon="📱"
+                title="NFC tags"
+                description="Write the guest URL to NFC tags so guests can tap their phone and open the stay guide."
+              />
+
+              <UseCaseCard
+                icon="💬"
+                title="Guest messages"
+                description="Copy the guest URL and send it through Airbnb, WhatsApp or your pre-arrival message."
+              />
             </section>
           </>
         )}
