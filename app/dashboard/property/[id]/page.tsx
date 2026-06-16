@@ -106,6 +106,13 @@ function createSlug(value: string) {
     .replace(/^-+|-+$/g, "")
 }
 
+function splitHighlights(value: string) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export default function PropertyPage() {
   const params = useParams()
 
@@ -176,6 +183,81 @@ export default function PropertyPage() {
     useState(false)
   const [welcomebookEnabled, setWelcomebookEnabled] =
     useState(true)
+
+  const finalSlug = useMemo(() => {
+    return slug.trim() || createSlug(propertyName)
+  }, [slug, propertyName])
+
+  const guestPageUrl = useMemo(() => {
+    if (!finalSlug) {
+      return ""
+    }
+
+    return `/guest/${finalSlug}`
+  }, [finalSlug])
+
+  const heroPreviewImage = useMemo(() => {
+    if (heroImageUrl.trim()) {
+      return heroImageUrl.trim()
+    }
+
+    if (
+      finalSlug.includes("maltese-maisonette") ||
+      propertyName.toLowerCase().includes("maltese maisonette")
+    ) {
+      return "/guest-images/maltese-maisonette-hero-bedroom.jpg"
+    }
+
+    return ""
+  }, [heroImageUrl, finalSlug, propertyName])
+
+  const heroPreviewTitle = useMemo(() => {
+    return (
+      heroTitle.trim() ||
+      `Welcome to ${propertyName || "Your Stay"}`
+    )
+  }, [heroTitle, propertyName])
+
+  const heroPreviewIntro = useMemo(() => {
+    return (
+      heroIntro.trim() ||
+      "A comfortable private stay with everything you need in one place."
+    )
+  }, [heroIntro])
+
+  const aboutPreviewTitle = useMemo(() => {
+    return aboutTitle.trim() || "About this stay"
+  }, [aboutTitle])
+
+  const aboutPreviewIntro = useMemo(() => {
+    return (
+      aboutIntro.trim() ||
+      "A private stay designed to make your visit simple, comfortable and easy to manage."
+    )
+  }, [aboutIntro])
+
+  const aboutPreviewDescription = useMemo(() => {
+    return (
+      aboutDescription.trim() ||
+      description.trim() ||
+      "Add a warm, guest-friendly description of the apartment here."
+    )
+  }, [aboutDescription, description])
+
+  const aboutPreviewHighlights = useMemo(() => {
+    const items = splitHighlights(aboutHighlights)
+
+    if (items.length > 0) {
+      return items
+    }
+
+    return [
+      "Private guest space",
+      "Useful stay information",
+      "AI Concierge support",
+      "Local tips and essentials",
+    ]
+  }, [aboutHighlights])
 
   useEffect(() => {
     if (!propertyId) return
@@ -301,6 +383,26 @@ export default function PropertyPage() {
     loadProperty()
   }, [propertyId])
 
+  async function copyGuestUrl() {
+    if (!guestPageUrl) {
+      alert("Guest page URL is not available yet.")
+      return
+    }
+
+    const absoluteUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${guestPageUrl}`
+        : guestPageUrl
+
+    try {
+      await navigator.clipboard.writeText(absoluteUrl)
+      setSaveMessage("Guest page URL copied.")
+    } catch (error) {
+      console.error("COPY GUEST URL ERROR:", error)
+      alert("Unable to copy guest page URL")
+    }
+  }
+
   async function saveProperty() {
     if (!propertyName.trim()) {
       alert("Property name is required")
@@ -310,9 +412,6 @@ export default function PropertyPage() {
     try {
       setSaving(true)
       setSaveMessage("")
-
-      const finalSlug =
-        slug.trim() || createSlug(propertyName)
 
       const contacts = contactsText
         .split("\n")
@@ -463,9 +562,9 @@ export default function PropertyPage() {
               Back
             </Link>
 
-            {slug && (
+            {guestPageUrl && (
               <Link
-                href={`/guest/${slug}`}
+                href={guestPageUrl}
                 target="_blank"
                 className="bg-white border border-gray-200 text-gray-900 px-5 py-4 rounded-2xl font-semibold hover:bg-gray-50 transition"
               >
@@ -574,124 +673,260 @@ export default function PropertyPage() {
           subtitle="Control the first impression guests see when they scan the QR/NFC link. Keep the hero short and emotional, then use About This Stay for the richer apartment description."
           icon="✨"
         >
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
+          <div className="grid lg:grid-cols-[1fr_0.95fr] gap-8">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Hero Title
-              </label>
-              <input
-                value={heroTitle}
-                onChange={(event) =>
-                  setHeroTitle(event.target.value)
-                }
-                placeholder="Welcome to Maltese Maisonette"
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
-              />
-              <div className="text-xs text-gray-400 mt-2">
-                Main title shown over the hero image.
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Hero Title
+                  </label>
+                  <input
+                    value={heroTitle}
+                    onChange={(event) =>
+                      setHeroTitle(event.target.value)
+                    }
+                    placeholder="Welcome to Maltese Maisonette"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                  />
+                  <div className="text-xs text-gray-400 mt-2">
+                    Main title shown over the hero image.
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Hero Image URL
+                  </label>
+                  <input
+                    value={heroImageUrl}
+                    onChange={(event) =>
+                      setHeroImageUrl(event.target.value)
+                    }
+                    placeholder="/guest-images/maltese-maisonette-hero-bedroom.jpg"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                  />
+                  <div className="text-xs text-gray-400 mt-2">
+                    Use a public URL or a local path from the public folder.
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Hero Intro
+                </label>
+                <textarea
+                  value={heroIntro}
+                  onChange={(event) =>
+                    setHeroIntro(event.target.value)
+                  }
+                  rows={3}
+                  placeholder="A cozy Maltese maisonette in central Sliema, designed for a simple, comfortable and authentic stay by the sea."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+                />
+                <div className="text-xs text-gray-400 mt-2">
+                  Keep this short: one or two lines only.
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6 mt-6">
+                <div className="uppercase tracking-[0.25em] text-[11px] text-gray-400 font-semibold mb-4">
+                  About This Stay
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    About Section Title
+                  </label>
+                  <input
+                    value={aboutTitle}
+                    onChange={(event) =>
+                      setAboutTitle(event.target.value)
+                    }
+                    placeholder="About this stay"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    About Intro
+                  </label>
+                  <textarea
+                    value={aboutIntro}
+                    onChange={(event) =>
+                      setAboutIntro(event.target.value)
+                    }
+                    rows={3}
+                    placeholder="This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+                  />
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    About Description
+                  </label>
+                  <textarea
+                    value={aboutDescription}
+                    onChange={(event) =>
+                      setAboutDescription(event.target.value)
+                    }
+                    rows={6}
+                    placeholder="Inside, guests will find a queen-size bedroom with A/C, a living area, a kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk and a small outdoor space..."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    Highlights
+                  </label>
+                  <textarea
+                    value={aboutHighlights}
+                    onChange={(event) =>
+                      setAboutHighlights(event.target.value)
+                    }
+                    rows={5}
+                    placeholder={"Private one-bedroom maisonette\nCentral Sliema location\nHigh-speed WiFi and desk\nKitchen and washing machine"}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
+                  />
+                  <div className="text-xs text-gray-400 mt-2">
+                    Add one highlight per line.
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Hero Image URL
-              </label>
-              <input
-                value={heroImageUrl}
-                onChange={(event) =>
-                  setHeroImageUrl(event.target.value)
-                }
-                placeholder="/guest-images/maltese-maisonette-hero-bedroom.jpg"
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
-              />
-              <div className="text-xs text-gray-400 mt-2">
-                Use a public URL or a local path from the public folder.
-              </div>
-            </div>
-          </div>
+            <div className="lg:sticky lg:top-32 h-fit">
+              <div className="rounded-[32px] overflow-hidden bg-black text-white shadow-2xl border border-black">
+                <div className="relative min-h-[360px]">
+                  {heroPreviewImage ? (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{
+                        backgroundImage: `url(${heroPreviewImage})`,
+                      }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-black" />
+                  )}
 
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Hero Intro
-            </label>
-            <textarea
-              value={heroIntro}
-              onChange={(event) =>
-                setHeroIntro(event.target.value)
-              }
-              rows={3}
-              placeholder="A cozy Maltese maisonette in central Sliema, designed for a simple, comfortable and authentic stay by the sea."
-              className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
-            />
-            <div className="text-xs text-gray-400 mt-2">
-              Keep this short: one or two lines only.
-            </div>
-          </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-black/10" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/10" />
 
-          <div className="border-t border-gray-200 pt-6 mt-6">
-            <div className="uppercase tracking-[0.25em] text-[11px] text-gray-400 font-semibold mb-4">
-              About This Stay
-            </div>
+                  <div className="relative p-6 min-h-[360px] flex flex-col justify-between">
+                    <div>
+                      <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs text-white/90 mb-4 backdrop-blur-md">
+                        <span>✨</span>
+                        <span>Preview</span>
+                      </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                About Section Title
-              </label>
-              <input
-                value={aboutTitle}
-                onChange={(event) =>
-                  setAboutTitle(event.target.value)
-                }
-                placeholder="About this stay"
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
-              />
-            </div>
+                      <div className="uppercase tracking-[0.25em] text-[10px] text-white/60 mb-3">
+                        AI CO-HOST EXPERIENCE
+                      </div>
 
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                About Intro
-              </label>
-              <textarea
-                value={aboutIntro}
-                onChange={(event) =>
-                  setAboutIntro(event.target.value)
-                }
-                rows={3}
-                placeholder="This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself."
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
-              />
-            </div>
+                      <h3 className="text-3xl font-black leading-[0.95] mb-4 drop-shadow-xl">
+                        {heroPreviewTitle}
+                      </h3>
 
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                About Description
-              </label>
-              <textarea
-                value={aboutDescription}
-                onChange={(event) =>
-                  setAboutDescription(event.target.value)
-                }
-                rows={6}
-                placeholder="Inside, guests will find a queen-size bedroom with A/C, a living area, a kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk and a small outdoor space..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
-              />
-            </div>
+                      <p className="text-white/85 text-sm leading-relaxed drop-shadow-xl">
+                        {heroPreviewIntro}
+                      </p>
+                    </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Highlights
-              </label>
-              <textarea
-                value={aboutHighlights}
-                onChange={(event) =>
-                  setAboutHighlights(event.target.value)
-                }
-                rows={5}
-                placeholder={"Private one-bedroom maisonette\nCentral Sliema location\nHigh-speed WiFi and desk\nKitchen and washing machine"}
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
-              />
-              <div className="text-xs text-gray-400 mt-2">
-                Add one highlight per line.
+                    <div className="flex flex-wrap gap-2 mt-6">
+                      {city && (
+                        <div className="bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs backdrop-blur-md">
+                          📍 {city}
+                          {country ? `, ${country}` : ""}
+                        </div>
+                      )}
+
+                      {checkinTime && (
+                        <div className="bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs backdrop-blur-md">
+                          🔑 Check-in: {checkinTime}
+                        </div>
+                      )}
+
+                      {checkoutTime && (
+                        <div className="bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs backdrop-blur-md">
+                          🚪 Check-out: {checkoutTime}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white text-black p-6">
+                  <div className="uppercase tracking-[0.25em] text-[10px] text-gray-400 mb-3">
+                    THE APARTMENT
+                  </div>
+
+                  <h3 className="text-2xl font-black mb-3">
+                    {aboutPreviewTitle}
+                  </h3>
+
+                  <p className="text-gray-800 leading-relaxed mb-4">
+                    {aboutPreviewIntro}
+                  </p>
+
+                  <p className="text-gray-500 text-sm leading-relaxed line-clamp-5 whitespace-pre-line">
+                    {aboutPreviewDescription}
+                  </p>
+
+                  <div className="mt-5 bg-[#f4f1eb] rounded-3xl p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-3">
+                      Highlights
+                    </div>
+
+                    <div className="space-y-2">
+                      {aboutPreviewHighlights
+                        .slice(0, 4)
+                        .map((item) => (
+                          <div
+                            key={item}
+                            className="bg-white rounded-2xl px-3 py-3 text-sm font-bold flex items-center gap-2"
+                          >
+                            <span>✓</span>
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 mt-5">
+                    <button
+                      type="button"
+                      onClick={copyGuestUrl}
+                      className="bg-black text-white rounded-2xl px-4 py-3 text-sm font-semibold"
+                    >
+                      Copy URL
+                    </button>
+
+                    {guestPageUrl ? (
+                      <Link
+                        href={guestPageUrl}
+                        target="_blank"
+                        className="bg-gray-100 text-black rounded-2xl px-4 py-3 text-sm font-semibold text-center"
+                      >
+                        Open Page
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        className="bg-gray-100 text-gray-400 rounded-2xl px-4 py-3 text-sm font-semibold"
+                      >
+                        Open Page
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-4 text-xs text-gray-400 break-all">
+                    {guestPageUrl || "Guest page URL not available yet."}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
