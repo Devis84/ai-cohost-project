@@ -23,6 +23,11 @@ type WelcomeBook = {
   description?: string;
   amenities?: string;
   house_rules?: string;
+  apartment_instructions?: string;
+  kitchen?: string;
+  washing_machine?: string;
+  towels_linen?: string;
+  beach_towels?: string;
   parking?: string;
   trash?: string;
   ac?: string;
@@ -396,6 +401,38 @@ function MiniInfoCard({
   );
 }
 
+function EssentialCard({
+  icon,
+  title,
+  description,
+  href,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  href?: string;
+}) {
+  const content = (
+    <div className="bg-white rounded-[28px] p-5 shadow-xl border border-black/5 h-full hover:shadow-2xl transition">
+      <div className="text-3xl mb-3">{icon}</div>
+
+      <div className="font-black text-lg mb-2">
+        {title}
+      </div>
+
+      <div className="text-gray-500 text-sm leading-relaxed">
+        {description}
+      </div>
+    </div>
+  );
+
+  if (href) {
+    return <a href={href}>{content}</a>;
+  }
+
+  return content;
+}
+
 function PromptButton({
   children,
   onClick,
@@ -439,10 +476,6 @@ export default function GuestPage() {
 
   const welcomeBook = useMemo(() => {
     return getWelcomeBook(property);
-  }, [property]);
-
-  const propertyName = useMemo(() => {
-    return getPropertyName(property);
   }, [property]);
 
   const locationText = useMemo(() => {
@@ -521,6 +554,36 @@ export default function GuestPage() {
 
   const boiler =
     safeText(welcomeBook.boiler);
+
+  const apartmentInstructions =
+    safeText(welcomeBook.apartment_instructions);
+
+  const kitchen =
+    safeText(welcomeBook.kitchen);
+
+  const washingMachine =
+    safeText(welcomeBook.washing_machine);
+
+  const towelsLinen =
+    safeText(welcomeBook.towels_linen);
+
+  const beachTowels =
+    safeText(welcomeBook.beach_towels);
+
+  const hasStayEssentials =
+    Boolean(
+      apartmentInstructions ||
+        kitchen ||
+        washingMachine ||
+        towelsLinen ||
+        beachTowels ||
+        trash ||
+        ac ||
+        boiler
+    );
+
+  const hasLocalGuide =
+    Boolean(restaurants || transport || localGuide || parking);
 
   useEffect(() => {
     loadProperty();
@@ -820,37 +883,33 @@ export default function GuestPage() {
           </h2>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
-              <div className="text-3xl mb-3">📶</div>
-              <div className="font-black mb-2">Connect to WiFi</div>
-              <div className="text-gray-500 text-sm">
-                The network and password are available below.
-              </div>
-            </div>
+            <EssentialCard
+              icon="📶"
+              title="Connect to WiFi"
+              description="The network and password are available below. Tap copy if needed."
+              href="#wifi"
+            />
 
-            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
-              <div className="text-3xl mb-3">🔑</div>
-              <div className="font-black mb-2">Check access info</div>
-              <div className="text-gray-500 text-sm">
-                Private access codes are only shared in host messages.
-              </div>
-            </div>
+            <EssentialCard
+              icon="🔑"
+              title="Check access info"
+              description="Private access codes are only shared in host messages, not on this public page."
+              href="#arrival"
+            />
 
-            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
-              <div className="text-3xl mb-3">🤖</div>
-              <div className="font-black mb-2">Ask the AI Concierge</div>
-              <div className="text-gray-500 text-sm">
-                Use it for stay-related questions in your language.
-              </div>
-            </div>
+            <EssentialCard
+              icon="🤖"
+              title="Ask the AI Concierge"
+              description="Use it for stay-related questions in your language."
+              href="#ai-concierge"
+            />
 
-            <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
-              <div className="text-3xl mb-3">🚨</div>
-              <div className="font-black mb-2">Need urgent help?</div>
-              <div className="text-gray-500 text-sm">
-                Use the emergency section or contact the host when available.
-              </div>
-            </div>
+            <EssentialCard
+              icon="🚨"
+              title="Need urgent help?"
+              description="Use the emergency section or contact the host when available."
+              href="#help"
+            />
           </div>
         </section>
 
@@ -976,7 +1035,7 @@ export default function GuestPage() {
           </div>
         </section>
 
-        <section className="grid lg:grid-cols-3 gap-6">
+        <section id="arrival" className="grid lg:grid-cols-3 gap-6">
           <SectionCard icon="🏡" title="Arrival">
             <div className="space-y-3">
               <p>
@@ -1068,6 +1127,74 @@ export default function GuestPage() {
               </p>
             </div>
           </SectionCard>
+        )}
+
+        {hasStayEssentials && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
+              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+                STAY ESSENTIALS
+              </div>
+
+              <h2 className="text-3xl md:text-5xl font-black">
+                Practical home information
+              </h2>
+
+              <p className="text-gray-500 mt-3 max-w-2xl">
+                Useful details for appliances, towels, laundry, rubbish, AC and hot water.
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              {apartmentInstructions && (
+                <SectionCard icon="🏠" title="Apartment Instructions">
+                  {apartmentInstructions}
+                </SectionCard>
+              )}
+
+              {kitchen && (
+                <SectionCard icon="🍳" title="Kitchen">
+                  {kitchen}
+                </SectionCard>
+              )}
+
+              {washingMachine && (
+                <SectionCard icon="🧺" title="Washing Machine">
+                  {washingMachine}
+                </SectionCard>
+              )}
+
+              {towelsLinen && (
+                <SectionCard icon="🛏️" title="Towels & Linen">
+                  {towelsLinen}
+                </SectionCard>
+              )}
+
+              {beachTowels && (
+                <SectionCard icon="🏖️" title="Beach Towels">
+                  {beachTowels}
+                </SectionCard>
+              )}
+
+              {trash && (
+                <SectionCard icon="♻️" title="Trash & Recycling">
+                  {trash}
+                </SectionCard>
+              )}
+
+              {ac && (
+                <SectionCard icon="❄️" title="Air Conditioning">
+                  {ac}
+                </SectionCard>
+              )}
+
+              {boiler && (
+                <SectionCard icon="🚿" title="Hot Water / Boiler">
+                  {boiler}
+                </SectionCard>
+              )}
+            </div>
+          </section>
         )}
 
         <section
@@ -1248,51 +1375,15 @@ export default function GuestPage() {
               </SectionCard>
             )}
 
-            {parking && (
-              <SectionCard icon="🅿️" title="Parking">
-                {parking}
-              </SectionCard>
-            )}
-
-            {trash && (
-              <SectionCard icon="♻️" title="Trash & Recycling">
-                {trash}
-              </SectionCard>
-            )}
-
-            {ac && (
-              <SectionCard icon="❄️" title="Air Conditioning">
-                {ac}
-              </SectionCard>
-            )}
-
-            {boiler && (
-              <SectionCard icon="🚿" title="Hot Water / Boiler">
-                {boiler}
-              </SectionCard>
-            )}
-
-            {restaurants && (
-              <SectionCard icon="🍽️" title="Restaurants & Bars">
-                {restaurants}
-              </SectionCard>
-            )}
-
-            {transport && (
-              <SectionCard icon="🚌" title="Transport">
-                {transport}
-              </SectionCard>
-            )}
-
-            {localGuide && (
-              <SectionCard icon="📍" title="Local Guide">
-                {localGuide}
-              </SectionCard>
-            )}
-
             {checkoutNotes && (
               <SectionCard icon="🚪" title="Checkout Notes">
                 {checkoutNotes}
+              </SectionCard>
+            )}
+
+            {parking && !hasLocalGuide && (
+              <SectionCard icon="🅿️" title="Parking">
+                {parking}
               </SectionCard>
             )}
 
@@ -1301,8 +1392,61 @@ export default function GuestPage() {
                 {extraNotes}
               </SectionCard>
             )}
+
+            {!amenities &&
+              !houseRules &&
+              !checkoutNotes &&
+              !extraNotes && (
+                <SectionCard icon="📘" title="Guest Notes" tone="soft">
+                  More stay information will be added here soon. For anything urgent, please use the AI Concierge or contact the host.
+                </SectionCard>
+              )}
           </div>
         </section>
+
+        {hasLocalGuide && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
+              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+                LOCAL GUIDE
+              </div>
+
+              <h2 className="text-3xl md:text-5xl font-black">
+                Around the area
+              </h2>
+
+              <p className="text-gray-500 mt-3 max-w-2xl">
+                Parking, transport, restaurants and useful local recommendations.
+              </p>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              {parking && (
+                <SectionCard icon="🅿️" title="Parking">
+                  {parking}
+                </SectionCard>
+              )}
+
+              {restaurants && (
+                <SectionCard icon="🍽️" title="Restaurants & Bars">
+                  {restaurants}
+                </SectionCard>
+              )}
+
+              {transport && (
+                <SectionCard icon="🚌" title="Transport">
+                  {transport}
+                </SectionCard>
+              )}
+
+              {localGuide && (
+                <SectionCard icon="📍" title="Local Guide">
+                  {localGuide}
+                </SectionCard>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="bg-black text-white rounded-[40px] p-6 md:p-8 shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
