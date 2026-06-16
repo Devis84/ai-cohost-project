@@ -33,6 +33,13 @@ type KnowledgeBase = {
     checkout_notes?: string
     extra_notes?: string
   }
+  extra_services?: {
+    enabled?: boolean
+    title?: string
+    intro?: string
+    services?: string
+    host_note?: string
+  }
   ai_training?: {
     faq?: string
     troubleshooting?: string
@@ -88,6 +95,13 @@ const emptyKnowledgeBase: KnowledgeBase = {
     emergency: "",
     checkout_notes: "",
     extra_notes: "",
+  },
+  extra_services: {
+    enabled: false,
+    title: "Extra Services",
+    intro: "",
+    services: "",
+    host_note: "",
   },
   ai_training: {
     faq: "",
@@ -159,7 +173,11 @@ function CommandActionCard({
 
   if (href) {
     return (
-      <Link href={href} target={href.startsWith("/guest") ? "_blank" : undefined} className={className}>
+      <Link
+        href={href}
+        target={href.startsWith("/guest") ? "_blank" : undefined}
+        className={className}
+      >
         {content}
       </Link>
     )
@@ -261,6 +279,17 @@ export default function PropertyPage() {
   const [transport, setTransport] = useState("")
   const [checkoutNotes, setCheckoutNotes] = useState("")
   const [extraNotes, setExtraNotes] = useState("")
+
+  const [extraServicesEnabled, setExtraServicesEnabled] =
+    useState(false)
+  const [extraServicesTitle, setExtraServicesTitle] =
+    useState("Extra Services")
+  const [extraServicesIntro, setExtraServicesIntro] =
+    useState("")
+  const [extraServicesList, setExtraServicesList] =
+    useState("")
+  const [extraServicesHostNote, setExtraServicesHostNote] =
+    useState("")
 
   const [faq, setFaq] = useState("")
   const [troubleshooting, setTroubleshooting] =
@@ -386,6 +415,13 @@ export default function PropertyPage() {
         hiddenNotes.trim())
   )
 
+  const extraServicesReady = Boolean(
+    extraServicesEnabled &&
+      (extraServicesTitle.trim() ||
+        extraServicesIntro.trim() ||
+        extraServicesList.trim())
+  )
+
   const locationLabel = [city, country]
     .filter(Boolean)
     .join(", ")
@@ -419,6 +455,9 @@ export default function PropertyPage() {
 
         const welcomeBook =
           knowledgeBase.welcome_book || {}
+
+        const extraServices =
+          knowledgeBase.extra_services || {}
 
         const aiTraining =
           knowledgeBase.ai_training || {}
@@ -483,6 +522,22 @@ export default function PropertyPage() {
           welcomeBook.checkout_notes || ""
         )
         setExtraNotes(welcomeBook.extra_notes || "")
+
+        setExtraServicesEnabled(
+          Boolean(extraServices.enabled)
+        )
+        setExtraServicesTitle(
+          extraServices.title || "Extra Services"
+        )
+        setExtraServicesIntro(
+          extraServices.intro || ""
+        )
+        setExtraServicesList(
+          extraServices.services || ""
+        )
+        setExtraServicesHostNote(
+          extraServices.host_note || ""
+        )
 
         setFaq(aiTraining.faq || "")
         setTroubleshooting(
@@ -611,6 +666,22 @@ export default function PropertyPage() {
     )
   }
 
+  function applyExtraServicesTemplate() {
+    setExtraServicesTitle("Extra Services")
+    setExtraServicesIntro(
+      "Enhance your stay with selected local services and trusted partner recommendations. Availability may vary, so please contact the host before booking."
+    )
+    setExtraServicesList(
+      "Airport transfer — Available on request, subject to availability and price confirmation\nScooter rental — Local partner options can be shared on request\nCar rental — Recommended providers available nearby\nBoat trips & excursions — Seasonal tours and local experiences can be recommended\nMassage or wellness services — Available with advance booking when possible\nLate checkout — Subject to availability and host approval\nLuggage storage — Ask the host for available options"
+    )
+    setExtraServicesHostNote(
+      "Internal note: add partner contacts, prices, commissions, availability rules and services that require manual host approval."
+    )
+    setSaveMessage(
+      "Extra Services template applied. Review, enable and save when ready."
+    )
+  }
+
   async function saveProperty() {
     if (!propertyName.trim()) {
       alert("Property name is required")
@@ -664,6 +735,13 @@ export default function PropertyPage() {
             transport,
             checkout_notes: checkoutNotes,
             extra_notes: extraNotes,
+          },
+          extra_services: {
+            enabled: extraServicesEnabled,
+            title: extraServicesTitle,
+            intro: extraServicesIntro,
+            services: extraServicesList,
+            host_note: extraServicesHostNote,
           },
           ai_training: {
             faq,
@@ -935,7 +1013,7 @@ export default function PropertyPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
             <StatusPill
               label="Guest Page"
               value={guestPageReady ? "Ready" : "Needs setup"}
@@ -958,6 +1036,12 @@ export default function PropertyPage() {
               label="AI Concierge"
               value={aiEnabled ? "ON" : "OFF"}
               active={aiReady}
+            />
+
+            <StatusPill
+              label="Extra Services"
+              value={extraServicesEnabled ? "ON" : "OFF"}
+              active={extraServicesReady}
             />
           </div>
         </section>
@@ -1567,6 +1651,132 @@ export default function PropertyPage() {
         </DashboardSection>
 
         <DashboardSection
+          title="Extra Services / Upselling"
+          subtitle="Optional guest-facing offers, partner services and upselling opportunities. Keep it disabled until you have real services to show."
+          icon="🛎️"
+        >
+          <div className="mb-6 bg-amber-50 border border-amber-100 rounded-3xl p-5">
+            <div className="font-bold text-amber-950 mb-2">
+              Optional revenue module
+            </div>
+
+            <p className="text-sm text-amber-900/70 leading-relaxed">
+              Use this section for future upselling: scooter rental, car rental,
+              airport transfers, tours, excursions, massages, private chef,
+              breakfast baskets, late checkout, luggage storage, beach clubs,
+              restaurant discounts or local partnerships.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid md:grid-cols-[1fr_auto] gap-4 items-stretch">
+              <button
+                type="button"
+                onClick={() =>
+                  setExtraServicesEnabled(!extraServicesEnabled)
+                }
+                className={`w-full rounded-3xl border px-6 py-5 text-left transition ${
+                  extraServicesEnabled
+                    ? "bg-black text-white border-black"
+                    : "bg-white text-gray-900 border-gray-200"
+                }`}
+              >
+                <div className="font-bold mb-1">
+                  Show Extra Services on Guest Page
+                </div>
+
+                <div
+                  className={`text-sm ${
+                    extraServicesEnabled
+                      ? "text-white/60"
+                      : "text-gray-500"
+                  }`}
+                >
+                  {extraServicesEnabled
+                    ? "Enabled — guests can see this module when content is available."
+                    : "Disabled — the module is saved but hidden from guests."}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={applyExtraServicesTemplate}
+                className="bg-[#f4f1eb] text-black border border-black/5 rounded-3xl px-6 py-5 font-semibold hover:bg-[#ebe6dd] transition"
+              >
+                Use Template
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Section Title
+              </label>
+              <input
+                value={extraServicesTitle}
+                onChange={(event) =>
+                  setExtraServicesTitle(event.target.value)
+                }
+                placeholder="Extra Services"
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Guest Intro
+              </label>
+              <textarea
+                value={extraServicesIntro}
+                onChange={(event) =>
+                  setExtraServicesIntro(event.target.value)
+                }
+                rows={3}
+                placeholder="Enhance your stay with selected local services and trusted partner recommendations."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Services / Offers
+              </label>
+              <textarea
+                value={extraServicesList}
+                onChange={(event) =>
+                  setExtraServicesList(event.target.value)
+                }
+                rows={8}
+                placeholder={
+                  "Airport transfer — Contact host for availability and price\nScooter rental — Local partner available on request\nBoat trip — Recommended seasonal excursion\nMassage at home — Available with advance booking"
+                }
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+              <div className="text-xs text-gray-400 mt-2">
+                Add one service per line or write a short formatted list.
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Internal Host Note
+              </label>
+              <textarea
+                value={extraServicesHostNote}
+                onChange={(event) =>
+                  setExtraServicesHostNote(event.target.value)
+                }
+                rows={4}
+                placeholder="Internal note: partner contacts, commission details, availability rules, prices to confirm manually..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+              <div className="text-xs text-gray-400 mt-2">
+                Internal note for the host. This should not be shown directly to guests.
+              </div>
+            </div>
+          </div>
+        </DashboardSection>
+
+        <DashboardSection
           title="AI Training"
           subtitle="Additional instructions used by the AI concierge."
           icon="🤖"
@@ -1696,6 +1906,11 @@ export default function PropertyPage() {
                 label: "Welcome Book",
                 value: welcomebookEnabled,
                 onChange: setWelcomebookEnabled,
+              },
+              {
+                label: "Extra Services",
+                value: extraServicesEnabled,
+                onChange: setExtraServicesEnabled,
               },
             ].map((item) => (
               <button
