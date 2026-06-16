@@ -98,6 +98,9 @@ const emptyKnowledgeBase: KnowledgeBase = {
   },
 }
 
+const malteseMaisonetteHeroImage =
+  "/guest-images/maltese-maisonette-hero-bedroom.jpg"
+
 function createSlug(value: string) {
   return value
     .toLowerCase()
@@ -196,20 +199,26 @@ export default function PropertyPage() {
     return `/guest/${finalSlug}`
   }, [finalSlug])
 
+  const isMalteseMaisonette = useMemo(() => {
+    return (
+      finalSlug.includes("maltese-maisonette") ||
+      propertyName
+        .toLowerCase()
+        .includes("maltese maisonette")
+    )
+  }, [finalSlug, propertyName])
+
   const heroPreviewImage = useMemo(() => {
     if (heroImageUrl.trim()) {
       return heroImageUrl.trim()
     }
 
-    if (
-      finalSlug.includes("maltese-maisonette") ||
-      propertyName.toLowerCase().includes("maltese maisonette")
-    ) {
-      return "/guest-images/maltese-maisonette-hero-bedroom.jpg"
+    if (isMalteseMaisonette) {
+      return malteseMaisonetteHeroImage
     }
 
     return ""
-  }, [heroImageUrl, finalSlug, propertyName])
+  }, [heroImageUrl, isMalteseMaisonette])
 
   const heroPreviewTitle = useMemo(() => {
     return (
@@ -401,6 +410,70 @@ export default function PropertyPage() {
       console.error("COPY GUEST URL ERROR:", error)
       alert("Unable to copy guest page URL")
     }
+  }
+
+  function applyDefaultHeroImage() {
+    setHeroImageUrl(malteseMaisonetteHeroImage)
+    setSaveMessage(
+      "Default hero image applied. Review and save when ready."
+    )
+  }
+
+  function applyPremiumGuestCopy() {
+    const cleanName = propertyName.trim() || "Your Stay"
+    const cleanCity = city.trim() || "the local area"
+
+    setHeroTitle(`Welcome to ${cleanName}`)
+
+    setHeroIntro(
+      `A warm, comfortable and thoughtfully prepared stay in ${cleanCity}, designed to make your visit simple, relaxed and memorable.`
+    )
+
+    setAboutTitle("About this stay")
+
+    setAboutIntro(
+      "A private and comfortable space designed to help you feel at home from the moment you arrive."
+    )
+
+    setAboutDescription(
+      `This property offers a practical and welcoming base for your stay in ${cleanCity}. Inside, guests will find the essential comforts needed for a smooth visit, including a comfortable sleeping area, useful home amenities, WiFi, practical arrival information and local tips available through the digital guest page. The space is designed to be easy to use, easy to settle into and convenient for guests who want a simple, independent and well-supported stay.`
+    )
+
+    setAboutHighlights(
+      "Private guest space\nComfortable stay experience\nWiFi and practical essentials\nLocal tips and AI Concierge support"
+    )
+
+    setSaveMessage(
+      "Premium guest page copy applied. Review and save when ready."
+    )
+  }
+
+  function applyMalteseMaisonetteGuestCopy() {
+    setHeroTitle("Welcome to Maltese Maisonette")
+
+    setHeroIntro(
+      "A cozy Maltese maisonette in central Sliema, designed for a simple, comfortable and authentic stay by the sea."
+    )
+
+    setHeroImageUrl(malteseMaisonetteHeroImage)
+
+    setAboutTitle("About this stay")
+
+    setAboutIntro(
+      "This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself."
+    )
+
+    setAboutDescription(
+      "Inside, you’ll find a queen-size bedroom with A/C, a living area with sofa, a fully equipped kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk for work or study, and a small outdoor space. The apartment is set on a quiet Maltese street in central Sliema, close to the promenade, cafés, shops, public transport, Balluta Bay and St Julian’s nightlife. It is ideal for guests who want a central location, practical comfort and an authentic local base while staying in Malta."
+    )
+
+    setAboutHighlights(
+      "Private one-bedroom maisonette\nCentral Sliema location\n100m from the promenade\nHigh-speed WiFi and desk\nKitchen and washing machine\nA/C in the bedroom"
+    )
+
+    setSaveMessage(
+      "Maltese Maisonette guest page copy applied. Review and save when ready."
+    )
   }
 
   async function saveProperty() {
@@ -622,7 +695,7 @@ export default function PropertyPage() {
                 className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
               />
               <div className="text-xs text-gray-400 mt-2">
-                Used for /guest/slug and QR links.
+                Used for /guest/slug, QR codes and NFC links.
               </div>
             </div>
 
@@ -670,9 +743,50 @@ export default function PropertyPage() {
 
         <DashboardSection
           title="Guest Page Experience"
-          subtitle="Control the first impression guests see when they scan the QR/NFC link. Keep the hero short and emotional, then use About This Stay for the richer apartment description."
+          subtitle="Create the premium guest-facing page shown after scanning the QR/NFC link. This is the first impression guests see before asking the AI Concierge."
           icon="✨"
         >
+          <div className="mb-6 grid md:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={applyPremiumGuestCopy}
+              className="bg-black text-white rounded-2xl px-5 py-4 font-semibold hover:opacity-90 transition"
+            >
+              ✨ Generate Premium Copy
+            </button>
+
+            <button
+              type="button"
+              onClick={applyMalteseMaisonetteGuestCopy}
+              className="bg-[#f4f1eb] text-black border border-black/5 rounded-2xl px-5 py-4 font-semibold hover:bg-[#ebe6dd] transition"
+            >
+              🏡 Use Maltese Maisonette Copy
+            </button>
+
+            <button
+              type="button"
+              onClick={applyDefaultHeroImage}
+              className="bg-white text-black border border-gray-200 rounded-2xl px-5 py-4 font-semibold hover:bg-gray-50 transition"
+            >
+              🖼️ Apply Default Image
+            </button>
+          </div>
+
+          <div className="mb-8 bg-amber-50 border border-amber-100 rounded-3xl p-5">
+            <div className="font-bold text-amber-950 mb-2">
+              Guest page setup
+            </div>
+
+            <p className="text-sm text-amber-900/70 leading-relaxed">
+              Use the quick actions to create a strong first draft, then review the text and save.
+              The guest page URL can be used for QR codes, NFC tags, printed welcome cards and guest messages.
+            </p>
+
+            <div className="mt-3 text-xs text-amber-900/60 break-all">
+              Recommended local hero path: {malteseMaisonetteHeroImage}
+            </div>
+          </div>
+
           <div className="grid lg:grid-cols-[1fr_0.95fr] gap-8">
             <div>
               <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -702,7 +816,7 @@ export default function PropertyPage() {
                     onChange={(event) =>
                       setHeroImageUrl(event.target.value)
                     }
-                    placeholder="/guest-images/maltese-maisonette-hero-bedroom.jpg"
+                    placeholder={malteseMaisonetteHeroImage}
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black"
                   />
                   <div className="text-xs text-gray-400 mt-2">
@@ -788,11 +902,13 @@ export default function PropertyPage() {
                       setAboutHighlights(event.target.value)
                     }
                     rows={5}
-                    placeholder={"Private one-bedroom maisonette\nCentral Sliema location\nHigh-speed WiFi and desk\nKitchen and washing machine"}
+                    placeholder={
+                      "Private one-bedroom maisonette\nCentral Sliema location\nHigh-speed WiFi and desk\nKitchen and washing machine"
+                    }
                     className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 text-gray-900 outline-none focus:ring-2 focus:ring-black resize-none"
                   />
                   <div className="text-xs text-gray-400 mt-2">
-                    Add one highlight per line.
+                    Add one highlight per line. The preview shows the first four.
                   </div>
                 </div>
               </div>
@@ -819,7 +935,7 @@ export default function PropertyPage() {
                     <div>
                       <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs text-white/90 mb-4 backdrop-blur-md">
                         <span>✨</span>
-                        <span>Preview</span>
+                        <span>Live Preview</span>
                       </div>
 
                       <div className="uppercase tracking-[0.25em] text-[10px] text-white/60 mb-3">
