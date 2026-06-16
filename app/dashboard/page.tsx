@@ -97,6 +97,9 @@ type Property = {
   knowledge_base?: StoredKnowledgeBase | null;
 };
 
+const malteseMaisonetteHeroImage =
+  "/guest-images/maltese-maisonette-hero-bedroom.jpg";
+
 function createEmptyKnowledgeBase(): KnowledgeBase {
   return {
     guest_page: {
@@ -166,6 +169,13 @@ function safeString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function splitHighlights(value: string) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function mergeKnowledgeBase(property: Property): KnowledgeBase {
   const empty = createEmptyKnowledgeBase();
 
@@ -188,25 +198,18 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
       hero_title:
         savedGuestPage.hero_title ||
         safeString(property.property_name),
-      hero_intro:
-        savedGuestPage.hero_intro ||
-        "",
+      hero_intro: savedGuestPage.hero_intro || "",
       hero_image_url:
-        savedGuestPage.hero_image_url ||
-        "",
+        savedGuestPage.hero_image_url || "",
       about_title:
-        savedGuestPage.about_title ||
-        "About this stay",
-      about_intro:
-        savedGuestPage.about_intro ||
-        "",
+        savedGuestPage.about_title || "About this stay",
+      about_intro: savedGuestPage.about_intro || "",
       about_description:
         savedGuestPage.about_description ||
         safeString(savedWelcome.description) ||
         safeString(property.description),
       about_highlights:
-        savedGuestPage.about_highlights ||
-        "",
+        savedGuestPage.about_highlights || "",
     },
 
     welcome_book: {
@@ -249,9 +252,7 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
     ai_training: {
       ...empty.ai_training,
       ...savedAi,
-      faq:
-        savedAi.faq ||
-        safeString(property.ai_knowledge),
+      faq: savedAi.faq || safeString(property.ai_knowledge),
     },
   };
 }
@@ -303,20 +304,16 @@ function SectionHeader({
 }
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] =
-    useState("general");
+  const [activeTab, setActiveTab] = useState("general");
 
   const [properties, setProperties] =
     useState<Property[]>([]);
 
-  const [selectedSlug, setSelectedSlug] =
-    useState("");
+  const [selectedSlug, setSelectedSlug] = useState("");
 
-  const [propertyName, setPropertyName] =
-    useState("");
+  const [propertyName, setPropertyName] = useState("");
 
-  const [newProperty, setNewProperty] =
-    useState("");
+  const [newProperty, setNewProperty] = useState("");
 
   const [isNewProperty, setIsNewProperty] =
     useState(false);
@@ -324,35 +321,25 @@ export default function Dashboard() {
   const [loadingProperties, setLoadingProperties] =
     useState(true);
 
-  const [saving, setSaving] =
-    useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [city, setCity] =
-    useState("");
+  const [city, setCity] = useState("");
 
-  const [country, setCountry] =
-    useState("");
+  const [country, setCountry] = useState("");
 
-  const [address, setAddress] =
-    useState("");
+  const [address, setAddress] = useState("");
 
-  const [wifiName, setWifiName] =
-    useState("");
+  const [wifiName, setWifiName] = useState("");
 
-  const [wifiPassword, setWifiPassword] =
-    useState("");
+  const [wifiPassword, setWifiPassword] = useState("");
 
-  const [checkin, setCheckin] =
-    useState("");
+  const [checkin, setCheckin] = useState("");
 
-  const [checkout, setCheckout] =
-    useState("");
+  const [checkout, setCheckout] = useState("");
 
-  const [checkinNotes, setCheckinNotes] =
-    useState("");
+  const [checkinNotes, setCheckinNotes] = useState("");
 
-  const [lockboxCode, setLockboxCode] =
-    useState("");
+  const [lockboxCode, setLockboxCode] = useState("");
 
   const [emergencyNumbers, setEmergencyNumbers] =
     useState("");
@@ -360,8 +347,7 @@ export default function Dashboard() {
   const [knowledgeBase, setKnowledgeBase] =
     useState<KnowledgeBase>(createEmptyKnowledgeBase);
 
-  const [aiEnabled, setAiEnabled] =
-    useState(true);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   const [whatsappEnabled, setWhatsappEnabled] =
     useState(false);
@@ -378,6 +364,90 @@ export default function Dashboard() {
         (property.slug || property.id) === selectedSlug
     );
   }, [properties, selectedSlug]);
+
+  const guestPageUrl = useMemo(() => {
+    if (!selectedSlug) {
+      return "";
+    }
+
+    return `/guest/${selectedSlug}`;
+  }, [selectedSlug]);
+
+  const isMalteseMaisonette = useMemo(() => {
+    return (
+      selectedSlug.includes("maltese-maisonette") ||
+      propertyName
+        .toLowerCase()
+        .includes("maltese maisonette")
+    );
+  }, [selectedSlug, propertyName]);
+
+  const guestPage = knowledgeBase.guest_page;
+
+  const heroPreviewImage = useMemo(() => {
+    if (guestPage.hero_image_url.trim()) {
+      return guestPage.hero_image_url.trim();
+    }
+
+    if (isMalteseMaisonette) {
+      return malteseMaisonetteHeroImage;
+    }
+
+    return "";
+  }, [guestPage.hero_image_url, isMalteseMaisonette]);
+
+  const heroPreviewTitle = useMemo(() => {
+    return (
+      guestPage.hero_title.trim() ||
+      `Welcome to ${propertyName || "Your Stay"}`
+    );
+  }, [guestPage.hero_title, propertyName]);
+
+  const heroPreviewIntro = useMemo(() => {
+    return (
+      guestPage.hero_intro.trim() ||
+      "A comfortable private stay with everything you need in one place."
+    );
+  }, [guestPage.hero_intro]);
+
+  const aboutPreviewTitle = useMemo(() => {
+    return guestPage.about_title.trim() || "About this stay";
+  }, [guestPage.about_title]);
+
+  const aboutPreviewIntro = useMemo(() => {
+    return (
+      guestPage.about_intro.trim() ||
+      "A private stay designed to make your visit simple, comfortable and easy to manage."
+    );
+  }, [guestPage.about_intro]);
+
+  const aboutPreviewDescription = useMemo(() => {
+    return (
+      guestPage.about_description.trim() ||
+      knowledgeBase.welcome_book.description.trim() ||
+      "Add a warm, guest-friendly description of the apartment here."
+    );
+  }, [
+    guestPage.about_description,
+    knowledgeBase.welcome_book.description,
+  ]);
+
+  const aboutPreviewHighlights = useMemo(() => {
+    const items = splitHighlights(
+      guestPage.about_highlights
+    );
+
+    if (items.length > 0) {
+      return items;
+    }
+
+    return [
+      "Private guest space",
+      "Useful stay information",
+      "AI Concierge support",
+      "Local tips and essentials",
+    ];
+  }, [guestPage.about_highlights]);
 
   useEffect(() => {
     loadProperties();
@@ -529,6 +599,84 @@ export default function Dashboard() {
     }
   }
 
+  async function copyGuestUrl() {
+    if (!guestPageUrl) {
+      alert("Select a property first");
+      return;
+    }
+
+    const absoluteUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${guestPageUrl}`
+        : guestPageUrl;
+
+    try {
+      await navigator.clipboard.writeText(absoluteUrl);
+      alert("Guest page URL copied");
+    } catch (error) {
+      console.error("COPY GUEST URL ERROR:", error);
+      alert("Unable to copy guest page URL");
+    }
+  }
+
+  function applyDefaultHeroImage() {
+    updateGuestPage(
+      "hero_image_url",
+      malteseMaisonetteHeroImage
+    );
+
+    alert("Default hero image applied. Review and save when ready.");
+  }
+
+  function applyPremiumGuestCopy() {
+    const cleanName = propertyName.trim() || "Your Stay";
+    const cleanCity = city.trim() || "the local area";
+
+    setKnowledgeBase((current) => ({
+      ...current,
+      guest_page: {
+        ...current.guest_page,
+        hero_title: `Welcome to ${cleanName}`,
+        hero_intro: `A warm, comfortable and thoughtfully prepared stay in ${cleanCity}, designed to make your visit simple, relaxed and memorable.`,
+        hero_image_url:
+          current.guest_page.hero_image_url ||
+          (isMalteseMaisonette
+            ? malteseMaisonetteHeroImage
+            : ""),
+        about_title: "About this stay",
+        about_intro:
+          "A private and comfortable space designed to help you feel at home from the moment you arrive.",
+        about_description: `This property offers a practical and welcoming base for your stay in ${cleanCity}. Inside, guests will find the essential comforts needed for a smooth visit, including a comfortable sleeping area, useful home amenities, WiFi, practical arrival information and local tips available through the digital guest page. The space is designed to be easy to use, easy to settle into and convenient for guests who want a simple, independent and well-supported stay.`,
+        about_highlights:
+          "Private guest space\nComfortable stay experience\nWiFi and practical essentials\nLocal tips and AI Concierge support",
+      },
+    }));
+
+    alert("Premium guest page copy applied. Review and save when ready.");
+  }
+
+  function applyMalteseMaisonetteGuestCopy() {
+    setKnowledgeBase((current) => ({
+      ...current,
+      guest_page: {
+        ...current.guest_page,
+        hero_title: "Welcome to Maltese Maisonette",
+        hero_intro:
+          "A cozy Maltese maisonette in central Sliema, designed for a simple, comfortable and authentic stay by the sea.",
+        hero_image_url: malteseMaisonetteHeroImage,
+        about_title: "About this stay",
+        about_intro:
+          "This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself.",
+        about_description:
+          "Inside, you’ll find a queen-size bedroom with A/C, a living area with sofa, a fully equipped kitchen, a bathroom with shower and washing machine, high-speed WiFi, a desk for work or study, and a small outdoor space. The apartment is set on a quiet Maltese street in central Sliema, close to the promenade, cafés, shops, public transport, Balluta Bay and St Julian’s nightlife. It is ideal for guests who want a central location, practical comfort and an authentic local base while staying in Malta.",
+        about_highlights:
+          "Private one-bedroom maisonette\nCentral Sliema location\n100m from the promenade\nHigh-speed WiFi and desk\nKitchen and washing machine\nA/C in the bedroom",
+      },
+    }));
+
+    alert("Maltese Maisonette guest page copy applied. Review and save when ready.");
+  }
+
   async function save() {
     if (!propertyName.trim()) {
       alert("Property name is required");
@@ -601,8 +749,7 @@ export default function Dashboard() {
         );
       }
 
-      const savedProperty =
-        data.property as Property;
+      const savedProperty = data.property as Property;
 
       alert("Property saved successfully");
 
@@ -894,9 +1041,8 @@ export default function Dashboard() {
                       </div>
 
                       <div className="font-bold break-all">
-                        {selectedSlug
-                          ? `/guest/${selectedSlug}`
-                          : "Select a property first"}
+                        {guestPageUrl ||
+                          "Select a property first"}
                       </div>
                     </div>
 
@@ -911,154 +1057,341 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {selectedSlug && (
-                    <div className="mt-5">
-                      <a
-                        href={`/guest/${selectedSlug}`}
-                        target="_blank"
+                  {guestPageUrl && (
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={copyGuestUrl}
                         className="inline-flex bg-white text-black px-5 py-3 rounded-2xl font-semibold"
                       >
+                        Copy Guest URL
+                      </button>
+
+                      <a
+                        href={guestPageUrl}
+                        target="_blank"
+                        className="inline-flex bg-white/10 border border-white/10 text-white px-5 py-3 rounded-2xl font-semibold hover:bg-white/15"
+                      >
                         Open Guest Page
+                      </a>
+
+                      <a
+                        href="/dashboard/qr"
+                        className="inline-flex bg-white/10 border border-white/10 text-white px-5 py-3 rounded-2xl font-semibold hover:bg-white/15"
+                      >
+                        Manage QR/NFC
                       </a>
                     </div>
                   )}
                 </section>
 
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <SectionHeader
-                    icon="🖼️"
-                    title="Hero Section"
-                    description="This is the top section of the guest page. Keep it short, emotional and visual. Do not paste the full Airbnb description here."
-                  />
+                  <div className="mb-6 grid md:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={applyPremiumGuestCopy}
+                      className="bg-black text-white rounded-2xl px-5 py-4 font-semibold hover:opacity-90 transition"
+                    >
+                      ✨ Generate Premium Copy
+                    </button>
 
-                  <div className="grid md:grid-cols-2 gap-4 mb-5">
-                    <div>
-                      <FieldLabel
-                        title="Hero title"
-                        description="Main headline shown on the guest page. Usually the property name or a warmer welcome title."
-                      />
+                    <button
+                      type="button"
+                      onClick={applyMalteseMaisonetteGuestCopy}
+                      className="bg-[#f4f1eb] text-black border border-black/5 rounded-2xl px-5 py-4 font-semibold hover:bg-[#ebe6dd] transition"
+                    >
+                      🏡 Use Maltese Maisonette Copy
+                    </button>
 
-                      <input
-                        className="w-full border border-gray-200 rounded-2xl p-4"
-                        placeholder="Example: Welcome to Maltese Maisonette"
-                        value={knowledgeBase.guest_page.hero_title}
-                        onChange={(event) =>
-                          updateGuestPage(
-                            "hero_title",
-                            event.target.value
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <FieldLabel
-                        title="Hero image URL"
-                        description="Use a public image URL or a local image path such as /guest-images/maltese-maisonette-hero-bedroom.jpg"
-                      />
-
-                      <input
-                        className="w-full border border-gray-200 rounded-2xl p-4"
-                        placeholder="/guest-images/maltese-maisonette-hero-bedroom.jpg"
-                        value={knowledgeBase.guest_page.hero_image_url}
-                        onChange={(event) =>
-                          updateGuestPage(
-                            "hero_image_url",
-                            event.target.value
-                          )
-                        }
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={applyDefaultHeroImage}
+                      className="bg-white text-black border border-gray-200 rounded-2xl px-5 py-4 font-semibold hover:bg-gray-50 transition"
+                    >
+                      🖼️ Apply Default Image
+                    </button>
                   </div>
 
-                  <TextArea
-                    placeholder="Hero intro. Short emotional intro shown in the hero. Keep this around 1–2 lines."
-                    value={knowledgeBase.guest_page.hero_intro}
-                    onChange={(value) =>
-                      updateGuestPage("hero_intro", value)
-                    }
-                  />
-
-                  <div className="mt-6 bg-[#f4f1eb] rounded-[28px] p-5 border border-black/5">
-                    <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-3">
-                      Recommended style
+                  <div className="mb-8 bg-amber-50 border border-amber-100 rounded-3xl p-5">
+                    <div className="font-bold text-amber-950 mb-2">
+                      Guest page setup
                     </div>
 
-                    <p className="text-gray-600 leading-relaxed">
-                      Example: “A cozy Maltese maisonette in central
-                      Sliema, designed for a simple, comfortable and
-                      authentic stay by the sea.”
+                    <p className="text-sm text-amber-900/70 leading-relaxed">
+                      Use these quick actions to create a strong first draft,
+                      then review the text and save. The guest page URL can be
+                      used for QR codes, NFC tags, printed welcome cards and
+                      guest messages.
                     </p>
-                  </div>
-                </section>
 
-                <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                  <SectionHeader
-                    icon="🏡"
-                    title="About This Stay"
-                    description="This section sits below the hero and gives guests a richer, more complete description of the apartment without overloading the first screen."
-                  />
-
-                  <div className="mb-5">
-                    <FieldLabel
-                      title="Section title"
-                      description="Usually 'About this stay', but you can customize it."
-                    />
-
-                    <input
-                      className="w-full border border-gray-200 rounded-2xl p-4"
-                      placeholder="About this stay"
-                      value={knowledgeBase.guest_page.about_title}
-                      onChange={(event) =>
-                        updateGuestPage(
-                          "about_title",
-                          event.target.value
-                        )
-                      }
-                    />
+                    <div className="mt-3 text-xs text-amber-900/60 break-all">
+                      Recommended local hero path: {malteseMaisonetteHeroImage}
+                    </div>
                   </div>
 
-                  <TextArea
-                    placeholder="About intro. Short premium intro, 1–2 sentences. This should feel warm and emotional."
-                    value={knowledgeBase.guest_page.about_intro}
-                    onChange={(value) =>
-                      updateGuestPage("about_intro", value)
-                    }
-                  />
+                  <div className="grid lg:grid-cols-[1fr_0.95fr] gap-8">
+                    <div>
+                      <SectionHeader
+                        icon="🖼️"
+                        title="Hero Section"
+                        description="This is the top section of the guest page. Keep it short, emotional and visual. Do not paste the full Airbnb description here."
+                      />
 
-                  <TextArea
-                    placeholder="About description. Add the full guest-friendly apartment description. This can include bedroom, kitchen, WiFi, location, nearby promenade, cafés, transport and other practical details."
-                    value={knowledgeBase.guest_page.about_description}
-                    onChange={(value) =>
-                      updateGuestPage(
-                        "about_description",
-                        value
-                      )
-                    }
-                    large
-                  />
+                      <div className="grid md:grid-cols-2 gap-4 mb-5">
+                        <div>
+                          <FieldLabel
+                            title="Hero title"
+                            description="Main headline shown on the guest page. Usually the property name or a warmer welcome title."
+                          />
 
-                  <TextArea
-                    placeholder="Highlights. Add one highlight per line. These will be shown as short premium bullet points on the guest page."
-                    value={knowledgeBase.guest_page.about_highlights}
-                    onChange={(value) =>
-                      updateGuestPage(
-                        "about_highlights",
-                        value
-                      )
-                    }
-                  />
+                          <input
+                            className="w-full border border-gray-200 rounded-2xl p-4"
+                            placeholder="Example: Welcome to Maltese Maisonette"
+                            value={knowledgeBase.guest_page.hero_title}
+                            onChange={(event) =>
+                              updateGuestPage(
+                                "hero_title",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </div>
 
-                  <div className="mt-6 bg-[#f4f1eb] rounded-[28px] p-5 border border-black/5">
-                    <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-3">
-                      Suggested highlights
+                        <div>
+                          <FieldLabel
+                            title="Hero image URL"
+                            description="Use a public image URL or a local image path such as /guest-images/maltese-maisonette-hero-bedroom.jpg"
+                          />
+
+                          <input
+                            className="w-full border border-gray-200 rounded-2xl p-4"
+                            placeholder={malteseMaisonetteHeroImage}
+                            value={knowledgeBase.guest_page.hero_image_url}
+                            onChange={(event) =>
+                              updateGuestPage(
+                                "hero_image_url",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <TextArea
+                        placeholder="Hero intro. Short emotional intro shown in the hero. Keep this around 1–2 lines."
+                        value={knowledgeBase.guest_page.hero_intro}
+                        onChange={(value) =>
+                          updateGuestPage("hero_intro", value)
+                        }
+                      />
+
+                      <div className="border-t border-gray-200 pt-6 mt-8">
+                        <SectionHeader
+                          icon="🏡"
+                          title="About This Stay"
+                          description="This section sits below the hero and gives guests a richer, more complete description of the apartment without overloading the first screen."
+                        />
+
+                        <div className="mb-5">
+                          <FieldLabel
+                            title="Section title"
+                            description="Usually 'About this stay', but you can customize it."
+                          />
+
+                          <input
+                            className="w-full border border-gray-200 rounded-2xl p-4"
+                            placeholder="About this stay"
+                            value={knowledgeBase.guest_page.about_title}
+                            onChange={(event) =>
+                              updateGuestPage(
+                                "about_title",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <TextArea
+                          placeholder="About intro. Short premium intro, 1–2 sentences. This should feel warm and emotional."
+                          value={knowledgeBase.guest_page.about_intro}
+                          onChange={(value) =>
+                            updateGuestPage("about_intro", value)
+                          }
+                        />
+
+                        <TextArea
+                          placeholder="About description. Add the full guest-friendly apartment description. This can include bedroom, kitchen, WiFi, location, nearby promenade, cafés, transport and other practical details."
+                          value={
+                            knowledgeBase.guest_page.about_description
+                          }
+                          onChange={(value) =>
+                            updateGuestPage(
+                              "about_description",
+                              value
+                            )
+                          }
+                          large
+                        />
+
+                        <TextArea
+                          placeholder="Highlights. Add one highlight per line. These will be shown as short premium bullet points on the guest page."
+                          value={
+                            knowledgeBase.guest_page.about_highlights
+                          }
+                          onChange={(value) =>
+                            updateGuestPage(
+                              "about_highlights",
+                              value
+                            )
+                          }
+                        />
+
+                        <div className="mt-6 bg-[#f4f1eb] rounded-[28px] p-5 border border-black/5">
+                          <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-3">
+                            Suggested highlights
+                          </div>
+
+                          <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-600">
+                            <div>✓ Private one-bedroom maisonette</div>
+                            <div>✓ Central Sliema location</div>
+                            <div>✓ High-speed WiFi and desk</div>
+                            <div>✓ Kitchen and washing machine</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-600">
-                      <div>✓ Private one-bedroom maisonette</div>
-                      <div>✓ Central Sliema location</div>
-                      <div>✓ High-speed WiFi and desk</div>
-                      <div>✓ Kitchen and washing machine</div>
+                    <div className="lg:sticky lg:top-8 h-fit">
+                      <div className="rounded-[32px] overflow-hidden bg-black text-white shadow-2xl border border-black">
+                        <div className="relative min-h-[360px]">
+                          {heroPreviewImage ? (
+                            <div
+                              className="absolute inset-0 bg-cover bg-center"
+                              style={{
+                                backgroundImage: `url(${heroPreviewImage})`,
+                              }}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-black" />
+                          )}
+
+                          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-black/10" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-black/10" />
+
+                          <div className="relative p-6 min-h-[360px] flex flex-col justify-between">
+                            <div>
+                              <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs text-white/90 mb-4 backdrop-blur-md">
+                                <span>✨</span>
+                                <span>Live Preview</span>
+                              </div>
+
+                              <div className="uppercase tracking-[0.25em] text-[10px] text-white/60 mb-3">
+                                AI CO-HOST EXPERIENCE
+                              </div>
+
+                              <h3 className="text-3xl font-black leading-[0.95] mb-4 drop-shadow-xl">
+                                {heroPreviewTitle}
+                              </h3>
+
+                              <p className="text-white/85 text-sm leading-relaxed drop-shadow-xl">
+                                {heroPreviewIntro}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mt-6">
+                              {city && (
+                                <div className="bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs backdrop-blur-md">
+                                  📍 {city}
+                                  {country ? `, ${country}` : ""}
+                                </div>
+                              )}
+
+                              {checkin && (
+                                <div className="bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs backdrop-blur-md">
+                                  🔑 Check-in: {checkin}
+                                </div>
+                              )}
+
+                              {checkout && (
+                                <div className="bg-white/15 border border-white/20 rounded-full px-3 py-2 text-xs backdrop-blur-md">
+                                  🚪 Check-out: {checkout}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white text-black p-6">
+                          <div className="uppercase tracking-[0.25em] text-[10px] text-gray-400 mb-3">
+                            THE APARTMENT
+                          </div>
+
+                          <h3 className="text-2xl font-black mb-3">
+                            {aboutPreviewTitle}
+                          </h3>
+
+                          <p className="text-gray-800 leading-relaxed mb-4">
+                            {aboutPreviewIntro}
+                          </p>
+
+                          <p className="text-gray-500 text-sm leading-relaxed line-clamp-5 whitespace-pre-line">
+                            {aboutPreviewDescription}
+                          </p>
+
+                          <div className="mt-5 bg-[#f4f1eb] rounded-3xl p-4">
+                            <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-3">
+                              Highlights
+                            </div>
+
+                            <div className="space-y-2">
+                              {aboutPreviewHighlights
+                                .slice(0, 4)
+                                .map((item) => (
+                                  <div
+                                    key={item}
+                                    className="bg-white rounded-2xl px-3 py-3 text-sm font-bold flex items-center gap-2"
+                                  >
+                                    <span>✓</span>
+                                    <span>{item}</span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 mt-5">
+                            <button
+                              type="button"
+                              onClick={copyGuestUrl}
+                              className="bg-black text-white rounded-2xl px-4 py-3 text-sm font-semibold"
+                            >
+                              Copy URL
+                            </button>
+
+                            {guestPageUrl ? (
+                              <a
+                                href={guestPageUrl}
+                                target="_blank"
+                                className="bg-gray-100 text-black rounded-2xl px-4 py-3 text-sm font-semibold text-center"
+                              >
+                                Open Page
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled
+                                className="bg-gray-100 text-gray-400 rounded-2xl px-4 py-3 text-sm font-semibold"
+                              >
+                                Open Page
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="mt-4 text-xs text-gray-400 break-all">
+                            {guestPageUrl ||
+                              "Guest page URL not available yet."}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </section>
@@ -1172,6 +1505,14 @@ export default function Dashboard() {
                       >
                         Open Guest Page
                       </a>
+
+                      <button
+                        type="button"
+                        onClick={copyGuestUrl}
+                        className="bg-gray-100 hover:bg-gray-200 px-5 py-3 rounded-2xl text-sm font-semibold"
+                      >
+                        Copy Guest URL
+                      </button>
 
                       <a
                         href="/dashboard/qr"
@@ -1913,9 +2254,7 @@ function TextArea({
         }`}
         placeholder="Write the details here..."
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value)
-        }
+        onChange={(event) => onChange(event.target.value)}
       />
     </div>
   );
