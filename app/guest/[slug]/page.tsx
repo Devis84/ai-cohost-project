@@ -40,6 +40,14 @@ type WelcomeBook = {
   extra_notes?: string;
 };
 
+type ExtraServices = {
+  enabled?: boolean;
+  title?: string;
+  intro?: string;
+  services?: string;
+  host_note?: string;
+};
+
 type AiTraining = {
   faq?: string;
   troubleshooting?: string;
@@ -51,6 +59,7 @@ type AiTraining = {
 type KnowledgeBase = {
   guest_page?: GuestPageContent;
   welcome_book?: WelcomeBook;
+  extra_services?: ExtraServices;
   ai_training?: AiTraining;
 };
 
@@ -112,6 +121,10 @@ function getGuestPage(property?: Property | null): GuestPageContent {
 
 function getWelcomeBook(property?: Property | null): WelcomeBook {
   return property?.knowledge_base?.welcome_book || {};
+}
+
+function getExtraServices(property?: Property | null): ExtraServices {
+  return property?.knowledge_base?.extra_services || {};
 }
 
 function getPhoneHref(value?: string | null) {
@@ -225,6 +238,13 @@ function getHeroDescription(
 }
 
 function splitHighlights(value?: string | null) {
+  return safeText(value)
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function splitServiceLines(value?: string | null) {
   return safeText(value)
     .split("\n")
     .map((item) => item.trim())
@@ -478,6 +498,10 @@ export default function GuestPage() {
     return getWelcomeBook(property);
   }, [property]);
 
+  const extraServices = useMemo(() => {
+    return getExtraServices(property);
+  }, [property]);
+
   const locationText = useMemo(() => {
     const city = safeText(property?.city);
     const country = safeText(property?.country);
@@ -569,6 +593,26 @@ export default function GuestPage() {
 
   const beachTowels =
     safeText(welcomeBook.beach_towels);
+
+  const extraServicesTitle =
+    safeText(extraServices.title) || "Extra Services";
+
+  const extraServicesIntro =
+    safeText(extraServices.intro);
+
+  const extraServicesList =
+    safeText(extraServices.services);
+
+  const extraServiceItems =
+    splitServiceLines(extraServicesList);
+
+  const hasExtraServices =
+    Boolean(
+      extraServices.enabled &&
+        (extraServicesTitle ||
+          extraServicesIntro ||
+          extraServiceItems.length > 0)
+    );
 
   const hasStayEssentials =
     Boolean(
@@ -809,6 +853,15 @@ export default function GuestPage() {
                   >
                     Stay Guide
                   </a>
+
+                  {hasExtraServices && (
+                    <a
+                      href="#extra-services"
+                      className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
+                    >
+                      Extra Services
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -856,10 +909,14 @@ export default function GuestPage() {
             />
 
             <QuickAction
-              href="#welcome-book"
-              icon="📘"
-              title="Stay Guide"
-              subtitle="Rules, tips and services"
+              href={hasExtraServices ? "#extra-services" : "#welcome-book"}
+              icon={hasExtraServices ? "🛎️" : "📘"}
+              title={hasExtraServices ? "Extras" : "Stay Guide"}
+              subtitle={
+                hasExtraServices
+                  ? "Services and offers"
+                  : "Rules, tips and services"
+              }
             />
 
             <QuickAction
@@ -905,10 +962,14 @@ export default function GuestPage() {
             />
 
             <EssentialCard
-              icon="🚨"
-              title="Need urgent help?"
-              description="Use the emergency section or contact the host when available."
-              href="#help"
+              icon={hasExtraServices ? "🛎️" : "🚨"}
+              title={hasExtraServices ? "Explore extra services" : "Need urgent help?"}
+              description={
+                hasExtraServices
+                  ? "Optional local services, trusted partners and stay upgrades."
+                  : "Use the emergency section or contact the host when available."
+              }
+              href={hasExtraServices ? "#extra-services" : "#help"}
             />
           </div>
         </section>
@@ -1388,7 +1449,7 @@ export default function GuestPage() {
             )}
 
             {extraNotes && (
-              <SectionCard icon="✨" title="Extra Services & Notes">
+              <SectionCard icon="✨" title="Extra Notes">
                 {extraNotes}
               </SectionCard>
             )}
@@ -1403,6 +1464,86 @@ export default function GuestPage() {
               )}
           </div>
         </section>
+
+        {hasExtraServices && (
+          <section id="extra-services" className="space-y-6">
+            <div className="relative overflow-hidden bg-gradient-to-br from-zinc-950 via-black to-zinc-800 text-white rounded-[40px] p-6 md:p-8 shadow-2xl">
+              <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+              <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+
+              <div className="relative">
+                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs md:text-sm text-white/80 mb-5">
+                  <span>🛎️</span>
+                  <span>Optional stay upgrades</span>
+                </div>
+
+                <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-3">
+                  EXTRA SERVICES
+                </div>
+
+                <h2 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
+                  {extraServicesTitle}
+                </h2>
+
+                <p className="text-white/65 text-base md:text-lg max-w-3xl leading-relaxed">
+                  {extraServicesIntro ||
+                    "Enhance your stay with selected local services, partner recommendations and optional upgrades. Availability may vary, so please contact the host before booking."}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-6">
+              {extraServiceItems.length > 0 ? (
+                extraServiceItems.map((item) => (
+                  <SectionCard
+                    key={item}
+                    icon="✨"
+                    title={item.split("—")[0]?.trim() || "Extra Service"}
+                    tone="soft"
+                  >
+                    {item.includes("—")
+                      ? item.split("—").slice(1).join("—").trim()
+                      : item}
+                  </SectionCard>
+                ))
+              ) : (
+                <SectionCard icon="✨" title="Extra Services" tone="soft">
+                  Optional local services and stay upgrades may be available on request. Please contact the host for details.
+                </SectionCard>
+              )}
+            </div>
+
+            <div className="bg-white rounded-[36px] p-6 md:p-7 shadow-xl border border-black/5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              <div>
+                <h3 className="text-2xl font-black mb-2">
+                  Interested in one of these services?
+                </h3>
+
+                <p className="text-gray-500 leading-relaxed">
+                  Ask the AI Concierge or contact the host to confirm availability, price and booking details.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="#ai-concierge"
+                  className="bg-black text-white rounded-2xl px-5 py-3 font-semibold"
+                >
+                  Ask AI
+                </a>
+
+                {hostPhoneHref && (
+                  <a
+                    href={hostPhoneHref}
+                    className="bg-white border border-gray-200 text-black rounded-2xl px-5 py-3 font-semibold"
+                  >
+                    Contact Host
+                  </a>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {hasLocalGuide && (
           <section className="space-y-6">
@@ -1498,10 +1639,10 @@ export default function GuestPage() {
           </a>
 
           <a
-            href="#welcome-book"
+            href={hasExtraServices ? "#extra-services" : "#welcome-book"}
             className="bg-white/10 rounded-2xl py-3 text-center text-sm font-semibold"
           >
-            Guide
+            {hasExtraServices ? "Extras" : "Guide"}
           </a>
         </div>
       </div>
