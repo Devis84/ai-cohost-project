@@ -303,6 +303,95 @@ function SectionHeader({
   );
 }
 
+function CommandCard({
+  icon,
+  title,
+  description,
+  href,
+  onClick,
+  dark = false,
+  disabled = false,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  href?: string;
+  onClick?: () => void;
+  dark?: boolean;
+  disabled?: boolean;
+}) {
+  const className = `block w-full text-left rounded-3xl p-5 transition border ${
+    dark
+      ? "bg-black text-white border-black hover:opacity-90"
+      : "bg-white text-gray-950 border-gray-200 hover:border-black/20 hover:shadow-lg"
+  } ${disabled ? "opacity-50 pointer-events-none" : ""}`;
+
+  const content = (
+    <>
+      <div className="text-3xl mb-4">{icon}</div>
+
+      <div className="font-black text-lg mb-2">
+        {title}
+      </div>
+
+      <div
+        className={`text-sm leading-relaxed ${
+          dark ? "text-white/60" : "text-gray-500"
+        }`}
+      >
+        {description}
+      </div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a href={href} className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+    >
+      {content}
+    </button>
+  );
+}
+
+function StatusPill({
+  label,
+  value,
+  active,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-3xl p-4 border ${
+        active
+          ? "bg-green-50 border-green-100 text-green-800"
+          : "bg-gray-50 border-gray-100 text-gray-500"
+      }`}
+    >
+      <div className="text-xs uppercase tracking-[0.2em] mb-2 opacity-60">
+        {label}
+      </div>
+
+      <div className="text-xl font-black">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("general");
 
@@ -448,6 +537,38 @@ export default function Dashboard() {
       "Local tips and essentials",
     ];
   }, [guestPage.about_highlights]);
+
+  const commandGuestPageReady = Boolean(
+    guestPageUrl &&
+      heroPreviewTitle.trim() &&
+      aboutPreviewDescription.trim()
+  );
+
+  const commandWelcomeReady = Boolean(
+    welcomebookEnabled &&
+      (knowledgeBase.welcome_book.description.trim() ||
+        knowledgeBase.welcome_book.house_rules.trim() ||
+        knowledgeBase.welcome_book.checkout_notes.trim())
+  );
+
+  const commandAiReady = Boolean(
+    aiEnabled &&
+      (knowledgeBase.ai_training.faq.trim() ||
+        knowledgeBase.ai_training.troubleshooting.trim() ||
+        knowledgeBase.ai_training.escalation_rules.trim())
+  );
+
+  const commandAccessReady = Boolean(
+    wifiName.trim() ||
+      wifiPassword.trim() ||
+      checkin.trim() ||
+      checkout.trim() ||
+      checkinNotes.trim()
+  );
+
+  const commandLocationLabel = [city, country]
+    .filter(Boolean)
+    .join(", ");
 
   useEffect(() => {
     loadProperties();
@@ -910,6 +1031,156 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 pb-32">
+        <section className="bg-white rounded-[32px] p-6 md:p-7 shadow-xl border border-black/5 mb-8">
+          <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6 mb-7">
+            <div>
+              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+                AI CO-HOST COMMAND CENTER
+              </div>
+
+              <h2 className="text-3xl font-black text-gray-950 mb-3">
+                Today’s Host Control Panel
+              </h2>
+
+              <p className="text-gray-500 max-w-2xl leading-relaxed">
+                Fast access to the most important operational areas for the selected property: guest page, QR/NFC, inbox, issues, notifications and cleaning.
+              </p>
+            </div>
+
+            <div className="bg-black text-white rounded-3xl p-5 min-w-full xl:min-w-[320px]">
+              <div className="text-white/50 text-xs uppercase tracking-[0.25em] mb-3">
+                Selected Property
+              </div>
+
+              <div className="text-2xl font-black leading-tight">
+                {propertyName || "No property selected"}
+              </div>
+
+              <div className="text-white/50 text-sm mt-2">
+                {commandLocationLabel || "Location not set"}
+              </div>
+
+              {guestPageUrl && (
+                <div className="text-white/40 text-xs mt-4 break-all">
+                  {guestPageUrl}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-7">
+            <CommandCard
+              icon="✨"
+              title="Open Guest Page"
+              description="Preview the guest-facing experience exactly as guests will see it from QR/NFC."
+              href={guestPageUrl || undefined}
+              dark
+              disabled={!guestPageUrl}
+            />
+
+            <CommandCard
+              icon="📲"
+              title="QR / NFC"
+              description="Manage guest access QR codes and NFC-ready links for the selected property."
+              href="/dashboard/qr"
+            />
+
+            <CommandCard
+              icon="💬"
+              title="Inbox"
+              description="Review guest conversations, AI replies and messages that may need host attention."
+              href="/dashboard/inbox"
+            />
+
+            <CommandCard
+              icon="🚨"
+              title="Issues"
+              description="Open the guest problem center and check escalations, complaints and access problems."
+              href="/dashboard/issues"
+            />
+
+            <CommandCard
+              icon="🔔"
+              title="Notifications"
+              description="Monitor high-priority alerts, unread items and AI operational notifications."
+              href="/dashboard/notifications"
+            />
+
+            <CommandCard
+              icon="🧹"
+              title="Cleaning"
+              description="Manage turnovers, cleaner assignments, checklist progress and payment estimates."
+              href="/dashboard/cleaning"
+            />
+
+            <CommandCard
+              icon="📶"
+              title="Copy Wi-Fi"
+              description="Copy the current Wi-Fi network and password for quick guest support."
+              onClick={copyWifi}
+              disabled={!wifiName && !wifiPassword}
+            />
+
+            <CommandCard
+              icon="🔗"
+              title="Copy Guest URL"
+              description="Copy the selected property guest page URL for Airbnb messages, QR or NFC setup."
+              onClick={copyGuestUrl}
+              disabled={!guestPageUrl}
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-7">
+            <StatusPill
+              label="AI Concierge"
+              value={aiEnabled ? "ON" : "OFF"}
+              active={commandAiReady}
+            />
+
+            <StatusPill
+              label="Guest Page"
+              value={commandGuestPageReady ? "Ready" : "Needs setup"}
+              active={commandGuestPageReady}
+            />
+
+            <StatusPill
+              label="Welcome Book"
+              value={commandWelcomeReady ? "Ready" : "Needs content"}
+              active={commandWelcomeReady}
+            />
+
+            <StatusPill
+              label="Access Info"
+              value={commandAccessReady ? "Configured" : "Incomplete"}
+              active={commandAccessReady}
+            />
+          </div>
+
+          <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
+            <div className="font-black text-gray-950 mb-3">
+              What to check today
+            </div>
+
+            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm text-gray-700">
+              <div className="bg-white rounded-2xl p-4">
+                {commandGuestPageReady ? "✅" : "⚠️"} Guest page content
+              </div>
+
+              <div className="bg-white rounded-2xl p-4">
+                {commandAccessReady ? "✅" : "⚠️"} Wi-Fi and access info
+              </div>
+
+              <div className="bg-white rounded-2xl p-4">
+                {commandAiReady ? "✅" : "⚠️"} AI training and escalation rules
+              </div>
+
+              <div className="bg-white rounded-2xl p-4">
+                🧹 Cleaning and turnover tasks
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="grid lg:grid-cols-[280px_1fr] gap-8">
           <aside className="space-y-3">
             <button
