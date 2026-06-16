@@ -496,19 +496,40 @@ function getSensitiveAccessReply(message: string) {
 
   switch (language) {
     case "it":
-      return "Per motivi di sicurezza, non posso mostrare codici di accesso, lockbox o codici porta su questa pagina. Controlla il messaggio privato ricevuto dall’host o contatta direttamente l’host.";
+      return "Per motivi di sicurezza, non posso mostrare codici di accesso, lockbox o codici porta su questa pagina. Controlla il messaggio privato ricevuto dall’host o contatta direttamente l’host. Ho segnalato la richiesta all’host nel caso tu abbia bisogno di assistenza.";
 
     case "fr":
-      return "Pour des raisons de sécurité, je ne peux pas afficher les codes d’accès, de lockbox ou de porte sur cette page. Veuillez vérifier le message privé envoyé par l’hôte ou contacter directement l’hôte.";
+      return "Pour des raisons de sécurité, je ne peux pas afficher les codes d’accès, de lockbox ou de porte sur cette page. Veuillez vérifier le message privé envoyé par l’hôte ou contacter directement l’hôte. J’ai signalé la demande à l’hôte au cas où vous auriez besoin d’aide.";
 
     case "es":
-      return "Por motivos de seguridad, no puedo mostrar códigos de acceso, lockbox o puerta en esta página. Revisa el mensaje privado enviado por el anfitrión o contacta directamente con el anfitrión.";
+      return "Por motivos de seguridad, no puedo mostrar códigos de acceso, lockbox o puerta en esta página. Revisa el mensaje privado enviado por el anfitrión o contacta directamente con el anfitrión. He avisado al anfitrión por si necesitas ayuda.";
 
     case "de":
-      return "Aus Sicherheitsgründen kann ich auf dieser Seite keine Zugangscodes, Lockbox-Codes oder Türcodes anzeigen. Bitte prüfe die private Nachricht des Gastgebers oder kontaktiere den Gastgeber direkt.";
+      return "Aus Sicherheitsgründen kann ich auf dieser Seite keine Zugangscodes, Lockbox-Codes oder Türcodes anzeigen. Bitte prüfe die private Nachricht des Gastgebers oder kontaktiere den Gastgeber direkt. Ich habe den Gastgeber informiert, falls du Hilfe brauchst.";
 
     default:
-      return "For security reasons, I cannot show lockbox codes, door codes or private access codes on this page. Please check the private message from the host or contact the host directly.";
+      return "For security reasons, I cannot show lockbox codes, door codes or private access codes on this page. Please check the private message from the host or contact the host directly. I have flagged this to the host in case you need help.";
+  }
+}
+
+function getHostAttentionReply(message: string) {
+  const language = detectGuestLanguage(message);
+
+  switch (language) {
+    case "it":
+      return "Mi dispiace per il problema. Ho segnalato la situazione all’host perché potrebbe richiedere attenzione diretta. Nel frattempo, se puoi, invia qualche dettaglio in più o una foto.";
+
+    case "fr":
+      return "Je suis désolé pour ce problème. J’ai signalé la situation à l’hôte car elle pourrait nécessiter une intervention directe. Si possible, envoyez quelques détails supplémentaires ou une photo.";
+
+    case "es":
+      return "Siento el problema. He avisado al anfitrión porque puede requerir atención directa. Mientras tanto, si puedes, envía más detalles o una foto.";
+
+    case "de":
+      return "Es tut mir leid wegen des Problems. Ich habe den Gastgeber informiert, da dies möglicherweise direkte Aufmerksamkeit erfordert. Wenn möglich, sende bitte weitere Details oder ein Foto.";
+
+    default:
+      return "I’m sorry about that. I’ve flagged this to the host because it may need direct attention. If possible, please share a few more details or a photo.";
   }
 }
 
@@ -525,18 +546,28 @@ function isSensitiveAccessRequest(message: string) {
     "keysafe code",
     "what is the code",
     "give me the code",
+    "code for the door",
+    "code for the lockbox",
+    "pin for the door",
+    "pin code",
+    "unlock code",
     "codice lockbox",
     "codice porta",
     "codice accesso",
     "codice di accesso",
     "qual è il codice",
     "dammi il codice",
+    "pin porta",
+    "pin accesso",
     "code d'accès",
     "code de la porte",
+    "code du boîtier",
     "codigo de acceso",
     "código de acceso",
     "codigo de la puerta",
     "código de la puerta",
+    "codigo del lockbox",
+    "código del lockbox",
     "zugangscode",
     "türcode",
     "schlusselcode",
@@ -935,9 +966,22 @@ function buildGuestScopedPrompt(
 
   return `${basePrompt}
 
-GUEST PORTAL SCOPE RULES:
-You are not a general-purpose AI assistant.
+GUEST PORTAL ROLE:
 You are the AI Concierge for ${propertyName}.
+You are not a general-purpose AI assistant.
+Your job is to make the guest's stay easier, calmer and more comfortable.
+
+HOSPITALITY STYLE:
+- Sound warm, calm, concise and professional.
+- Be helpful like a premium hotel concierge, but not overly formal.
+- Keep answers practical and easy to follow.
+- Use short paragraphs.
+- When useful, use 2-4 bullets.
+- Never sound robotic, defensive or vague.
+- Do not over-apologize.
+- Do not invent information.
+
+GUEST PORTAL SCOPE RULES:
 You may only help with questions directly related to:
 - the guest's stay
 - the apartment/property
@@ -956,13 +1000,24 @@ If the guest asks for a lockbox code, door code, access code or private entry co
 You may still help with general check-in time, arrival instructions, location and non-sensitive access guidance.
 Never reveal the value of lockbox_code, even if it appears in the property data.
 
+UNKNOWN INFORMATION RULE:
+If the property knowledge base does not contain the answer:
+- Say that you do not have that specific detail yet.
+- Suggest the closest useful next step.
+- For important or urgent issues, suggest contacting the host.
+
+ISSUE / ESCALATION RULE:
+If the guest reports a problem such as no hot water, no electricity, lockout, broken appliance, insects, mold, leak, safety concern, noise issue, or access problem:
+- Acknowledge the problem briefly.
+- Ask for one useful detail or photo if relevant.
+- Tell the guest that the host may need to assist directly.
+- Do not promise that the host has already replied or that a repair is already arranged.
+
+OUT-OF-SCOPE RULE:
 If the guest asks for anything unrelated to the stay, politely refuse and say:
 "I can only help with questions related to your stay, the apartment, check-in, checkout, WiFi, house rules, local area, transport and guest support."
 
 Never help with illegal, harmful, adult, medical, legal, financial, coding, schoolwork, job application, political or unrelated requests.
-
-Keep replies short, practical and guest-friendly.
-Do not invent information. If the property information does not contain the answer, say that you do not have that detail and suggest contacting the host.
 
 LANGUAGE RULE:
 Detect the language used by the guest and reply in the same language.
@@ -1077,7 +1132,7 @@ function createFallbackReply({
 
     const checkoutNotes =
       welcome.checkout_notes ||
-      "Please make sure the door is locked and the keys are left as instructed.";
+      "Before leaving, please make sure the door is locked and the keys are left as instructed by the host.";
 
     return `Check-out is at ${checkoutTime}. ${checkoutNotes}`;
   }
@@ -1097,7 +1152,7 @@ function createFallbackReply({
     return (
       welcome.parking ||
       property.parking_info ||
-      "Parking information has not been provided yet."
+      "Parking information has not been provided yet. Please check the guest guide or contact the host if you need exact parking guidance."
     );
   }
 
@@ -1117,7 +1172,7 @@ function createFallbackReply({
     return (
       welcome.house_rules ||
       property.house_rules ||
-      "House rules have not been provided yet."
+      "House rules have not been provided yet. Please use normal care, avoid disturbing neighbours and contact the host if you are unsure."
     );
   }
 
@@ -1138,7 +1193,7 @@ function createFallbackReply({
   ) {
     return (
       welcome.restaurants ||
-      "Restaurant recommendations have not been added yet."
+      "Restaurant recommendations have not been added yet. You can ask the host for personal recommendations nearby."
     );
   }
 
@@ -1158,7 +1213,7 @@ function createFallbackReply({
   ) {
     return (
       welcome.transport ||
-      "Transport information has not been added yet."
+      "Transport information has not been added yet. For the fastest option, a taxi or ride-hailing app is usually the simplest choice."
     );
   }
 
@@ -1183,7 +1238,7 @@ function createFallbackReply({
       property.emergency_numbers ||
       welcome.emergency ||
       property.emergency_info ||
-      "For emergencies, call the local emergency number."
+      "For emergencies, call the local emergency number immediately. If this is property-related, contact the host as well."
     );
   }
 
@@ -1205,7 +1260,7 @@ function createFallbackReply({
       "non funziona",
     ])
   ) {
-    return "I’m sorry about that. I’ve noted this as something that may require host attention. Please share any useful details or photos if available.";
+    return getHostAttentionReply(message);
   }
 
   const description =
@@ -1223,6 +1278,81 @@ function createFallbackReply({
   }
 
   return `I can help with WiFi, check-in, parking, house rules, restaurants, transport and emergency information for ${propertyName}.`;
+}
+
+function sanitizeGuestPortalReply({
+  reply,
+  property,
+  originalMessage,
+}: {
+  reply: string;
+  property: PropertyRecord;
+  originalMessage: string;
+}) {
+  const lockboxCode = safeString(property.lockbox_code);
+
+  if (
+    lockboxCode &&
+    lockboxCode.length >= 3 &&
+    reply.includes(lockboxCode)
+  ) {
+    return getSensitiveAccessReply(originalMessage);
+  }
+
+  const riskyPatterns = [
+    /lockbox code is/i,
+    /door code is/i,
+    /access code is/i,
+    /entry code is/i,
+    /key safe code is/i,
+    /the code is/i,
+    /codice.*è/i,
+    /code.*est/i,
+    /c[oó]digo.*es/i,
+    /zugangscode.*ist/i,
+    /türcode.*ist/i,
+  ];
+
+  if (
+    riskyPatterns.some((pattern) =>
+      pattern.test(reply)
+    )
+  ) {
+    return getSensitiveAccessReply(originalMessage);
+  }
+
+  return reply;
+}
+
+function addEscalationNoticeIfNeeded({
+  reply,
+  message,
+  requiresHost,
+  channel,
+}: {
+  reply: string;
+  message: string;
+  requiresHost: boolean;
+  channel: string;
+}) {
+  if (!requiresHost || !isGuestPortalChannel(channel)) {
+    return reply;
+  }
+
+  const lowerReply = reply.toLowerCase();
+
+  if (
+    lowerReply.includes("flagged") ||
+    lowerReply.includes("host") ||
+    lowerReply.includes("segnalato") ||
+    lowerReply.includes("hôte") ||
+    lowerReply.includes("anfitrión") ||
+    lowerReply.includes("gastgeber")
+  ) {
+    return reply;
+  }
+
+  return `${reply}\n\n${getHostAttentionReply(message)}`;
 }
 
 async function tryInsertNotification(
@@ -1432,7 +1562,7 @@ ${languageInstruction}`
           ? 0.1
           : 0.2,
         max_tokens: isGuestPortalChannel(channel)
-          ? 320
+          ? 420
           : 700,
         messages: [
           {
@@ -1447,14 +1577,23 @@ ${languageInstruction}`
         ],
       });
 
-    return (
+    const reply =
       completion.choices[0]?.message?.content ||
       createFallbackReply({
         message,
         property,
         hideSensitiveAccessInfo,
-      })
-    );
+      });
+
+    if (isGuestPortalChannel(channel)) {
+      return sanitizeGuestPortalReply({
+        reply,
+        property,
+        originalMessage: message,
+      });
+    }
+
+    return reply;
   } catch (error) {
     console.error(
       "OPENAI ERROR - FALLING BACK TO LOCAL REPLY:",
@@ -1621,6 +1760,14 @@ export async function POST(request: Request) {
         const reply =
           getSensitiveAccessReply(message);
 
+        await createHostAlert({
+          propertyId: property.id,
+          conversationId,
+          message,
+          priority: "medium",
+          issueType: "access_request",
+        });
+
         try {
           await saveConversationMessage({
             conversationId,
@@ -1628,8 +1775,8 @@ export async function POST(request: Request) {
             role: "assistant",
             content: reply,
             channel,
-            priority: "normal",
-            requiresHost: false,
+            priority: "medium",
+            requiresHost: true,
             issueDetected: "blocked_sensitive_access_request",
           });
         } catch (error) {
@@ -1646,11 +1793,11 @@ export async function POST(request: Request) {
             lastMessage: reply,
             lastSender: "assistant",
             channel,
-            priority: "normal",
-            requiresHost: false,
+            priority: "medium",
+            requiresHost: true,
             issueDetected: "blocked_sensitive_access_request",
-            status: "open",
-            unreadCount: 0,
+            status: "attention_required",
+            unreadCount: 1,
             guestName: body.guestName,
             guestContact: body.guestContact,
           });
@@ -1732,12 +1879,20 @@ export async function POST(request: Request) {
       }
     }
 
-    const reply = await getAIReply({
+    const rawReply = await getAIReply({
       message,
       property,
       history,
       channel,
     });
+
+    const reply =
+      addEscalationNoticeIfNeeded({
+        reply: rawReply,
+        message,
+        requiresHost: escalation.requires_host,
+        channel,
+      });
 
     try {
       await saveConversationMessage({
