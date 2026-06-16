@@ -1,7 +1,10 @@
  "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { supabase } from "@/lib/supabase/supabase"
+
+type InboxFilter = "all" | "attention" | "unread" | "issues"
 
 type InboxItem = {
   propertyId: string
@@ -68,6 +71,26 @@ function getRoleLabel(role?: string | null) {
   return "Guest"
 }
 
+function getConversationId(item: InboxItem) {
+  return item.conversationId || item.conversation_id || null
+}
+
+function getInboxKey(item: InboxItem) {
+  return `${item.propertyId}-${getConversationId(item) || "property"}`
+}
+
+function isAttentionItem(item: InboxItem) {
+  return (
+    item.priority === "high" ||
+    item.priority === "medium" ||
+    item.requires_host === true
+  )
+}
+
+function isIssueItem(item: InboxItem) {
+  return Boolean(item.issue_detected)
+}
+
 function PriorityBadge({
   priority,
   requiresHost,
@@ -108,14 +131,62 @@ function PriorityBadge({
   )
 }
 
+function FilterButton({
+  label,
+  value,
+  activeFilter,
+  onClick,
+  count,
+}: {
+  label: string
+  value: InboxFilter
+  activeFilter: InboxFilter
+  onClick: (value: InboxFilter) => void
+  count?: number
+}) {
+  const active = value === activeFilter
+
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(value)}
+      className={`rounded-2xl px-4 py-3 text-sm font-bold transition ${
+        active
+          ? "bg-black text-white"
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      {label}
+      {typeof count === "number" && (
+        <span
+          className={`ml-2 ${
+            active ? "text-white/60" : "text-gray-400"
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  )
+}
+
 export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [inbox, setInbox] = useState<InboxItem[]>([])
   const [messages, setMessages] = useState<ConversationMessage[]>([])
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null)
-  const [selectedPropertyName, setSelectedPropertyName] = useState("")
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
-  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [selectedPropertyId, setSelectedPropertyId] =
+    useState<string | null>(null)
+  const [selectedPropertyName, setSelectedPropertyName] =
+    useState("")
+  const [selectedConversationId, setSelectedConversationId] =
+    useState<string | null>(null)
+  const [selectedItem, setSelectedItem] =
+    useState<InboxItem | null>(null)
+  const [loadingMessages, setLoadingMessages] =
+    useState(false)
+  const [search, setSearch] = useState("")
+  const [filter, setFilter] =
+    useState<InboxFilter>("all")
 
   const unreadCount = useMemo(() => {
     return inbox.reduce((total, item) => {
@@ -124,10 +195,84 @@ export default function InboxPage() {
   }, [inbox])
 
   const priorityCount = useMemo(() => {
-    return inbox.filter((item) => {
-      return item.priority === "high" || item.requires_host
-    }).length
+    return inbox.filter((item) => isAttentionItem(item)).length
   }, [inbox])
+
+  const issueCount = useMemo(() => {
+    return inbox.filter((item) => isIssueItem(item)).length
+  }, [inbox])
+
+  const totalMessageCount = useMemo(() => {
+    return inbox.reduce((total, item) => {
+      return total + (item.message_count || 0)
+    }, 0)
+  }, [inbox])
+
+  const filteredInbox = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    return inbox.filter((item) => {
+      const matchesFilter =
+        filter === "all" ||
+        (filter === "attention" && isAttentionItem(item)) ||
+        (filter === "unread" && (item.unread_count || 0) > 0) ||
+        (filter === "issues" && isIssueItem(item))
+
+      if (!matchesFilter) {
+        return false
+      }
+
+      if (!normalizedSearch) {
+        return true
+      }
+
+      const searchableText = [
+        item.propertyName,
+        item.city,
+        item.lastMessage,
+        item.issue_detected,
+        item.priority,
+        item.status,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+
+      return searchableText.includes(normalizedSearch)
+    })
+  }, [inbox, filter, search])
+
+  const selectedConversationMessages = useMemo(() => {
+    const guestMessages = messages.filter((message) => {
+      return (
+        message.role === "user" ||
+        message.role === "guest" ||
+        !message.role
+      )
+    })
+
+    const aiMessages = messages.filter((message) => {
+      return (
+        message.role === "assistant" ||
+        message.role === "ai"
+      )
+    })
+
+    const issueMessages = messages.filter((message) => {
+      return (
+        message.issue_detected ||
+        message.requires_host ||
+        message.priority === "high" ||
+        message.priority === "medium"
+      )
+    })
+
+    return {
+      guestMessages: guestMessages.length,
+      aiMessages: aiMessages.length,
+      issueMessages: issueMessages.length,
+    }
+  }, [messages])
 
   async function fetchInbox() {
     try {
@@ -191,7 +336,9 @@ export default function InboxPage() {
     }
   }
 
-  async function markConversationAsRead(conversationId?: string | null) {
+  async function markConversationAsRead(
+    conversationId?: string | null
+  ) {
     if (!conversationId) return
 
     try {
@@ -207,8 +354,7 @@ export default function InboxPage() {
 
       setInbox((current) =>
         current.map((item) => {
-          const itemConversationId =
-            item.conversationId || item.conversation_id
+          const itemConversationId = getConversationId(item)
 
           if (itemConversationId === conversationId) {
             return {
@@ -226,12 +372,12 @@ export default function InboxPage() {
   }
 
   async function openConversation(item: InboxItem) {
-    const conversationId =
-      item.conversationId || item.conversation_id || null
+    const conversationId = getConversationId(item)
 
     setSelectedPropertyId(item.propertyId)
     setSelectedPropertyName(item.propertyName)
     setSelectedConversationId(conversationId)
+    setSelectedItem(item)
 
     await markConversationAsRead(conversationId)
 
@@ -298,26 +444,60 @@ export default function InboxPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
             <div>
               <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
-                AI CO-HOST
+                AI CO-HOST CONTROL CENTER
               </div>
 
               <h1 className="text-4xl font-bold mb-4">
-                Host Inbox
+                Guest Inbox
               </h1>
 
               <p className="text-white/60 max-w-2xl leading-relaxed">
-                Monitor guest conversations, review AI interactions and detect issues that may need host attention.
+                Monitor guest conversations, review AI interactions,
+                detect issues and keep control when a guest needs human attention.
               </p>
+
+              <div className="flex flex-wrap gap-3 mt-6">
+                <Link
+                  href="/dashboard"
+                  className="bg-white text-black rounded-2xl px-5 py-3 text-sm font-semibold"
+                >
+                  Back to Dashboard
+                </Link>
+
+                <Link
+                  href="/dashboard/issues"
+                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                >
+                  Issues
+                </Link>
+
+                <Link
+                  href="/dashboard/qr"
+                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                >
+                  QR/NFC
+                </Link>
+              </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 lg:min-w-[480px]">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:min-w-[620px]">
               <div className="bg-white/10 border border-white/10 rounded-3xl p-5 backdrop-blur-xl">
                 <div className="text-white/50 text-sm mb-2">
-                  Properties
+                  Threads
                 </div>
 
                 <div className="text-4xl font-bold">
                   {inbox.length}
+                </div>
+              </div>
+
+              <div className="bg-white/10 border border-white/10 rounded-3xl p-5 backdrop-blur-xl">
+                <div className="text-white/50 text-sm mb-2">
+                  Messages
+                </div>
+
+                <div className="text-4xl font-bold">
+                  {totalMessageCount}
                 </div>
               </div>
 
@@ -333,7 +513,7 @@ export default function InboxPage() {
 
               <div className="bg-white/10 border border-white/10 rounded-3xl p-5 backdrop-blur-xl">
                 <div className="text-white/50 text-sm mb-2">
-                  Needs Attention
+                  Attention
                 </div>
 
                 <div className="text-4xl font-bold">
@@ -344,19 +524,62 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[420px_1fr] gap-6">
+        <div className="grid xl:grid-cols-[430px_1fr] gap-6">
           <div className="bg-white rounded-[32px] shadow-xl border border-black/5 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-2xl font-bold">
-                Conversations
-              </h2>
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <h2 className="text-2xl font-bold">
+                  Conversations
+                </h2>
 
-              <button
-                onClick={fetchInbox}
-                className="bg-black text-white rounded-2xl px-4 py-2 text-sm font-semibold"
-              >
-                Refresh
-              </button>
+                <button
+                  onClick={fetchInbox}
+                  className="bg-black text-white rounded-2xl px-4 py-2 text-sm font-semibold"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search property, issue or message..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black mb-4"
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <FilterButton
+                  label="All"
+                  value="all"
+                  activeFilter={filter}
+                  onClick={setFilter}
+                  count={inbox.length}
+                />
+
+                <FilterButton
+                  label="Attention"
+                  value="attention"
+                  activeFilter={filter}
+                  onClick={setFilter}
+                  count={priorityCount}
+                />
+
+                <FilterButton
+                  label="Unread"
+                  value="unread"
+                  activeFilter={filter}
+                  onClick={setFilter}
+                  count={unreadCount}
+                />
+
+                <FilterButton
+                  label="Issues"
+                  value="issues"
+                  activeFilter={filter}
+                  onClick={setFilter}
+                  count={issueCount}
+                />
+              </div>
             </div>
 
             <div className="max-h-[760px] overflow-y-auto">
@@ -366,23 +589,23 @@ export default function InboxPage() {
                 </div>
               )}
 
-              {!loading && inbox.length === 0 && (
+              {!loading && filteredInbox.length === 0 && (
                 <div className="p-6 text-gray-500">
-                  No conversations found
+                  No conversations match this view.
                 </div>
               )}
 
               {!loading &&
-                inbox.map((item) => {
-                  const conversationId =
-                    item.conversationId || item.conversation_id
+                filteredInbox.map((item) => {
+                  const conversationId = getConversationId(item)
 
                   const isSelected =
-                    selectedPropertyId === item.propertyId
+                    selectedPropertyId === item.propertyId &&
+                    selectedConversationId === conversationId
 
                   return (
                     <button
-                      key={item.propertyId}
+                      key={getInboxKey(item)}
                       onClick={() => openConversation(item)}
                       className={`w-full text-left p-5 border-b border-gray-100 transition ${
                         isSelected
@@ -414,12 +637,24 @@ export default function InboxPage() {
                             {item.city || "No city"}
                           </div>
 
-                          <div className="mb-3">
+                          <div className="flex flex-wrap gap-2 mb-3">
                             <PriorityBadge
                               priority={item.priority}
                               requiresHost={item.requires_host}
                               issue={item.issue_detected}
                             />
+
+                            {item.issue_detected && (
+                              <span
+                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
+                                  isSelected
+                                    ? "bg-white/10 text-white"
+                                    : "bg-red-50 text-red-700"
+                                }`}
+                              >
+                                {formatIssue(item.issue_detected)}
+                              </span>
+                            )}
                           </div>
 
                           <div
@@ -465,8 +700,12 @@ export default function InboxPage() {
 
           <div className="bg-white rounded-[32px] shadow-xl border border-black/5 flex flex-col min-h-[760px] overflow-hidden">
             <div className="border-b border-gray-100 p-6">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
                 <div>
+                  <div className="uppercase tracking-[0.25em] text-xs text-gray-400 mb-3">
+                    Selected conversation
+                  </div>
+
                   <h2 className="text-2xl font-bold">
                     {selectedPropertyName || "Select a conversation"}
                   </h2>
@@ -476,28 +715,89 @@ export default function InboxPage() {
                       Conversation: {selectedConversationId}
                     </div>
                   )}
+
+                  {selectedItem?.issue_detected && (
+                    <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+                      Issue detected:{" "}
+                      <strong>
+                        {formatIssue(selectedItem.issue_detected)}
+                      </strong>
+                    </div>
+                  )}
                 </div>
 
-                {selectedPropertyId && (
-                  <button
-                    onClick={() =>
-                      fetchConversation({
-                        propertyId: selectedPropertyId,
-                        conversationId: selectedConversationId,
-                      })
-                    }
-                    className="bg-gray-100 text-black rounded-2xl px-4 py-2 text-sm font-semibold hover:bg-gray-200 transition"
-                  >
-                    Refresh
-                  </button>
-                )}
+                <div className="flex flex-wrap gap-3">
+                  {selectedPropertyId && (
+                    <button
+                      onClick={() =>
+                        fetchConversation({
+                          propertyId: selectedPropertyId,
+                          conversationId: selectedConversationId,
+                        })
+                      }
+                      className="bg-gray-100 text-black rounded-2xl px-4 py-3 text-sm font-semibold hover:bg-gray-200 transition"
+                    >
+                      Refresh
+                    </button>
+                  )}
+
+                  {selectedConversationId && (
+                    <button
+                      onClick={() =>
+                        markConversationAsRead(selectedConversationId)
+                      }
+                      className="bg-black text-white rounded-2xl px-4 py-3 text-sm font-semibold"
+                    >
+                      Mark Read
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {selectedPropertyId && (
+                <div className="grid md:grid-cols-3 gap-3 mt-6">
+                  <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                    <div className="text-xs text-gray-400 mb-1">
+                      Guest messages
+                    </div>
+                    <div className="text-2xl font-black">
+                      {selectedConversationMessages.guestMessages}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                    <div className="text-xs text-gray-400 mb-1">
+                      AI replies
+                    </div>
+                    <div className="text-2xl font-black">
+                      {selectedConversationMessages.aiMessages}
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                    <div className="text-xs text-gray-400 mb-1">
+                      Issue signals
+                    </div>
+                    <div className="text-2xl font-black">
+                      {selectedConversationMessages.issueMessages}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 p-6 overflow-y-auto space-y-5">
               {!selectedPropertyId && (
                 <div className="h-full flex items-center justify-center text-gray-400 text-center">
-                  Select a property conversation from the inbox.
+                  <div>
+                    <div className="text-4xl mb-4">💬</div>
+                    <div className="font-bold text-gray-700 mb-2">
+                      Select a conversation
+                    </div>
+                    <div>
+                      Choose a property thread from the inbox to review guest messages and AI replies.
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -507,11 +807,13 @@ export default function InboxPage() {
                 </div>
               )}
 
-              {selectedPropertyId && !loadingMessages && messages.length === 0 && (
-                <div className="text-gray-500">
-                  No messages found.
-                </div>
-              )}
+              {selectedPropertyId &&
+                !loadingMessages &&
+                messages.length === 0 && (
+                  <div className="text-gray-500">
+                    No messages found.
+                  </div>
+                )}
 
               {messages.map((message) => {
                 const isGuest =
@@ -521,7 +823,7 @@ export default function InboxPage() {
                 return (
                   <div
                     key={message.id}
-                    className={`max-w-[78%] rounded-3xl px-5 py-4 ${
+                    className={`max-w-[86%] rounded-3xl px-5 py-4 shadow-sm ${
                       isGuest
                         ? "bg-gray-100 text-gray-950 mr-auto"
                         : "bg-black text-white ml-auto"
@@ -546,7 +848,7 @@ export default function InboxPage() {
                     )}
 
                     <div className="leading-relaxed whitespace-pre-line">
-                      {getMessageText(message)}
+                      {getMessageText(message) || "No message content"}
                     </div>
 
                     {message.created_at && (
