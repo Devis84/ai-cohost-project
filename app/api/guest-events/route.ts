@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 const allowedEventTypes = [
@@ -92,6 +92,105 @@ function isAllowedEventType(
   );
 }
 
+function getNotificationCopy({
+  eventType,
+  propertySlug,
+  metadata,
+}: {
+  eventType: GuestEventType;
+  propertySlug: string;
+  metadata: Record<string, unknown>;
+}) {
+  const propertyName =
+    typeof metadata.property_name === "string" &&
+    metadata.property_name.trim()
+      ? metadata.property_name.trim()
+      : propertySlug;
+
+  if (eventType === "guest_page_opened") {
+    return {
+      title: "Guest page opened",
+      message: `A guest opened the guest page for ${propertyName}. This may indicate first arrival or that the guest is checking stay instructions.`,
+      priority: "normal",
+    };
+  }
+
+  if (eventType === "wifi_info_viewed") {
+    return {
+      title: "Wi-Fi info viewed",
+      message: `A guest viewed Wi-Fi information for ${propertyName}.`,
+      priority: "low",
+    };
+  }
+
+  if (eventType === "checkin_info_viewed") {
+    return {
+      title: "Check-in info viewed",
+      message: `A guest viewed check-in information for ${propertyName}.`,
+      priority: "normal",
+    };
+  }
+
+  if (eventType === "ai_chat_started") {
+    return {
+      title: "AI Concierge started",
+      message: `A guest started an AI Concierge chat for ${propertyName}.`,
+      priority: "normal",
+    };
+  }
+
+  return {
+    title: "Guest issue reported",
+    message: `A guest reported an issue for ${propertyName}.`,
+    priority: "high",
+  };
+}
+
+async function createHostNotification({
+  supabase,
+  propertySlug,
+  eventType,
+  eventId,
+  metadata,
+}: {
+  supabase: ReturnType<typeof getSupabaseAdminClient>;
+  propertySlug: string;
+  eventType: GuestEventType;
+  eventId: string;
+  metadata: Record<string, unknown>;
+}) {
+  const copy = getNotificationCopy({
+    eventType,
+    propertySlug,
+    metadata,
+  });
+
+  const { error } = await supabase
+    .from("host_notifications")
+    .insert({
+      property_slug: propertySlug,
+      notification_type: eventType,
+      title: copy.title,
+      message: copy.message,
+      priority: copy.priority,
+      status: "unread",
+      source_event_id: eventId,
+      delivery_channel: "dashboard",
+      whatsapp_status: "pending_provider",
+      telegram_status: "not_configured",
+      email_status: "not_configured",
+      metadata: {
+        ...metadata,
+        generated_from: "guest_events_api",
+        whatsapp_preferred: true,
+      },
+    });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const payload = (await request.json()) as GuestEventPayload;
@@ -121,6 +220,7 @@ export async function POST(request: NextRequest) {
 
     const eventType = payload.event_type;
     const guestToken = cleanText(payload.guest_token);
+    const metadata = cleanMetadata(payload.event_metadata);
 
     const supabase = getSupabaseAdminClient();
 
@@ -162,7 +262,7 @@ export async function POST(request: NextRequest) {
           event_source:
             cleanText(payload.event_source) || "guest_page",
           event_label: cleanText(payload.event_label),
-          event_metadata: cleanMetadata(payload.event_metadata),
+          event_metadata: metadata,
           guest_token: guestToken,
           guest_name: cleanText(payload.guest_name),
           guest_language: cleanText(payload.guest_language),
@@ -178,9 +278,42 @@ export async function POST(request: NextRequest) {
       throw insertError;
     }
 
+    let hostNotificationCreated = false;
+
+    if (
+      isFirstEvent &&
+      insertedEvent?.id &&
+      (eventType === "guest_page_opened" ||
+        eventType === "issue_reported")
+    ) {
+      await createHostNotification({
+        supabase,
+        propertySlug,
+        eventType,
+        eventId: insertedEvent.id,
+        metadata,
+      });
+
+      hostNotificationCreated = true;
+
+      const { error: updateEventError } = await supabase
+        .from("guest_page_events")
+        .update({
+          host_notified: true,
+        })
+        .eq("id", insertedEvent.id);
+
+      if (updateEventError) {
+        throw updateEventError;
+      }
+
+      insertedEvent.host_notified = true;
+    }
+
     return NextResponse.json({
       success: true,
       event: insertedEvent,
+      host_notification_created: hostNotificationCreated,
     });
   } catch (error) {
     console.error("GUEST EVENT ERROR:", error);
