@@ -33,6 +33,14 @@ type WelcomeBook = {
   local_guide: string;
 };
 
+type ExtraServices = {
+  enabled: boolean;
+  title: string;
+  intro: string;
+  services: string;
+  host_note: string;
+};
+
 type LocalGuide = {
   neighbourhood_overview: string;
   restaurants: string;
@@ -58,6 +66,7 @@ type AiTraining = {
 type KnowledgeBase = {
   guest_page: GuestPageContent;
   welcome_book: WelcomeBook;
+  extra_services: ExtraServices;
   local_guide: LocalGuide;
   ai_training: AiTraining;
 };
@@ -65,6 +74,7 @@ type KnowledgeBase = {
 type StoredKnowledgeBase = {
   guest_page?: Partial<GuestPageContent>;
   welcome_book?: Partial<WelcomeBook>;
+  extra_services?: Partial<ExtraServices>;
   local_guide?: Partial<LocalGuide>;
   ai_training?: Partial<AiTraining>;
 };
@@ -133,6 +143,14 @@ function createEmptyKnowledgeBase(): KnowledgeBase {
       local_guide: "",
     },
 
+    extra_services: {
+      enabled: false,
+      title: "Extra Services",
+      intro: "",
+      services: "",
+      host_note: "",
+    },
+
     local_guide: {
       neighbourhood_overview: "",
       restaurants: "",
@@ -185,6 +203,9 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
   const savedWelcome: Partial<WelcomeBook> =
     property.knowledge_base?.welcome_book || {};
 
+  const savedExtraServices: Partial<ExtraServices> =
+    property.knowledge_base?.extra_services || {};
+
   const savedLocalGuide: Partial<LocalGuide> =
     property.knowledge_base?.local_guide || {};
 
@@ -230,6 +251,18 @@ function mergeKnowledgeBase(property: Property): KnowledgeBase {
       emergency:
         savedWelcome.emergency ||
         safeString(property.emergency_info),
+    },
+
+    extra_services: {
+      ...empty.extra_services,
+      ...savedExtraServices,
+      enabled: Boolean(savedExtraServices.enabled),
+      title:
+        savedExtraServices.title ||
+        empty.extra_services.title,
+      intro: savedExtraServices.intro || "",
+      services: savedExtraServices.services || "",
+      host_note: savedExtraServices.host_note || "",
     },
 
     local_guide: {
@@ -472,6 +505,7 @@ export default function Dashboard() {
   }, [selectedSlug, propertyName]);
 
   const guestPage = knowledgeBase.guest_page;
+  const extraServices = knowledgeBase.extra_services;
 
   const heroPreviewImage = useMemo(() => {
     if (guestPage.hero_image_url.trim()) {
@@ -564,6 +598,13 @@ export default function Dashboard() {
       checkin.trim() ||
       checkout.trim() ||
       checkinNotes.trim()
+  );
+
+  const commandExtraServicesReady = Boolean(
+    extraServices.enabled &&
+      (extraServices.title.trim() ||
+        extraServices.intro.trim() ||
+        extraServices.services.trim())
   );
 
   const commandLocationLabel = [city, country]
@@ -798,6 +839,24 @@ export default function Dashboard() {
     alert("Maltese Maisonette guest page copy applied. Review and save when ready.");
   }
 
+  function applyExtraServicesTemplate() {
+    setKnowledgeBase((current) => ({
+      ...current,
+      extra_services: {
+        ...current.extra_services,
+        title: "Extra Services",
+        intro:
+          "Enhance your stay with selected local services and trusted partner recommendations. Availability may vary, so please contact the host before booking.",
+        services:
+          "Airport transfer — Available on request, subject to availability and price confirmation\nScooter rental — Local partner options can be shared on request\nCar rental — Recommended providers available nearby\nBoat trips & excursions — Seasonal tours and local experiences can be recommended\nMassage or wellness services — Available with advance booking when possible\nLate checkout — Subject to availability and host approval\nLuggage storage — Ask the host for available options",
+        host_note:
+          "Internal note: add partner contacts, prices, commissions, availability rules and services that require manual host approval.",
+      },
+    }));
+
+    alert("Extra Services template applied. Review, enable and save when ready.");
+  }
+
   async function save() {
     if (!propertyName.trim()) {
       alert("Property name is required");
@@ -954,6 +1013,19 @@ export default function Dashboard() {
       ...current,
       welcome_book: {
         ...current.welcome_book,
+        [field]: value,
+      },
+    }));
+  }
+
+  function updateExtraServices(
+    field: keyof ExtraServices,
+    value: string | boolean
+  ) {
+    setKnowledgeBase((current) => ({
+      ...current,
+      extra_services: {
+        ...current.extra_services,
         [field]: value,
       },
     }));
@@ -1130,7 +1202,7 @@ export default function Dashboard() {
             />
           </div>
 
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-7">
+          <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4 mb-7">
             <StatusPill
               label="AI Concierge"
               value={aiEnabled ? "ON" : "OFF"}
@@ -1154,6 +1226,12 @@ export default function Dashboard() {
               value={commandAccessReady ? "Configured" : "Incomplete"}
               active={commandAccessReady}
             />
+
+            <StatusPill
+              label="Extra Services"
+              value={extraServices.enabled ? "ON" : "OFF"}
+              active={commandExtraServicesReady}
+            />
           </div>
 
           <div className="bg-[#f4f1eb] rounded-3xl p-5 border border-black/5">
@@ -1161,7 +1239,7 @@ export default function Dashboard() {
               What to check today
             </div>
 
-            <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3 text-sm text-gray-700">
+            <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm text-gray-700">
               <div className="bg-white rounded-2xl p-4">
                 {commandGuestPageReady ? "✅" : "⚠️"} Guest page content
               </div>
@@ -1172,6 +1250,10 @@ export default function Dashboard() {
 
               <div className="bg-white rounded-2xl p-4">
                 {commandAiReady ? "✅" : "⚠️"} AI training and escalation rules
+              </div>
+
+              <div className="bg-white rounded-2xl p-4">
+                {commandExtraServicesReady ? "✅" : "⚠️"} Extra services
               </div>
 
               <div className="bg-white rounded-2xl p-4">
@@ -1214,6 +1296,17 @@ export default function Dashboard() {
               }`}
             >
               📘 Welcome Book
+            </button>
+
+            <button
+              onClick={() => setActiveTab("extraservices")}
+              className={`w-full text-left px-5 py-4 rounded-2xl transition ${
+                activeTab === "extraservices"
+                  ? "bg-black text-white shadow-xl"
+                  : "bg-white border border-gray-200"
+              }`}
+            >
+              🛎️ Extra Services
             </button>
 
             <button
@@ -1667,6 +1760,116 @@ export default function Dashboard() {
                   </div>
                 </section>
               </>
+            )}
+
+            {activeTab === "extraservices" && (
+              <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                <SectionHeader
+                  icon="🛎️"
+                  title="Extra Services / Upselling"
+                  description="Optional guest-facing services, partner offers and upselling opportunities. Keep this disabled until you have real services to show."
+                />
+
+                <div className="mb-6 bg-amber-50 border border-amber-100 rounded-3xl p-5">
+                  <div className="font-bold text-amber-950 mb-2">
+                    Optional revenue module
+                  </div>
+
+                  <p className="text-sm text-amber-900/70 leading-relaxed">
+                    Use this section for future upselling: scooter rental, car rental,
+                    airport transfers, tours, excursions, massages, private chef,
+                    breakfast baskets, late checkout, luggage storage, beach clubs,
+                    restaurant discounts or local partnerships.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid md:grid-cols-[1fr_auto] gap-4 items-stretch">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateExtraServices(
+                          "enabled",
+                          !knowledgeBase.extra_services.enabled
+                        )
+                      }
+                      className={`w-full rounded-3xl border px-6 py-5 text-left transition ${
+                        knowledgeBase.extra_services.enabled
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-gray-900 border-gray-200"
+                      }`}
+                    >
+                      <div className="font-bold mb-1">
+                        Show Extra Services on Guest Page
+                      </div>
+
+                      <div
+                        className={`text-sm ${
+                          knowledgeBase.extra_services.enabled
+                            ? "text-white/60"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {knowledgeBase.extra_services.enabled
+                          ? "Enabled — guests can see this module when content is available."
+                          : "Disabled — the module is saved but hidden from guests."}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={applyExtraServicesTemplate}
+                      className="bg-[#f4f1eb] text-black border border-black/5 rounded-3xl px-6 py-5 font-semibold hover:bg-[#ebe6dd] transition"
+                    >
+                      Use Template
+                    </button>
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Section title"
+                      description="Guest-facing title shown on the guest page."
+                    />
+
+                    <input
+                      className="w-full border border-gray-200 rounded-2xl p-4"
+                      placeholder="Extra Services"
+                      value={knowledgeBase.extra_services.title}
+                      onChange={(event) =>
+                        updateExtraServices(
+                          "title",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <TextArea
+                    placeholder="Guest intro. Short intro shown to guests above the services list."
+                    value={knowledgeBase.extra_services.intro}
+                    onChange={(value) =>
+                      updateExtraServices("intro", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Services and offers. Add one service per line. Example: Airport transfer — Contact host for availability and price."
+                    value={knowledgeBase.extra_services.services}
+                    onChange={(value) =>
+                      updateExtraServices("services", value)
+                    }
+                    large
+                  />
+
+                  <TextArea
+                    placeholder="Internal host note. Add partner contacts, prices, commissions, availability rules and services that require manual host approval. This is not shown to guests."
+                    value={knowledgeBase.extra_services.host_note}
+                    onChange={(value) =>
+                      updateExtraServices("host_note", value)
+                    }
+                  />
+                </div>
+              </section>
             )}
 
             {activeTab === "general" && (
@@ -2124,6 +2327,21 @@ export default function Dashboard() {
                         checked={welcomebookEnabled}
                         onChange={(event) =>
                           setWelcomebookEnabled(
+                            event.target.checked
+                          )
+                        }
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
+                      <span>Extra Services</span>
+
+                      <input
+                        type="checkbox"
+                        checked={knowledgeBase.extra_services.enabled}
+                        onChange={(event) =>
+                          updateExtraServices(
+                            "enabled",
                             event.target.checked
                           )
                         }
