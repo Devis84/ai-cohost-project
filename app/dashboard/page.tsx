@@ -110,6 +110,9 @@ type Property = {
 const malteseMaisonetteHeroImage =
   "/guest-images/maltese-maisonette-hero-bedroom.jpg";
 
+const selectedPropertyStorageKey =
+  "ai_cohost_selected_property_slug";
+
 function createEmptyKnowledgeBase(): KnowledgeBase {
   return {
     guest_page: {
@@ -192,6 +195,10 @@ function splitHighlights(value: string) {
     .split("\n")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getPropertyIdentifier(property: Property) {
+  return property.slug || property.id;
 }
 
 function mergeKnowledgeBase(property: Property): KnowledgeBase {
@@ -483,7 +490,7 @@ export default function Dashboard() {
   const selectedProperty = useMemo(() => {
     return properties.find(
       (property) =>
-        (property.slug || property.id) === selectedSlug
+        getPropertyIdentifier(property) === selectedSlug
     );
   }, [properties, selectedSlug]);
 
@@ -623,6 +630,39 @@ export default function Dashboard() {
     loadPropertyData(selectedSlug);
   }, [selectedSlug, isNewProperty]);
 
+  function rememberSelectedProperty(value: string) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!value) {
+      window.localStorage.removeItem(selectedPropertyStorageKey);
+      return;
+    }
+
+    window.localStorage.setItem(
+      selectedPropertyStorageKey,
+      value
+    );
+  }
+
+  function getRememberedPropertySlug() {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return (
+      window.localStorage.getItem(
+        selectedPropertyStorageKey
+      ) || ""
+    );
+  }
+
+  function selectProperty(value: string) {
+    setSelectedSlug(value);
+    rememberSelectedProperty(value);
+  }
+
   async function loadProperties() {
     try {
       setLoadingProperties(true);
@@ -641,13 +681,36 @@ export default function Dashboard() {
 
       setProperties(loadedProperties);
 
-      if (!selectedSlug && loadedProperties.length > 0) {
-        const firstProperty = loadedProperties[0];
-
-        setSelectedSlug(
-          firstProperty.slug || firstProperty.id
-        );
+      if (loadedProperties.length === 0) {
+        selectProperty("");
+        return;
       }
+
+      const currentStillExists = loadedProperties.some(
+        (property) =>
+          getPropertyIdentifier(property) === selectedSlug
+      );
+
+      if (selectedSlug && currentStillExists) {
+        rememberSelectedProperty(selectedSlug);
+        return;
+      }
+
+      const rememberedSlug = getRememberedPropertySlug();
+
+      const rememberedStillExists = loadedProperties.some(
+        (property) =>
+          getPropertyIdentifier(property) === rememberedSlug
+      );
+
+      if (rememberedSlug && rememberedStillExists) {
+        setSelectedSlug(rememberedSlug);
+        return;
+      }
+
+      const firstProperty = loadedProperties[0];
+
+      selectProperty(getPropertyIdentifier(firstProperty));
     } catch (error) {
       console.error("LOAD PROPERTIES ERROR:", error);
       alert("Unable to load properties");
@@ -742,7 +805,7 @@ export default function Dashboard() {
 
     const slug = createSlug(cleanName);
 
-    setSelectedSlug(slug);
+    selectProperty(slug);
     setIsNewProperty(true);
     resetForm(cleanName);
     setNewProperty("");
@@ -930,13 +993,13 @@ export default function Dashboard() {
       }
 
       const savedProperty = data.property as Property;
+      const savedIdentifier =
+        savedProperty.slug || savedProperty.id || slug;
 
       alert("Property saved successfully");
 
       setIsNewProperty(false);
-      setSelectedSlug(
-        savedProperty.slug || savedProperty.id
-      );
+      selectProperty(savedIdentifier);
 
       await loadProperties();
     } catch (error) {
@@ -982,7 +1045,7 @@ export default function Dashboard() {
 
       alert("Property deleted");
 
-      setSelectedSlug("");
+      selectProperty("");
       setIsNewProperty(false);
       resetForm();
       await loadProperties();
@@ -1762,116 +1825,6 @@ export default function Dashboard() {
               </>
             )}
 
-            {activeTab === "extraservices" && (
-              <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-                <SectionHeader
-                  icon="🛎️"
-                  title="Extra Services / Upselling"
-                  description="Optional guest-facing services, partner offers and upselling opportunities. Keep this disabled until you have real services to show."
-                />
-
-                <div className="mb-6 bg-amber-50 border border-amber-100 rounded-3xl p-5">
-                  <div className="font-bold text-amber-950 mb-2">
-                    Optional revenue module
-                  </div>
-
-                  <p className="text-sm text-amber-900/70 leading-relaxed">
-                    Use this section for future upselling: scooter rental, car rental,
-                    airport transfers, tours, excursions, massages, private chef,
-                    breakfast baskets, late checkout, luggage storage, beach clubs,
-                    restaurant discounts or local partnerships.
-                  </p>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="grid md:grid-cols-[1fr_auto] gap-4 items-stretch">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateExtraServices(
-                          "enabled",
-                          !knowledgeBase.extra_services.enabled
-                        )
-                      }
-                      className={`w-full rounded-3xl border px-6 py-5 text-left transition ${
-                        knowledgeBase.extra_services.enabled
-                          ? "bg-black text-white border-black"
-                          : "bg-white text-gray-900 border-gray-200"
-                      }`}
-                    >
-                      <div className="font-bold mb-1">
-                        Show Extra Services on Guest Page
-                      </div>
-
-                      <div
-                        className={`text-sm ${
-                          knowledgeBase.extra_services.enabled
-                            ? "text-white/60"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {knowledgeBase.extra_services.enabled
-                          ? "Enabled — guests can see this module when content is available."
-                          : "Disabled — the module is saved but hidden from guests."}
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={applyExtraServicesTemplate}
-                      className="bg-[#f4f1eb] text-black border border-black/5 rounded-3xl px-6 py-5 font-semibold hover:bg-[#ebe6dd] transition"
-                    >
-                      Use Template
-                    </button>
-                  </div>
-
-                  <div>
-                    <FieldLabel
-                      title="Section title"
-                      description="Guest-facing title shown on the guest page."
-                    />
-
-                    <input
-                      className="w-full border border-gray-200 rounded-2xl p-4"
-                      placeholder="Extra Services"
-                      value={knowledgeBase.extra_services.title}
-                      onChange={(event) =>
-                        updateExtraServices(
-                          "title",
-                          event.target.value
-                        )
-                      }
-                    />
-                  </div>
-
-                  <TextArea
-                    placeholder="Guest intro. Short intro shown to guests above the services list."
-                    value={knowledgeBase.extra_services.intro}
-                    onChange={(value) =>
-                      updateExtraServices("intro", value)
-                    }
-                  />
-
-                  <TextArea
-                    placeholder="Services and offers. Add one service per line. Example: Airport transfer — Contact host for availability and price."
-                    value={knowledgeBase.extra_services.services}
-                    onChange={(value) =>
-                      updateExtraServices("services", value)
-                    }
-                    large
-                  />
-
-                  <TextArea
-                    placeholder="Internal host note. Add partner contacts, prices, commissions, availability rules and services that require manual host approval. This is not shown to guests."
-                    value={knowledgeBase.extra_services.host_note}
-                    onChange={(value) =>
-                      updateExtraServices("host_note", value)
-                    }
-                  />
-                </div>
-              </section>
-            )}
-
             {activeTab === "general" && (
               <>
                 <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
@@ -1887,7 +1840,7 @@ export default function Dashboard() {
                       value={selectedSlug}
                       onChange={(event) => {
                         setIsNewProperty(false);
-                        setSelectedSlug(event.target.value);
+                        selectProperty(event.target.value);
                       }}
                       disabled={loadingProperties}
                     >
@@ -1900,7 +1853,7 @@ export default function Dashboard() {
                       {properties.map((property) => (
                         <option
                           key={property.id}
-                          value={property.slug || property.id}
+                          value={getPropertyIdentifier(property)}
                         >
                           {property.property_name}
                         </option>
@@ -1964,7 +1917,7 @@ export default function Dashboard() {
                           createSlug(propertyName)
                         }
                         onChange={(event) =>
-                          setSelectedSlug(event.target.value)
+                          selectProperty(event.target.value)
                         }
                       />
                     </div>
@@ -2350,6 +2303,116 @@ export default function Dashboard() {
                   </div>
                 </section>
               </>
+            )}
+
+            {activeTab === "extraservices" && (
+              <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+                <SectionHeader
+                  icon="🛎️"
+                  title="Extra Services / Upselling"
+                  description="Optional guest-facing services, partner offers and upselling opportunities. Keep this disabled until you have real services to show."
+                />
+
+                <div className="mb-6 bg-amber-50 border border-amber-100 rounded-3xl p-5">
+                  <div className="font-bold text-amber-950 mb-2">
+                    Optional revenue module
+                  </div>
+
+                  <p className="text-sm text-amber-900/70 leading-relaxed">
+                    Use this section for future upselling: scooter rental, car rental,
+                    airport transfers, tours, excursions, massages, private chef,
+                    breakfast baskets, late checkout, luggage storage, beach clubs,
+                    restaurant discounts or local partnerships.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="grid md:grid-cols-[1fr_auto] gap-4 items-stretch">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateExtraServices(
+                          "enabled",
+                          !knowledgeBase.extra_services.enabled
+                        )
+                      }
+                      className={`w-full rounded-3xl border px-6 py-5 text-left transition ${
+                        knowledgeBase.extra_services.enabled
+                          ? "bg-black text-white border-black"
+                          : "bg-white text-gray-900 border-gray-200"
+                      }`}
+                    >
+                      <div className="font-bold mb-1">
+                        Show Extra Services on Guest Page
+                      </div>
+
+                      <div
+                        className={`text-sm ${
+                          knowledgeBase.extra_services.enabled
+                            ? "text-white/60"
+                            : "text-gray-500"
+                        }`}
+                      >
+                        {knowledgeBase.extra_services.enabled
+                          ? "Enabled — guests can see this module when content is available."
+                          : "Disabled — the module is saved but hidden from guests."}
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={applyExtraServicesTemplate}
+                      className="bg-[#f4f1eb] text-black border border-black/5 rounded-3xl px-6 py-5 font-semibold hover:bg-[#ebe6dd] transition"
+                    >
+                      Use Template
+                    </button>
+                  </div>
+
+                  <div>
+                    <FieldLabel
+                      title="Section title"
+                      description="Guest-facing title shown on the guest page."
+                    />
+
+                    <input
+                      className="w-full border border-gray-200 rounded-2xl p-4"
+                      placeholder="Extra Services"
+                      value={knowledgeBase.extra_services.title}
+                      onChange={(event) =>
+                        updateExtraServices(
+                          "title",
+                          event.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <TextArea
+                    placeholder="Guest intro. Short intro shown to guests above the services list."
+                    value={knowledgeBase.extra_services.intro}
+                    onChange={(value) =>
+                      updateExtraServices("intro", value)
+                    }
+                  />
+
+                  <TextArea
+                    placeholder="Services and offers. Add one service per line. Example: Airport transfer — Contact host for availability and price."
+                    value={knowledgeBase.extra_services.services}
+                    onChange={(value) =>
+                      updateExtraServices("services", value)
+                    }
+                    large
+                  />
+
+                  <TextArea
+                    placeholder="Internal host note. Add partner contacts, prices, commissions, availability rules and services that require manual host approval. This is not shown to guests."
+                    value={knowledgeBase.extra_services.host_note}
+                    onChange={(value) =>
+                      updateExtraServices("host_note", value)
+                    }
+                  />
+                </div>
+              </section>
             )}
 
             {activeTab === "welcomebook" && (
