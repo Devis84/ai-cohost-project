@@ -1,6 +1,6 @@
  "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type GuestPageContent = {
   hero_title: string;
@@ -440,6 +440,14 @@ export default function Dashboard() {
 
   const [selectedSlug, setSelectedSlug] = useState("");
 
+  const [loadedPropertyIdentifier, setLoadedPropertyIdentifier] =
+    useState("");
+
+  const [loadingSelectedProperty, setLoadingSelectedProperty] =
+    useState(false);
+
+  const latestLoadRequestId = useRef(0);
+
   const [propertyName, setPropertyName] = useState("");
 
   const [newProperty, setNewProperty] = useState("");
@@ -618,6 +626,52 @@ export default function Dashboard() {
     .filter(Boolean)
     .join(", ");
 
+  const canSaveSelectedProperty = Boolean(
+    propertyName.trim() &&
+      !saving &&
+      !loadingSelectedProperty &&
+      (isNewProperty ||
+        (selectedSlug &&
+          loadedPropertyIdentifier &&
+          loadedPropertyIdentifier === selectedSlug))
+  );
+
+  const saveStatusMessage = useMemo(() => {
+    if (saving) {
+      return "Saving...";
+    }
+
+    if (loadingSelectedProperty) {
+      return "Loading selected property...";
+    }
+
+    if (!propertyName.trim()) {
+      return "Property name is required";
+    }
+
+    if (
+      !isNewProperty &&
+      selectedSlug &&
+      loadedPropertyIdentifier &&
+      loadedPropertyIdentifier !== selectedSlug
+    ) {
+      return "Selected property changed. Wait for the correct property to load.";
+    }
+
+    if (!isNewProperty && selectedSlug && !loadedPropertyIdentifier) {
+      return "Waiting for selected property data...";
+    }
+
+    return "Changes are ready to be saved";
+  }, [
+    saving,
+    loadingSelectedProperty,
+    propertyName,
+    isNewProperty,
+    selectedSlug,
+    loadedPropertyIdentifier,
+  ]);
+
   useEffect(() => {
     loadProperties();
   }, []);
@@ -660,6 +714,7 @@ export default function Dashboard() {
 
   function selectProperty(value: string) {
     setSelectedSlug(value);
+    setLoadedPropertyIdentifier("");
     rememberSelectedProperty(value);
   }
 
@@ -705,6 +760,7 @@ export default function Dashboard() {
 
       if (rememberedSlug && rememberedStillExists) {
         setSelectedSlug(rememberedSlug);
+        setLoadedPropertyIdentifier("");
         return;
       }
 
@@ -720,12 +776,21 @@ export default function Dashboard() {
   }
 
   async function loadPropertyData(identifier: string) {
+    const requestId = latestLoadRequestId.current + 1;
+    latestLoadRequestId.current = requestId;
+
     try {
+      setLoadingSelectedProperty(true);
+
       const response = await fetch(
         `/api/properties/${encodeURIComponent(identifier)}`
       );
 
       const data = await response.json();
+
+      if (latestLoadRequestId.current !== requestId) {
+        return;
+      }
 
       if (!data.success) {
         throw new Error(
@@ -734,11 +799,27 @@ export default function Dashboard() {
       }
 
       const property = data.property as Property;
+      const loadedIdentifier = getPropertyIdentifier(property);
+
+      if (loadedIdentifier !== identifier) {
+        throw new Error(
+          "Loaded property does not match selected property"
+        );
+      }
 
       fillForm(property);
+      setLoadedPropertyIdentifier(loadedIdentifier);
+      rememberSelectedProperty(loadedIdentifier);
     } catch (error) {
-      console.error("LOAD PROPERTY ERROR:", error);
-      alert("Unable to load selected property");
+      if (latestLoadRequestId.current === requestId) {
+        console.error("LOAD PROPERTY ERROR:", error);
+        alert("Unable to load selected property");
+        setLoadedPropertyIdentifier("");
+      }
+    } finally {
+      if (latestLoadRequestId.current === requestId) {
+        setLoadingSelectedProperty(false);
+      }
     }
   }
 
@@ -926,6 +1007,23 @@ export default function Dashboard() {
       return;
     }
 
+    if (loadingSelectedProperty) {
+      alert("Please wait until the selected property has finished loading.");
+      return;
+    }
+
+    if (
+      !isNewProperty &&
+      (!selectedSlug ||
+        !loadedPropertyIdentifier ||
+        loadedPropertyIdentifier !== selectedSlug)
+    ) {
+      alert(
+        "The selected property is not fully loaded yet. Please wait before saving to avoid overwriting another property."
+      );
+      return;
+    }
+
     const slug =
       selectedSlug ||
       selectedProperty?.slug ||
@@ -1000,6 +1098,7 @@ export default function Dashboard() {
 
       setIsNewProperty(false);
       selectProperty(savedIdentifier);
+      setLoadedPropertyIdentifier(savedIdentifier);
 
       await loadProperties();
     } catch (error) {
@@ -1046,6 +1145,7 @@ export default function Dashboard() {
       alert("Property deleted");
 
       selectProperty("");
+      setLoadedPropertyIdentifier("");
       setIsNewProperty(false);
       resetForm();
       await loadProperties();
@@ -1198,6 +1298,12 @@ export default function Dashboard() {
               {guestPageUrl && (
                 <div className="text-white/40 text-xs mt-4 break-all">
                   {guestPageUrl}
+                </div>
+              )}
+
+              {loadingSelectedProperty && (
+                <div className="mt-4 text-xs text-yellow-200">
+                  Loading selected property...
                 </div>
               )}
             </div>
@@ -1906,19 +2012,17 @@ export default function Dashboard() {
                     <div>
                       <FieldLabel
                         title="Property slug"
-                        description="Stable URL identifier used for the guest page and QR/NFC link."
+                        description="Read-only URL identifier used for the guest page and QR/NFC link. Create a new property to use a different slug."
                       />
 
                       <input
-                        className="w-full border border-gray-200 rounded-2xl p-4 bg-gray-50"
+                        className="w-full border border-gray-200 rounded-2xl p-4 bg-gray-50 text-gray-500 cursor-not-allowed"
                         placeholder="Example: maltese-maisonette"
                         value={
                           selectedSlug ||
                           createSlug(propertyName)
                         }
-                        onChange={(event) =>
-                          selectProperty(event.target.value)
-                        }
+                        readOnly
                       />
                     </div>
                   </div>
@@ -2743,16 +2847,14 @@ export default function Dashboard() {
           </div>
 
           <div className="text-white/60 text-sm">
-            {saving
-              ? "Saving..."
-              : "Changes are ready to be saved"}
+            {saveStatusMessage}
           </div>
         </div>
 
         <button
           onClick={save}
-          disabled={saving}
-          className="bg-white text-black px-6 py-3 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+          disabled={!canSaveSelectedProperty}
+          className="bg-white text-black px-6 py-3 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {saving ? "Saving..." : "Save Changes"}
         </button>
