@@ -136,12 +136,184 @@ type GuestLanguage =
   | "es"
   | "de";
 
+type CachedAnswer = {
+  id: string;
+  answer: string;
+  question_normalized: string;
+  usage_count: number;
+};
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "missing-key",
 });
 
 function safeString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function normalizeQuestionForCache(message: string) {
+  return message
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+}
+
+function getCachePropertySlug({
+  property,
+  propertySlug,
+}: {
+  property: PropertyRecord;
+  propertySlug?: string;
+}) {
+  return (
+    safeString(property.slug).trim() ||
+    safeString(propertySlug).trim() ||
+    property.id
+  );
+}
+
+async function findCachedAnswer({
+  propertySlug,
+  question,
+}: {
+  propertySlug: string;
+  question: string;
+}) {
+  const questionNormalized =
+    normalizeQuestionForCache(question);
+
+  if (!propertySlug || questionNormalized.length < 3) {
+    return null;
+  }
+
+  const { data, error } = await supabaseServer
+    .from("ai_answer_cache")
+    .select(
+      "id, answer, question_normalized, usage_count"
+    )
+    .eq("property_slug", propertySlug)
+    .eq("question_normalized", questionNormalized)
+    .eq("approved", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("AI CACHE LOOKUP FAILED:", error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const cachedAnswer = data as CachedAnswer;
+
+  const { error: updateError } = await supabaseServer
+    .from("ai_answer_cache")
+    .update({
+      usage_count: (cachedAnswer.usage_count || 0) + 1,
+      last_used_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", cachedAnswer.id);
+
+  if (updateError) {
+    console.error("AI CACHE USAGE UPDATE FAILED:", updateError);
+  }
+
+  return cachedAnswer;
+}
+
+async function saveAnswerToCache({
+  propertySlug,
+  question,
+  answer,
+  channel,
+  source,
+  metadata,
+}: {
+  propertySlug: string;
+  question: string;
+  answer: string;
+  channel: string;
+  source: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const questionNormalized =
+    normalizeQuestionForCache(question);
+
+  if (
+    !propertySlug ||
+    questionNormalized.length < 3 ||
+    !answer.trim()
+  ) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  const { data: existing, error: existingError } =
+    await supabaseServer
+      .from("ai_answer_cache")
+      .select("id, usage_count")
+      .eq("property_slug", propertySlug)
+      .eq("question_normalized", questionNormalized)
+      .maybeSingle();
+
+  if (existingError) {
+    console.error("AI CACHE EXISTING LOOKUP FAILED:", existingError);
+    return;
+  }
+
+  if (existing?.id) {
+    const { error: updateError } = await supabaseServer
+      .from("ai_answer_cache")
+      .update({
+        answer,
+        source,
+        channel,
+        usage_count: Number(existing.usage_count || 0) + 1,
+        last_used_at: now,
+        approved: true,
+        metadata: {
+          ...(metadata || {}),
+          updated_from: "chat_api",
+        },
+        updated_at: now,
+      })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      console.error("AI CACHE UPDATE FAILED:", updateError);
+    }
+
+    return;
+  }
+
+  const { error: insertError } = await supabaseServer
+    .from("ai_answer_cache")
+    .insert({
+      property_slug: propertySlug,
+      question_normalized: questionNormalized,
+      question_original: question,
+      answer,
+      source,
+      channel,
+      usage_count: 1,
+      last_used_at: now,
+      approved: true,
+      metadata: {
+        ...(metadata || {}),
+        created_from: "chat_api",
+      },
+    });
+
+  if (insertError) {
+    console.error("AI CACHE INSERT FAILED:", insertError);
+  }
 }
 
 function normalizePropertyForPrompt({
@@ -1660,6 +1832,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const cachePropertySlug = getCachePropertySlug({
+      property,
+      propertySlug,
+    });
+
     const fallbackConversationId =
       body.conversationId ||
       `guest_${property.slug || property.id}`;
@@ -1817,6 +1994,10 @@ export async function POST(request: Request) {
           blockedReason:
             "blocked_sensitive_access_request",
           usedFallback: false,
+          cache: {
+            used: false,
+            reason: "sensitive_access_request",
+          },
         });
       }
 
@@ -1875,6 +2056,80 @@ export async function POST(request: Request) {
           blocked: true,
           blockedReason: scope.reason,
           usedFallback: false,
+          cache: {
+            used: false,
+            reason: "blocked_guest_scope",
+          },
+        });
+      }
+    }
+
+    const canUseCache =
+      isGuestPortalChannel(channel) &&
+      !escalation.requires_host;
+
+    if (canUseCache) {
+      const cachedAnswer = await findCachedAnswer({
+        propertySlug: cachePropertySlug,
+        question: message,
+      });
+
+      if (cachedAnswer) {
+        const reply = cachedAnswer.answer;
+
+        try {
+          await saveConversationMessage({
+            conversationId,
+            propertyId: property.id,
+            role: "assistant",
+            content: reply,
+            channel,
+            priority: escalation.priority,
+            requiresHost: false,
+            issueDetected: null,
+          });
+        } catch (error) {
+          console.error(
+            "SAVE CACHED ASSISTANT MESSAGE FAILED:",
+            error
+          );
+        }
+
+        try {
+          await updateConversationPreview({
+            conversationId,
+            propertyId: property.id,
+            lastMessage: reply,
+            lastSender: "assistant",
+            channel,
+            priority: escalation.priority,
+            requiresHost: false,
+            issueDetected: null,
+            status: "open",
+            unreadCount: 0,
+            guestName: body.guestName,
+            guestContact: body.guestContact,
+          });
+        } catch (error) {
+          console.error(
+            "UPDATE CACHED ASSISTANT PREVIEW FAILED:",
+            error
+          );
+        }
+
+        return NextResponse.json({
+          success: true,
+          reply,
+          conversationId,
+          escalation,
+          blocked: false,
+          usedFallback: false,
+          cache: {
+            used: true,
+            id: cachedAnswer.id,
+            question_normalized:
+              cachedAnswer.question_normalized,
+          },
         });
       }
     }
@@ -1936,6 +2191,25 @@ export async function POST(request: Request) {
       );
     }
 
+    if (canUseCache) {
+      await saveAnswerToCache({
+        propertySlug: cachePropertySlug,
+        question: message,
+        answer: reply,
+        channel,
+        source:
+          !process.env.OPENAI_API_KEY ||
+          process.env.OPENAI_API_KEY === "missing-key"
+            ? "fallback_generated"
+            : "ai_generated",
+        metadata: {
+          property_id: property.id,
+          conversation_id: conversationId,
+          escalation_priority: escalation.priority,
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       reply,
@@ -1945,6 +2219,10 @@ export async function POST(request: Request) {
       usedFallback:
         !process.env.OPENAI_API_KEY ||
         process.env.OPENAI_API_KEY === "missing-key",
+      cache: {
+        used: false,
+        saved: canUseCache,
+      },
     });
   } catch (error) {
     console.error("CHAT API ERROR:", error);
