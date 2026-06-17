@@ -1,15 +1,19 @@
  import { redirect } from "next/navigation";
 
 type StayRedirectPageProps = {
-  params: {
+  params: Promise<{
     property: string;
-  };
+  }>;
 };
 
-export default function StayRedirectPage({
+export default async function StayRedirectPage({
   params,
 }: StayRedirectPageProps) {
-  const propertySlug = params.property;
+  const { property } = await params;
 
-  redirect(`/guest/${propertySlug}`);
+  if (!property) {
+    redirect("/dashboard");
+  }
+
+  redirect(`/guest/${encodeURIComponent(property)}`);
 }
