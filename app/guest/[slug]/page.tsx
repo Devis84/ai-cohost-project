@@ -9,6 +9,8 @@ import {
 } from "react";
 import { useParams } from "next/navigation";
 
+import { GuestEventTracker } from "../_components/GuestEventTracker";
+
 type GuestPageContent = {
   hero_title?: string;
   hero_intro?: string;
@@ -797,6 +799,17 @@ export default function GuestPage() {
 
   return (
     <div className="min-h-screen bg-[#f4f1eb] text-gray-950 pb-28 md:pb-0">
+      <GuestEventTracker
+        propertySlug={slug}
+        eventType="guest_page_opened"
+        eventSource="guest_page"
+        eventLabel="Guest page opened"
+        eventMetadata={{
+          property_name: getPropertyName(property),
+          page: "guest_page",
+        }}
+      />
+
       <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
         <div className="max-w-6xl mx-auto">
           <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl min-h-[620px] md:min-h-[660px]">
