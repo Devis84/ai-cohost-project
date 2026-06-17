@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { DashboardSaveBar } from "./_components/DashboardSaveBar";
 import { DashboardSidebar } from "./_components/DashboardSidebar";
 
 import {
@@ -2325,25 +2326,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl bg-black text-white rounded-3xl px-6 py-5 shadow-2xl flex items-center justify-between z-50">
-        <div>
-          <div className="font-semibold">
-            {propertyName || "No property selected"}
-          </div>
-
-          <div className="text-white/60 text-sm">
-            {saveStatusMessage}
-          </div>
-        </div>
-
-        <button
-          onClick={save}
-          disabled={!canSaveSelectedProperty}
-          className="bg-white text-black px-6 py-3 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
-      </div>
+      <DashboardSaveBar
+        propertyName={propertyName}
+        saveStatusMessage={saveStatusMessage}
+        saving={saving}
+        canSave={canSaveSelectedProperty}
+        onSave={save}
+      />
     </div>
   );
 }
