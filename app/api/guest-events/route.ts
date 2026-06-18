@@ -22,6 +22,18 @@ type GuestEventPayload = {
   guest_language?: unknown;
 };
 
+type HostNotificationCopy = {
+  title: string;
+  message: string;
+  priority: string;
+};
+
+type HostNotificationRecord = {
+  id: string;
+  title: string;
+  message: string;
+};
+
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey =
@@ -92,6 +104,21 @@ function isAllowedEventType(
   );
 }
 
+function getWhatsAppApiVersion() {
+  return (
+    process.env.WHATSAPP_GRAPH_API_VERSION ||
+    "v18.0"
+  );
+}
+
+function normalizeWhatsAppPhone(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  return value.replace(/[^\d]/g, "");
+}
+
 function getNotificationCopy({
   eventType,
   propertySlug,
@@ -100,7 +127,7 @@ function getNotificationCopy({
   eventType: GuestEventType;
   propertySlug: string;
   metadata: Record<string, unknown>;
-}) {
+}): HostNotificationCopy {
   const propertyName =
     typeof metadata.property_name === "string" &&
     metadata.property_name.trim()
@@ -146,6 +173,142 @@ function getNotificationCopy({
   };
 }
 
+async function updateHostNotificationWhatsAppStatus({
+  supabase,
+  notificationId,
+  status,
+  metadata,
+}: {
+  supabase: ReturnType<typeof getSupabaseAdminClient>;
+  notificationId: string;
+  status: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const { error } = await supabase
+    .from("host_notifications")
+    .update({
+      whatsapp_status: status,
+      metadata: {
+        ...(metadata || {}),
+        whatsapp_status_updated_at: new Date().toISOString(),
+      },
+    })
+    .eq("id", notificationId);
+
+  if (error) {
+    console.error(
+      "HOST NOTIFICATION WHATSAPP STATUS UPDATE FAILED:",
+      error
+    );
+  }
+}
+
+async function sendHostWhatsAppNotification({
+  supabase,
+  notification,
+  propertySlug,
+  eventType,
+}: {
+  supabase: ReturnType<typeof getSupabaseAdminClient>;
+  notification: HostNotificationRecord;
+  propertySlug: string;
+  eventType: GuestEventType;
+}) {
+  const hostPhone = normalizeWhatsAppPhone(
+    process.env.WHATSAPP_HOST_PHONE
+  );
+
+  const phoneId = process.env.WHATSAPP_PHONE_ID;
+  const token = process.env.WHATSAPP_TOKEN;
+  const apiVersion = getWhatsAppApiVersion();
+
+  if (!hostPhone || !phoneId || !token) {
+    await updateHostNotificationWhatsAppStatus({
+      supabase,
+      notificationId: notification.id,
+      status: "not_configured",
+      metadata: {
+        whatsapp_error:
+          "Missing WHATSAPP_HOST_PHONE, WHATSAPP_PHONE_ID or WHATSAPP_TOKEN",
+      },
+    });
+
+    return {
+      sent: false,
+      status: "not_configured",
+    };
+  }
+
+  const message = `AI Co-Host notification
+
+${notification.title}
+
+${notification.message}
+
+Property: ${propertySlug}
+Event: ${eventType}`;
+
+  const response = await fetch(
+    `https://graph.facebook.com/${apiVersion}/${phoneId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: hostPhone,
+        type: "text",
+        text: {
+          preview_url: false,
+          body: message,
+        },
+      }),
+    }
+  );
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    console.error("HOST WHATSAPP NOTIFICATION FAILED:", {
+      status: response.status,
+      data,
+    });
+
+    await updateHostNotificationWhatsAppStatus({
+      supabase,
+      notificationId: notification.id,
+      status: "failed",
+      metadata: {
+        whatsapp_api_status: response.status,
+        whatsapp_api_response: data,
+      },
+    });
+
+    return {
+      sent: false,
+      status: "failed",
+      data,
+    };
+  }
+
+  await updateHostNotificationWhatsAppStatus({
+    supabase,
+    notificationId: notification.id,
+    status: "sent",
+    metadata: {
+      whatsapp_api_response: data,
+    },
+  });
+
+  return {
+    sent: true,
+    status: "sent",
+    data,
+  };
+}
+
 async function createHostNotification({
   supabase,
   propertySlug,
@@ -165,7 +328,7 @@ async function createHostNotification({
     metadata,
   });
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("host_notifications")
     .insert({
       property_slug: propertySlug,
@@ -175,7 +338,7 @@ async function createHostNotification({
       priority: copy.priority,
       status: "unread",
       source_event_id: eventId,
-      delivery_channel: "dashboard",
+      delivery_channel: "dashboard_whatsapp",
       whatsapp_status: "pending_provider",
       telegram_status: "not_configured",
       email_status: "not_configured",
@@ -184,11 +347,15 @@ async function createHostNotification({
         generated_from: "guest_events_api",
         whatsapp_preferred: true,
       },
-    });
+    })
+    .select("id, title, message")
+    .single();
 
   if (error) {
     throw error;
   }
+
+  return data as HostNotificationRecord;
 }
 
 export async function POST(request: NextRequest) {
@@ -279,6 +446,7 @@ export async function POST(request: NextRequest) {
     }
 
     let hostNotificationCreated = false;
+    let hostWhatsAppNotification = null;
 
     if (
       isFirstEvent &&
@@ -286,7 +454,7 @@ export async function POST(request: NextRequest) {
       (eventType === "guest_page_opened" ||
         eventType === "issue_reported")
     ) {
-      await createHostNotification({
+      const notification = await createHostNotification({
         supabase,
         propertySlug,
         eventType,
@@ -295,6 +463,14 @@ export async function POST(request: NextRequest) {
       });
 
       hostNotificationCreated = true;
+
+      hostWhatsAppNotification =
+        await sendHostWhatsAppNotification({
+          supabase,
+          notification,
+          propertySlug,
+          eventType,
+        });
 
       const { error: updateEventError } = await supabase
         .from("guest_page_events")
@@ -314,6 +490,7 @@ export async function POST(request: NextRequest) {
       success: true,
       event: insertedEvent,
       host_notification_created: hostNotificationCreated,
+      host_whatsapp_notification: hostWhatsAppNotification,
     });
   } catch (error) {
     console.error("GUEST EVENT ERROR:", error);
