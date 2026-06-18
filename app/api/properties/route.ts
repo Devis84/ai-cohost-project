@@ -1,10 +1,10 @@
-
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
- import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { supabaseServer } from "@/lib/supabase/supabase-server";
+import { getAuthUser } from "@/lib/auth/get-auth-user";
 
 type PropertyPayload = {
   property_name?: string;
@@ -113,9 +113,12 @@ function cleanPayload(body: PropertyPayload) {
 
 export async function GET() {
   try {
+    const user = await getAuthUser();
+
     const { data, error } = await supabaseServer
       .from("properties")
       .select("*")
+      .eq("owner_id", user.id)
       .order("created_at", {
         ascending: false,
       });
@@ -129,6 +132,13 @@ export async function GET() {
       properties: data || [],
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     console.error("GET /api/properties error:", error);
 
     return NextResponse.json(
@@ -146,6 +156,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getAuthUser();
+
     const body =
       (await request.json()) as PropertyPayload;
 
@@ -166,8 +178,9 @@ export async function POST(request: Request) {
     const { data: existingBySlug } =
       await supabaseServer
         .from("properties")
-        .select("id")
+        .select("id, owner_id")
         .eq("slug", payload.slug)
+        .eq("owner_id", user.id)
         .maybeSingle();
 
     if (existingBySlug?.id) {
@@ -175,6 +188,7 @@ export async function POST(request: Request) {
         .from("properties")
         .update(payload)
         .eq("id", existingBySlug.id)
+        .eq("owner_id", user.id)
         .select("*")
         .single();
 
@@ -193,6 +207,7 @@ export async function POST(request: Request) {
       .from("properties")
       .insert({
         ...payload,
+        owner_id: user.id,
         created_at: new Date().toISOString(),
       })
       .select("*")
@@ -208,6 +223,13 @@ export async function POST(request: Request) {
       property: data,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     console.error("POST /api/properties error:", error);
 
     return NextResponse.json(

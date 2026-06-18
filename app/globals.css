@@ -1,1 +1,128 @@
 @import "tailwindcss";
+
+@theme {
+  --color-background: #fff8f5;
+  --color-surface: #f6ece6;
+  --color-primary: #000000;
+  --color-accent: #0c9488;
+  --color-tertiary: #0c9488;
+  --color-on-surface: #1f1b17;
+  --color-error: #ba1a1a;
+  --color-outline: #747878;
+
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fef1eb;
+  --color-surface-container: #f0e5de;
+  --color-surface-container-high: #eaddd6;
+  --color-surface-container-highest: #e4d7cf;
+
+  --color-warning: #c4841d;
+  --color-on-warning: #ffffff;
+
+  --color-on-primary: #ffffff;
+  --color-on-accent: #ffffff;
+  --color-on-error: #ffffff;
+  --color-on-background: #1f1b17;
+  --color-inverse-surface: #352f2b;
+  --color-inverse-on-surface: #fbeee8;
+
+  --shadow-sm: 0 1px 2px 0 rgb(120 113 108 / 0.08);
+  --shadow-md: 0 4px 6px -1px rgb(120 113 108 / 0.12), 0 2px 4px -2px rgb(120 113 108 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(120 113 108 / 0.14), 0 4px 6px -4px rgb(120 113 108 / 0.10);
+  --shadow-xl: 0 20px 25px -5px rgb(120 113 108 / 0.16), 0 8px 10px -6px rgb(120 113 108 / 0.10);
+  --shadow-2xl: 0 25px 50px -12px rgb(120 113 108 / 0.28);
+  --shadow-none: 0 0 #0000;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  --font-sans: var(--font-raleway), ui-sans-serif, system-ui, sans-serif;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+}
+
+/* Guarantees all design tokens exist as CSS variables regardless of Tailwind tree-shaking */
+@layer base {
+  :root {
+    --color-background: #fff8f5;
+    --color-surface: #f6ece6;
+    --color-primary: #000000;
+    --color-accent: #0c9488;
+    --color-tertiary: #0c9488;
+    --color-on-surface: #1f1b17;
+    --color-error: #ba1a1a;
+    --color-outline: #747878;
+
+    --color-surface-container-lowest: #ffffff;
+    --color-surface-container-low: #fef1eb;
+    --color-surface-container: #f0e5de;
+    --color-surface-container-high: #eaddd6;
+    --color-surface-container-highest: #e4d7cf;
+
+    --color-warning: #c4841d;
+    --color-on-warning: #ffffff;
+
+    --color-on-primary: #ffffff;
+    --color-on-accent: #ffffff;
+    --color-on-error: #ffffff;
+    --color-on-background: #1f1b17;
+    --color-inverse-surface: #352f2b;
+    --color-inverse-on-surface: #fbeee8;
+
+    --shadow-sm: 0 1px 2px 0 rgb(120 113 108 / 0.08);
+    --shadow-md: 0 4px 6px -1px rgb(120 113 108 / 0.12), 0 2px 4px -2px rgb(120 113 108 / 0.08);
+    --shadow-lg: 0 10px 15px -3px rgb(120 113 108 / 0.14), 0 4px 6px -4px rgb(120 113 108 / 0.10);
+    --shadow-xl: 0 20px 25px -5px rgb(120 113 108 / 0.16), 0 8px 10px -6px rgb(120 113 108 / 0.10);
+    --shadow-2xl: 0 25px 50px -12px rgb(120 113 108 / 0.28);
+    --shadow-none: 0 0 #0000;
+
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+    --radius-2xl: 2rem;
+    --radius-full: 9999px;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+}

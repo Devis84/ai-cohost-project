@@ -1,47 +1,30 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
-const AUTH_ENABLED =
-  process.env.NEXT_PUBLIC_AUTH_ENABLED === 'true'
-
-const protectedRoutes = [
-  '/dashboard',
-  '/host',
-  '/admin',
-]
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const { user, supabaseResponse } = await updateSession(request)
 
-  if (!AUTH_ENABLED) {
-    return NextResponse.next()
+  const isProtectedRoute = pathname.startsWith('/dashboard')
+
+  if (isProtectedRoute && !user) {
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return Response.redirect(loginUrl)
   }
 
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  )
-
-  if (!isProtectedRoute) {
-    return NextResponse.next()
+  const isAuthRoute = pathname === '/login' || pathname === '/signup'
+  if (isAuthRoute && user) {
+    return Response.redirect(new URL('/dashboard', request.url))
   }
 
-  const authCookie =
-    request.cookies.get('ai_cohost_auth')?.value
-
-  if (authCookie === 'true') {
-    return NextResponse.next()
-  }
-
-  const loginUrl = new URL('/login', request.url)
-  loginUrl.searchParams.set('redirect', pathname)
-
-  return NextResponse.redirect(loginUrl)
+  return supabaseResponse
 }
 
 export const config = {
   matcher: [
     '/dashboard/:path*',
-    '/host/:path*',
-    '/admin/:path*',
+    '/login',
+    '/signup',
   ],
 }
