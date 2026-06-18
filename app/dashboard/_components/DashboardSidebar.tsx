@@ -1,5 +1,7 @@
  "use client";
 
+import type { ReactNode } from "react";
+
 type DashboardSidebarProps = {
   activeTab: string;
   onSelectTab: (tab: string) => void;
@@ -64,7 +66,7 @@ function SidebarSection({
   children,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-3">
@@ -104,6 +106,12 @@ export function DashboardSidebar({
           href="/dashboard/qr"
           icon="📲"
           label="Guest Access QR/NFC"
+        />
+
+        <SidebarLink
+          href="/dashboard/guest-access"
+          icon="🔑"
+          label="Guest Stay Access"
         />
 
         <SidebarLink
