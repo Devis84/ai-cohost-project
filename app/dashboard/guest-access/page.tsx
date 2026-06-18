@@ -1,7 +1,6 @@
-"use client";
+ "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 type GuestAccessToken = {
   id: string;
@@ -31,10 +30,34 @@ type GuestAccessToken = {
   updated_at: string;
 };
 
+type GuestAccessSettings = {
+  id: string;
+  property_id: string | null;
+  property_slug: string;
+  enabled: boolean;
+  access_start_hours_before: number;
+  access_end_hours_after: number;
+  require_token_for_guest_page: boolean;
+  require_token_for_ai: boolean;
+  require_token_for_whatsapp: boolean;
+  expired_message: string;
+  not_active_message: string;
+  revoked_message: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
 type GuestAccessListResponse = {
   success: boolean;
   error?: string;
   tokens?: GuestAccessToken[];
+};
+
+type GuestAccessSettingsResponse = {
+  success: boolean;
+  error?: string;
+  settings?: GuestAccessSettings;
 };
 
 type GuestAccessSyncResponse = {
@@ -59,6 +82,27 @@ type GuestAccessSyncResponse = {
     token_id?: string;
     guest_access_url?: string;
   }>;
+};
+
+const defaultSettings: GuestAccessSettings = {
+  id: "",
+  property_id: null,
+  property_slug: "maltese-maisonette",
+  enabled: false,
+  access_start_hours_before: 24,
+  access_end_hours_after: 6,
+  require_token_for_guest_page: false,
+  require_token_for_ai: false,
+  require_token_for_whatsapp: false,
+  expired_message:
+    "This guest access has expired because the stay has ended. For anything related to your past stay, please contact the host directly.",
+  not_active_message:
+    "This guest access is not active yet. Please check your check-in details or contact the host.",
+  revoked_message:
+    "This guest access is no longer available. Please contact the host if you need assistance.",
+  metadata: {},
+  created_at: "",
+  updated_at: "",
 };
 
 function formatDate(value?: string | null) {
@@ -192,29 +236,76 @@ function StatCard({
         {label}
       </div>
 
-      <div className="mt-3 text-4xl font-black text-zinc-950">
-        {value}
+      <div className="mt-3 text-4xl font-black text-zinc-950">{value}</div>
+
+      <div className="mt-2 text-sm leading-relaxed text-zinc-500">{hint}</div>
+    </div>
+  );
+}
+
+function ToggleRow({
+  title,
+  description,
+  checked,
+  onChange,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-4 rounded-3xl border border-zinc-100 bg-zinc-50 p-5 md:flex-row md:items-center md:justify-between">
+      <div>
+        <div className="text-base font-black text-zinc-950">{title}</div>
+        <div className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-500">
+          {description}
+        </div>
       </div>
 
-      <div className="mt-2 text-sm leading-relaxed text-zinc-500">
-        {hint}
-      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative h-8 w-14 rounded-full transition ${
+          checked ? "bg-black" : "bg-zinc-300"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
+            checked ? "left-7" : "left-1"
+          }`}
+        />
+      </button>
     </div>
   );
 }
 
 export default function DashboardGuestAccessPage() {
   const [tokens, setTokens] = useState<GuestAccessToken[]>([]);
+  const [settings, setSettings] =
+    useState<GuestAccessSettings>(defaultSettings);
+
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [error, setError] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
 
   const summary = useMemo(() => {
-    const active = tokens.filter((token) => getAccessState(token).label === "Active").length;
-    const future = tokens.filter((token) => getAccessState(token).label === "Not active yet").length;
+    const active = tokens.filter(
+      (token) => getAccessState(token).label === "Active"
+    ).length;
+
+    const future = tokens.filter(
+      (token) => getAccessState(token).label === "Not active yet"
+    ).length;
+
     const revoked = tokens.filter((token) => token.status === "revoked").length;
-    const bookingSynced = tokens.filter((token) => token.source !== "manual_test" && token.source !== "manual_active_test").length;
+
+    const bookingSynced = tokens.filter(
+      (token) =>
+        token.source !== "manual_test" && token.source !== "manual_active_test"
+    ).length;
 
     return {
       total: tokens.length,
@@ -226,13 +317,46 @@ export default function DashboardGuestAccessPage() {
   }, [tokens]);
 
   useEffect(() => {
-    loadTokens();
+    loadAll();
   }, []);
+
+  async function loadAll() {
+    setLoading(true);
+    await Promise.all([loadTokens(), loadSettings()]);
+    setLoading(false);
+  }
+
+  async function loadSettings() {
+    try {
+      setError("");
+
+      const response = await fetch(
+        "/api/guest-access/settings?property_slug=maltese-maisonette",
+        {
+          cache: "no-store",
+        }
+      );
+
+      const data = (await response.json()) as GuestAccessSettingsResponse;
+
+      if (!data.success) {
+        throw new Error(data.error || "Unable to load guest access settings");
+      }
+
+      setSettings(data.settings || defaultSettings);
+    } catch (loadError) {
+      console.error("LOAD GUEST ACCESS SETTINGS ERROR:", loadError);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load guest access settings"
+      );
+    }
+  }
 
   async function loadTokens() {
     try {
       setError("");
-      setStatusMessage("");
 
       const response = await fetch(
         "/api/guest-access?property_slug=maltese-maisonette",
@@ -255,8 +379,51 @@ export default function DashboardGuestAccessPage() {
           ? loadError.message
           : "Unable to load guest access tokens"
       );
+    }
+  }
+
+  async function saveSettings() {
+    try {
+      setSettingsSaving(true);
+      setError("");
+      setStatusMessage("Saving Guest Stay Access settings...");
+
+      const response = await fetch("/api/guest-access/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          property_slug: "maltese-maisonette",
+          enabled: settings.enabled,
+          access_start_hours_before: settings.access_start_hours_before,
+          access_end_hours_after: settings.access_end_hours_after,
+          require_token_for_guest_page: settings.require_token_for_guest_page,
+          require_token_for_ai: settings.require_token_for_ai,
+          require_token_for_whatsapp: settings.require_token_for_whatsapp,
+          expired_message: settings.expired_message,
+          not_active_message: settings.not_active_message,
+          revoked_message: settings.revoked_message,
+        }),
+      });
+
+      const data = (await response.json()) as GuestAccessSettingsResponse;
+
+      if (!data.success) {
+        throw new Error(data.error || "Unable to save guest access settings");
+      }
+
+      setSettings(data.settings || settings);
+      setStatusMessage("Guest Stay Access settings saved.");
+    } catch (saveError) {
+      console.error("SAVE GUEST ACCESS SETTINGS ERROR:", saveError);
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Unable to save guest access settings"
+      );
     } finally {
-      setLoading(false);
+      setSettingsSaving(false);
     }
   }
 
@@ -368,13 +535,12 @@ export default function DashboardGuestAccessPage() {
               </div>
 
               <h1 className="text-4xl font-black tracking-tight md:text-5xl">
-                Guest Access
+                Guest Stay Access
               </h1>
 
               <p className="mt-3 max-w-3xl text-base leading-relaxed text-zinc-500 md:text-lg">
-                Manage personal stay links generated from bookings. These links
-                will later control guest access to AI, WhatsApp and stay
-                services.
+                Manage personal stay links generated from bookings. This module
+                is separate, optional and can be enabled only when ready.
               </p>
             </div>
 
@@ -387,8 +553,8 @@ export default function DashboardGuestAccessPage() {
               </a>
 
               <button
-                onClick={loadTokens}
-                disabled={working}
+                onClick={loadAll}
+                disabled={working || settingsSaving}
                 className="rounded-2xl bg-zinc-900 px-5 py-3 font-black text-white shadow-sm disabled:opacity-50"
               >
                 Refresh
@@ -396,7 +562,7 @@ export default function DashboardGuestAccessPage() {
 
               <button
                 onClick={syncFromBookings}
-                disabled={working}
+                disabled={working || settingsSaving}
                 className="rounded-2xl bg-black px-5 py-3 font-black text-white shadow-sm disabled:opacity-50"
               >
                 {working ? "Working..." : "Sync from Bookings"}
@@ -452,9 +618,124 @@ export default function DashboardGuestAccessPage() {
         <section className="rounded-[36px] border border-black/5 bg-white p-5 shadow-sm md:p-6">
           <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <h2 className="text-2xl font-black">
-                Guest Access Links
-              </h2>
+              <h2 className="text-2xl font-black">Module Settings</h2>
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Keep this module OFF until enforcement is connected to AI,
+                WhatsApp and the guest page.
+              </p>
+            </div>
+
+            <Badge tone={settings.enabled ? "success" : "neutral"}>
+              {settings.enabled ? "Module ON" : "Module OFF"}
+            </Badge>
+          </div>
+
+          <div className="space-y-4">
+            <ToggleRow
+              title="Enable Guest Stay Access module"
+              description="Master switch for this feature. For now it stores the setting only; enforcement is added in the next block."
+              checked={settings.enabled}
+              onChange={(value) =>
+                setSettings((current) => ({
+                  ...current,
+                  enabled: value,
+                }))
+              }
+            />
+
+            <ToggleRow
+              title="Require token for Guest Page"
+              description="When enforcement is enabled, the full guest page can require a valid stay token."
+              checked={settings.require_token_for_guest_page}
+              onChange={(value) =>
+                setSettings((current) => ({
+                  ...current,
+                  require_token_for_guest_page: value,
+                }))
+              }
+            />
+
+            <ToggleRow
+              title="Require token for AI Concierge"
+              description="When enforcement is enabled, AI replies can be limited to active stays only."
+              checked={settings.require_token_for_ai}
+              onChange={(value) =>
+                setSettings((current) => ({
+                  ...current,
+                  require_token_for_ai: value,
+                }))
+              }
+            />
+
+            <ToggleRow
+              title="Require token for WhatsApp"
+              description="When enforcement is enabled, WhatsApp AI can be limited to guests with an active stay."
+              checked={settings.require_token_for_whatsapp}
+              onChange={(value) =>
+                setSettings((current) => ({
+                  ...current,
+                  require_token_for_whatsapp: value,
+                }))
+              }
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="rounded-3xl border border-zinc-100 bg-zinc-50 p-5">
+                <div className="text-sm font-black text-zinc-950">
+                  Access starts hours before check-in
+                </div>
+
+                <input
+                  type="number"
+                  min={0}
+                  max={168}
+                  value={settings.access_start_hours_before}
+                  onChange={(event) =>
+                    setSettings((current) => ({
+                      ...current,
+                      access_start_hours_before: Number(event.target.value),
+                    }))
+                  }
+                  className="mt-3 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 font-bold outline-none"
+                />
+              </label>
+
+              <label className="rounded-3xl border border-zinc-100 bg-zinc-50 p-5">
+                <div className="text-sm font-black text-zinc-950">
+                  Access ends hours after check-out
+                </div>
+
+                <input
+                  type="number"
+                  min={0}
+                  max={168}
+                  value={settings.access_end_hours_after}
+                  onChange={(event) =>
+                    setSettings((current) => ({
+                      ...current,
+                      access_end_hours_after: Number(event.target.value),
+                    }))
+                  }
+                  className="mt-3 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 font-bold outline-none"
+                />
+              </label>
+            </div>
+
+            <button
+              onClick={saveSettings}
+              disabled={settingsSaving || working}
+              className="rounded-2xl bg-black px-5 py-3 font-black text-white shadow-sm disabled:opacity-50"
+            >
+              {settingsSaving ? "Saving..." : "Save Settings"}
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-[36px] border border-black/5 bg-white p-5 shadow-sm md:p-6">
+          <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-2xl font-black">Guest Access Links</h2>
 
               <p className="mt-1 text-sm text-zinc-500">
                 Copy, open or revoke personal guest access links.
@@ -564,7 +845,7 @@ export default function DashboardGuestAccessPage() {
                         {token.status !== "revoked" && (
                           <button
                             onClick={() => revokeAccess(token)}
-                            disabled={working}
+                            disabled={working || settingsSaving}
                             className="rounded-2xl bg-red-600 px-4 py-3 text-sm font-black text-white shadow-sm disabled:opacity-50"
                           >
                             Revoke
