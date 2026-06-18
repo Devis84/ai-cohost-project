@@ -1,7 +1,30 @@
+export type GuestPageContent = {
+  hero_title?: string
+  hero_intro?: string
+  hero_image_url?: string
+  about_title?: string
+  about_intro?: string
+  about_description?: string
+  about_highlights?: string
+}
+
+export type ExtraServices = {
+  enabled?: boolean
+  title?: string
+  intro?: string
+  services?: string
+  host_note?: string
+}
+
 export type WelcomeBook = {
   description?: string
   amenities?: string
   house_rules?: string
+  apartment_instructions?: string
+  kitchen?: string
+  washing_machine?: string
+  towels_linen?: string
+  beach_towels?: string
   parking?: string
   trash?: string
   ac?: string
@@ -23,7 +46,9 @@ export type AiTraining = {
 }
 
 export type KnowledgeBase = {
+  guest_page?: GuestPageContent
   welcome_book?: WelcomeBook
+  extra_services?: ExtraServices
   ai_training?: AiTraining
 }
 
