@@ -1,135 +1,206 @@
-"use client";
+ "use client";
+
+type DashboardSidebarProps = {
+  activeTab: string;
+  onSelectTab: (tab: string) => void;
+};
+
+function TabButton({
+  icon,
+  label,
+  tab,
+  activeTab,
+  onSelectTab,
+}: {
+  icon: string;
+  label: string;
+  tab: string;
+  activeTab: string;
+  onSelectTab: (tab: string) => void;
+}) {
+  const isActive = activeTab === tab;
+
+  return (
+    <button
+      onClick={() => onSelectTab(tab)}
+      className={`w-full text-left px-5 py-4 rounded-2xl transition ${
+        isActive
+          ? "bg-black text-white shadow-xl"
+          : "bg-white border border-gray-200 hover:bg-black hover:text-white"
+      }`}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+function SidebarLink({
+  href,
+  icon,
+  label,
+  danger = false,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  danger?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      className={`w-full block text-left px-5 py-4 rounded-2xl transition border ${
+        danger
+          ? "bg-white border-red-100 text-red-600 hover:bg-red-600 hover:text-white"
+          : "bg-white border-gray-200 hover:bg-black hover:text-white"
+      }`}
+    >
+      {icon} {label}
+    </a>
+  );
+}
+
+function SidebarSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="px-2 pt-2 text-[11px] font-black uppercase tracking-[0.22em] text-gray-400">
+        {title}
+      </div>
+
+      {children}
+    </div>
+  );
+}
 
 export function DashboardSidebar({
   activeTab,
   onSelectTab,
-}: {
-  activeTab: string;
-  onSelectTab: (tab: string) => void;
-}) {
+}: DashboardSidebarProps) {
   return (
-    <aside className="space-y-3">
-      <button
-        onClick={() => onSelectTab("general")}
-        className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-          activeTab === "general"
-            ? "bg-black text-white shadow-xl"
-            : "bg-white border border-gray-200"
-        }`}
-      >
-        🏡 General
-      </button>
+    <aside className="space-y-5">
+      <SidebarSection title="Property Setup">
+        <TabButton
+          icon="🏡"
+          label="General"
+          tab="general"
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+        />
 
-      <button
-        onClick={() => onSelectTab("guestpage")}
-        className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-          activeTab === "guestpage"
-            ? "bg-black text-white shadow-xl"
-            : "bg-white border border-gray-200"
-        }`}
-      >
-        ✨ Guest Page
-      </button>
+        <TabButton
+          icon="✨"
+          label="Guest Page"
+          tab="guestpage"
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+        />
 
-      <button
-        onClick={() => onSelectTab("welcomebook")}
-        className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-          activeTab === "welcomebook"
-            ? "bg-black text-white shadow-xl"
-            : "bg-white border border-gray-200"
-        }`}
-      >
-        📘 Welcome Book
-      </button>
+        <SidebarLink
+          href="/dashboard/qr"
+          icon="📲"
+          label="Guest Access QR/NFC"
+        />
 
-      <button
-        onClick={() => onSelectTab("extraservices")}
-        className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-          activeTab === "extraservices"
-            ? "bg-black text-white shadow-xl"
-            : "bg-white border border-gray-200"
-        }`}
-      >
-        🛎️ Extra Services
-      </button>
+        <SidebarLink
+          href="/dashboard/activity"
+          icon="📊"
+          label="Guest Activity"
+        />
+      </SidebarSection>
 
-      <button
-        onClick={() => onSelectTab("localguide")}
-        className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-          activeTab === "localguide"
-            ? "bg-black text-white shadow-xl"
-            : "bg-white border border-gray-200"
-        }`}
-      >
-        📍 Local Guide
-      </button>
+      <SidebarSection title="Guest Content">
+        <TabButton
+          icon="📘"
+          label="Welcome Book"
+          tab="welcomebook"
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+        />
 
-      <button
-        onClick={() => onSelectTab("ai")}
-        className={`w-full text-left px-5 py-4 rounded-2xl transition ${
-          activeTab === "ai"
-            ? "bg-black text-white shadow-xl"
-            : "bg-white border border-gray-200"
-        }`}
-      >
-        🤖 AI Training
-      </button>
+        <TabButton
+          icon="📍"
+          label="Local Guide"
+          tab="localguide"
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+        />
 
-      <a
-        href="/dashboard/qr"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        📲 Guest Access QR/NFC
-      </a>
+        <TabButton
+          icon="🛎️"
+          label="Extra Services"
+          tab="extraservices"
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+        />
 
-      <a
-        href="/dashboard/inbox"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        💬 Inbox
-      </a>
+        <TabButton
+          icon="🤖"
+          label="AI Training"
+          tab="ai"
+          activeTab={activeTab}
+          onSelectTab={onSelectTab}
+        />
+      </SidebarSection>
 
-      <a
-        href="/dashboard/issues"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        🚨 Issues
-      </a>
+      <SidebarSection title="Guest Operations">
+        <SidebarLink
+          href="/dashboard/inbox"
+          icon="💬"
+          label="Inbox"
+        />
 
-      <a
-        href="/dashboard/notifications"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        🔔 Notifications
-      </a>
+        <SidebarLink
+          href="/dashboard/conversations"
+          icon="🧾"
+          label="Conversations"
+        />
 
-      <a
-        href="/dashboard/cleaning"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        🧹 Cleaning
-      </a>
+        <SidebarLink
+          href="/dashboard/issues"
+          icon="🚨"
+          label="Issues"
+        />
 
-      <a
-        href="/dashboard/channel-manager"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        📅 Light Channel Manager
-      </a>
+        <SidebarLink
+          href="/dashboard/notifications"
+          icon="🔔"
+          label="Notifications"
+        />
 
-      <a
-        href="/dashboard/billing"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-gray-200 hover:bg-black hover:text-white"
-      >
-        💳 Billing
-      </a>
+        <SidebarLink
+          href="/dashboard/cleaning"
+          icon="🧹"
+          label="Cleaning"
+        />
+      </SidebarSection>
 
-      <a
-        href="/logout"
-        className="w-full block text-left px-5 py-4 rounded-2xl transition bg-white border border-red-100 text-red-600 hover:bg-red-600 hover:text-white"
-      >
-        🚪 Logout
-      </a>
+      <SidebarSection title="Business">
+        <SidebarLink
+          href="/dashboard/channel-manager"
+          icon="📅"
+          label="Light Channel Manager"
+        />
+
+        <SidebarLink
+          href="/dashboard/billing"
+          icon="💳"
+          label="Billing"
+        />
+      </SidebarSection>
+
+      <SidebarSection title="Account">
+        <SidebarLink
+          href="/logout"
+          icon="🚪"
+          label="Logout"
+          danger
+        />
+      </SidebarSection>
     </aside>
   );
 }
