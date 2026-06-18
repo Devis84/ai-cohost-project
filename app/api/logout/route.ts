@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function GET() {
   const response = NextResponse.json({
     success: true,

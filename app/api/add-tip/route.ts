@@ -1,30 +1,79 @@
-import { createClient } from "@supabase/supabase-js"
 
-const supabase = createClient(
- process.env.NEXT_PUBLIC_SUPABASE_URL!,
- process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const runtime = "nodejs";
 
-export async function POST(req:Request){
+ import { createClient } from "@supabase/supabase-js";
 
- const body = await req.json()
+export const dynamic = "force-dynamic";
 
- const property_id = body.property_id
- const type = body.type
- const title = body.title
- const description = body.description
+type AddTipPayload = {
+  property_id?: string;
+  type?: string;
+  title?: string;
+  description?: string;
+};
 
- await supabase
-  .from("local_tips")
-  .insert([
-    {
-      property_id,
-      type,
-      title,
-      description
+function getSupabaseAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as AddTipPayload;
+
+    const propertyId = body.property_id?.trim();
+    const type = body.type?.trim();
+    const title = body.title?.trim();
+    const description = body.description?.trim();
+
+    if (!propertyId || !type || !title) {
+      return Response.json(
+        {
+          success: false,
+          error: "property_id, type and title are required",
+        },
+        { status: 400 }
+      );
     }
-  ])
 
- return Response.json({success:true})
+    const supabase = getSupabaseAdminClient();
 
+    const { error } = await supabase
+      .from("local_tips")
+      .insert([
+        {
+          property_id: propertyId,
+          type,
+          title,
+          description: description || "",
+        },
+      ]);
+
+    if (error) {
+      throw error;
+    }
+
+    return Response.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error("ADD TIP ERROR:", error);
+
+    return Response.json(
+      {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to add tip",
+      },
+      { status: 500 }
+    );
+  }
 }
