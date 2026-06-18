@@ -230,10 +230,10 @@ function StayInfoCard({ token }: { token: GuestAccessToken }) {
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <a
-          href={`/guest/${token.property_slug}`}
+          href={`/guest/${token.property_slug}?guest_access_token=${token.token}`}
           className="rounded-2xl bg-black px-5 py-4 text-center font-black text-white shadow-sm"
         >
-          Open Guest Page
+          Open Verified Guest Page
         </a>
 
         <a
