@@ -1,3 +1,5 @@
+ export const dynamic = "force-dynamic";
+
 type GuestAccessToken = {
   id: string;
   property_id: string | null;
@@ -102,19 +104,30 @@ function getPropertyDisplayName(propertySlug?: string | null) {
 async function validateGuestAccess(
   token: string
 ): Promise<GuestAccessValidateResponse> {
-  const response = await fetch(`${getSiteUrl()}/api/guest-access/validate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    cache: "no-store",
-    body: JSON.stringify({
-      token,
-      mark_used: true,
-    }),
-  });
+  try {
+    const response = await fetch(`${getSiteUrl()}/api/guest-access/validate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+      body: JSON.stringify({
+        token,
+        mark_used: true,
+      }),
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return {
+        success: false,
+        allowed: false,
+        state: "server_error",
+        error: "Unable to validate this guest access link.",
+      };
+    }
+
+    return response.json();
+  } catch {
     return {
       success: false,
       allowed: false,
@@ -122,8 +135,6 @@ async function validateGuestAccess(
       error: "Unable to validate this guest access link.",
     };
   }
-
-  return response.json();
 }
 
 function StatusCard({
@@ -149,7 +160,11 @@ function StatusCard({
   return (
     <div className={`rounded-[34px] border p-7 shadow-sm ${toneClass}`}>
       <div className="text-5xl">{emoji}</div>
-      <h1 className="mt-5 text-4xl font-black tracking-tight">{title}</h1>
+
+      <h1 className="mt-5 text-4xl font-black tracking-tight">
+        {title}
+      </h1>
+
       <p className="mt-4 max-w-2xl text-base leading-relaxed opacity-75">
         {message}
       </p>
@@ -209,9 +224,8 @@ function StayInfoCard({ token }: { token: GuestAccessToken }) {
       </div>
 
       <div className="mt-5 rounded-3xl border border-emerald-100 bg-emerald-50 p-5 text-sm leading-relaxed text-emerald-800">
-        Your digital stay access is active. Full guest services can be
-        connected here, including the welcome guide, house information and AI
-        Concierge.
+        Your digital stay access is active. Full guest services can be connected
+        here, including the welcome guide, house information and AI Concierge.
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
