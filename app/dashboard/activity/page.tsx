@@ -541,9 +541,7 @@ export default function HostActivityPage() {
                       className="rounded-3xl border border-zinc-100 p-5"
                     >
                       <div className="flex flex-wrap gap-2">
-                        <StatusBadge>
-                          uses {item.usage_count || 0}
-                        </StatusBadge>
+                        <StatusBadge>{`uses ${item.usage_count || 0}`}</StatusBadge>
                         <StatusBadge>{item.source}</StatusBadge>
                         <StatusBadge>
                           {item.approved ? "approved" : "review"}
