@@ -979,7 +979,7 @@ function evaluateGuestQuestionScope(
     "stirare",
     "vapore",
     "vaporizzatore",
-    "sti    "sti    "sti ",
+    "stiro",
     "machine à laver",
     "cuisine",
     "lave-linge",
