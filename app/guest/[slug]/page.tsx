@@ -133,6 +133,15 @@ type DetailItem = {
   defaultOpen?: boolean;
 };
 
+type ActiveView =
+  | "home"
+  | "essential"
+  | "apartment"
+  | "local"
+  | "extras"
+  | "ai"
+  | "help";
+
 function safeText(value?: string | null) {
   return typeof value === "string" && value.trim()
     ? value.trim()
@@ -438,27 +447,22 @@ function InfoPill({
   );
 }
 
-function HubCard({
-  href,
+function HomeHubCard({
   icon,
   title,
   description,
-  dark = false,
+  onClick,
 }: {
-  href: string;
   icon: string;
   title: string;
   description: string;
-  dark?: boolean;
+  onClick: () => void;
 }) {
   return (
-    <a
-      href={href}
-      className={`rounded-[30px] p-5 md:p-6 border shadow-xl hover:scale-[1.015] transition block ${
-        dark
-          ? "bg-black text-white border-black"
-          : "bg-white text-black border-black/5"
-      }`}
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left rounded-[30px] p-5 md:p-6 border shadow-xl hover:scale-[1.015] transition bg-white text-black border-black/5"
     >
       <div className="text-4xl mb-5">{icon}</div>
 
@@ -466,48 +470,32 @@ function HubCard({
         {title}
       </div>
 
-      <div
-        className={`text-sm leading-relaxed ${
-          dark ? "text-white/60" : "text-gray-500"
-        }`}
-      >
+      <div className="text-sm leading-relaxed text-gray-500 mb-4">
         {description}
       </div>
-    </a>
+
+      <div className="inline-flex items-center gap-2 text-sm font-black">
+        <span>Open section</span>
+        <span>→</span>
+      </div>
+    </button>
   );
 }
 
-function SectionShell({
-  id,
-  eyebrow,
-  title,
-  description,
+function PromptButton({
   children,
+  onClick,
 }: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
   children: ReactNode;
+  onClick: () => void;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 space-y-4">
-      <div className="bg-white rounded-[36px] p-6 md:p-8 shadow-xl border border-black/5">
-        <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
-          {eyebrow}
-        </div>
-
-        <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
-          {title}
-        </h2>
-
-        <p className="text-gray-500 leading-relaxed max-w-3xl">
-          {description}
-        </p>
-      </div>
-
+    <button
+      onClick={onClick}
+      className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-left hover:bg-white/15 transition text-sm md:text-base"
+    >
       {children}
-    </section>
+    </button>
   );
 }
 
@@ -533,7 +521,7 @@ function DetailAccordion({
               </div>
             </div>
 
-            <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-xl font-black group-open:rotate-45 transition">
+            <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-xl font-black group-open:rotate-45 transition shrink-0">
               +
             </div>
           </summary>
@@ -544,23 +532,6 @@ function DetailAccordion({
         </details>
       ))}
     </div>
-  );
-}
-
-function PromptButton({
-  children,
-  onClick,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-left hover:bg-white/15 transition text-sm md:text-base"
-    >
-      {children}
-    </button>
   );
 }
 
@@ -646,6 +617,71 @@ function ChatPanel({
   );
 }
 
+function ViewHeader({
+  icon,
+  title,
+  description,
+  onBack,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="bg-white rounded-[36px] p-6 md:p-8 shadow-xl border border-black/5">
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-6 inline-flex items-center gap-2 rounded-2xl bg-[#f4f1eb] px-4 py-3 text-sm font-black hover:bg-zinc-200 transition"
+      >
+        <span>←</span>
+        <span>Back to guide</span>
+      </button>
+
+      <div className="text-5xl mb-5">{icon}</div>
+
+      <h1 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
+        {title}
+      </h1>
+
+      <p className="text-gray-500 leading-relaxed max-w-3xl">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function AskAiCta({
+  onClick,
+}: {
+  onClick: () => void;
+}) {
+  return (
+    <section className="bg-black text-white rounded-[36px] p-6 md:p-8 shadow-xl">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div>
+          <h2 className="text-2xl md:text-4xl font-black mb-2">
+            Still unsure?
+          </h2>
+
+          <p className="text-white/60 leading-relaxed max-w-2xl">
+            Ask the AI Concierge for instant stay-related help in your language.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClick}
+          className="bg-white text-black rounded-2xl px-5 py-3 font-black"
+        >
+          Ask AI
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function GuestPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -663,6 +699,9 @@ export default function GuestPage() {
 
   const [loadError, setLoadError] =
     useState("");
+
+  const [activeView, setActiveView] =
+    useState<ActiveView>("home");
 
   const [chatInput, setChatInput] =
     useState("");
@@ -772,25 +811,32 @@ export default function GuestPage() {
   const extraServicesIntro =
     safeText(extraServices.intro);
 
+  const extraServicesHostNote =
+    safeText(extraServices.host_note);
+
   const extraServiceItems = splitLines(
     safeText(extraServices.services)
   );
 
-  const hasExtraServices =
-    Boolean(
-      extraServices.enabled &&
-        (extraServicesTitle ||
-          extraServicesIntro ||
-          extraServiceItems.length > 0)
-    );
-
   useEffect(() => {
     loadProperty();
+    setActiveView("home");
   }, [slug]);
 
   useEffect(() => {
     validateGuestPageAccess();
   }, [slug, guestAccessToken]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, [activeView]);
 
   useEffect(() => {
     if (!chatRef.current) {
@@ -800,6 +846,10 @@ export default function GuestPage() {
     chatRef.current.scrollTop =
       chatRef.current.scrollHeight;
   }, [messages, chatLoading]);
+
+  function openView(view: ActiveView) {
+    setActiveView(view);
+  }
 
   async function validateGuestPageAccess() {
     if (!slug) {
@@ -1044,47 +1094,9 @@ export default function GuestPage() {
 
   const essentialItems: DetailItem[] = [
     {
-      id: "wifi",
-      icon: "📶",
-      title: "WiFi",
-      defaultOpen: true,
-      content: (
-        <div className="space-y-4">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="rounded-3xl bg-[#f4f1eb] p-4 border border-black/5">
-              <div className="text-xs uppercase tracking-[0.2em] text-gray-400 mb-2">
-                Network
-              </div>
-
-              <div className="font-black text-xl break-words">
-                {property?.wifi_name || "Not available"}
-              </div>
-            </div>
-
-            <div className="rounded-3xl bg-black text-white p-4 border border-black">
-              <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">
-                Password
-              </div>
-
-              <div className="font-black text-xl break-words">
-                {property?.wifi_password || "Not available"}
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={copyWifi}
-            className="rounded-2xl bg-black px-5 py-3 font-bold text-white"
-          >
-            Copy WiFi
-          </button>
-        </div>
-      ),
-    },
-    {
       id: "arrival",
       icon: "🔑",
-      title: "Check-in, address and arrival",
+      title: "Check-in, checkout and arrival",
       defaultOpen: true,
       content: (
         <div className="space-y-3">
@@ -1128,6 +1140,43 @@ export default function GuestPage() {
       ),
     },
     {
+      id: "wifi",
+      icon: "📶",
+      title: "WiFi",
+      content: (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-3xl bg-[#f4f1eb] p-4 border border-black/5">
+              <div className="text-xs uppercase tracking-[0.2em] text-gray-400 mb-2">
+                Network
+              </div>
+
+              <div className="font-black text-xl break-words">
+                {property?.wifi_name || "Not available"}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-black text-white p-4 border border-black">
+              <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">
+                Password
+              </div>
+
+              <div className="font-black text-xl break-words">
+                {property?.wifi_password || "Not available"}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={copyWifi}
+            className="rounded-2xl bg-black px-5 py-3 font-bold text-white"
+          >
+            Copy WiFi
+          </button>
+        </div>
+      ),
+    },
+    {
       id: "house-rules",
       icon: "📋",
       title: "House rules",
@@ -1142,6 +1191,13 @@ export default function GuestPage() {
       content:
         checkoutNotes ||
         "Before leaving, please make sure the door is locked and follow the checkout instructions shared by the host.",
+    },
+    {
+      id: "security-note",
+      icon: "🔐",
+      title: "Access and security note",
+      content:
+        "For security reasons, private lockbox codes, door codes and access codes are not displayed on this public guest page. Please check the private message sent by the host.",
     },
   ];
 
@@ -1290,6 +1346,81 @@ export default function GuestPage() {
     },
   ];
 
+  const extraItems: DetailItem[] = [
+    {
+      id: "available-extra-services",
+      icon: "🛎️",
+      title: extraServicesTitle,
+      defaultOpen: true,
+      content: (
+        <div className="space-y-4">
+          <p>
+            {extraServicesIntro ||
+              "Optional stay upgrades and extra services may be available on request."}
+          </p>
+
+          {extraServiceItems.length > 0 ? (
+            <div className="space-y-3">
+              {extraServiceItems.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl bg-[#f4f1eb] p-4 font-semibold text-gray-900"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">
+              Extra services will be added here soon. You can ask the AI
+              Concierge or contact the host for availability.
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "host-note",
+      icon: "📝",
+      title: "Host note",
+      content:
+        extraServicesHostNote ||
+        "Please confirm availability, timing and price with the host before booking any extra service.",
+    },
+    {
+      id: "request-extra-service",
+      icon: "💬",
+      title: "Request information",
+      content: (
+        <div className="space-y-4">
+          <p>
+            Ask the AI Concierge or contact the host to confirm availability,
+            price and booking details.
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => openView("ai")}
+              className="rounded-2xl bg-black px-5 py-3 font-semibold text-white"
+            >
+              Ask AI
+            </button>
+
+            {hostPhoneHref && (
+              <a
+                href={hostPhoneHref}
+                className="rounded-2xl border border-gray-200 bg-white px-5 py-3 font-semibold text-black"
+              >
+                Contact Host
+              </a>
+            )}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   const helpItems: DetailItem[] = [
     {
       id: "ai-help",
@@ -1343,35 +1474,6 @@ export default function GuestPage() {
     },
   ];
 
-  if (hasExtraServices) {
-    helpItems.push({
-      id: "extra-services",
-      icon: "🛎️",
-      title: extraServicesTitle,
-      content: (
-        <div className="space-y-4">
-          <p>
-            {extraServicesIntro ||
-              "Optional stay upgrades and extra services may be available on request."}
-          </p>
-
-          {extraServiceItems.length > 0 && (
-            <div className="space-y-3">
-              {extraServiceItems.map((item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl bg-[#f4f1eb] p-4 font-semibold text-gray-900"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ),
-    });
-  }
-
   if (loading || guestAccessStatus.loading) {
     return <LoadingScreen />;
   }
@@ -1411,7 +1513,7 @@ export default function GuestPage() {
         eventMetadata={{
           property_name: getPropertyName(property),
           page: "guest_page",
-          layout: "guest_hub",
+          layout: "guest_hub_detail_views",
           guest_access_state: guestAccessStatus.state,
           guest_access_verified: guestAccessStatus.verified,
         }}
@@ -1425,311 +1527,448 @@ export default function GuestPage() {
         </div>
       )}
 
-      <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="relative overflow-hidden rounded-[40px] md:rounded-[48px] bg-black text-white shadow-2xl min-h-[430px] md:min-h-[500px]">
-            {heroImageUrl && (
-              <div
-                className="absolute inset-0 bg-cover bg-center opacity-100"
-                style={{
-                  backgroundImage: `url(${heroImageUrl})`,
-                }}
-              />
-            )}
-
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/10" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/10" />
-
-            <div className="relative p-6 md:p-10 lg:p-12 min-h-[430px] md:min-h-[500px] flex flex-col justify-between">
-              <div className="max-w-3xl">
-                <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-4 py-2 text-xs md:text-sm text-white/90 mb-5 backdrop-blur-md shadow-lg">
-                  <span>✨</span>
-                  <span>Your digital stay guide</span>
-                </div>
-
-                <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/60 mb-4">
-                  AI CO-HOST EXPERIENCE
-                </div>
-
-                <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-5 leading-[0.95] max-w-3xl drop-shadow-2xl">
-                  {heroTitle}
-                </h1>
-
-                <p className="text-white/90 text-base md:text-xl max-w-2xl leading-relaxed drop-shadow-xl">
-                  {heroDescription}
-                </p>
-
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <a
-                    href="#ai-concierge"
-                    className="bg-white text-black rounded-2xl px-5 py-4 font-black shadow-xl hover:scale-[1.015] transition"
-                  >
-                    Ask AI Concierge
-                  </a>
-
-                  <a
-                    href="#essential-info"
-                    className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
-                  >
-                    Open Stay Guide
-                  </a>
-                </div>
-              </div>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <InfoPill icon="📍" label={locationText} />
-
-                {property.checkin_time && (
-                  <InfoPill
-                    icon="🔑"
-                    label={`Check-in: ${property.checkin_time}`}
-                  />
-                )}
-
-                {property.checkout_time && (
-                  <InfoPill
-                    icon="🚪"
-                    label={`Check-out: ${property.checkout_time}`}
-                  />
-                )}
-
-                <InfoPill
-                  icon="🤖"
-                  label="AI help available"
+      {activeView === "home" && (
+        <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="relative overflow-hidden rounded-[40px] md:rounded-[48px] bg-black text-white shadow-2xl min-h-[390px] md:min-h-[470px]">
+              {heroImageUrl && (
+                <div
+                  className="absolute inset-0 bg-cover bg-center opacity-100"
+                  style={{
+                    backgroundImage: `url(${heroImageUrl})`,
+                  }}
                 />
+              )}
+
+              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/10" />
+
+              <div className="relative p-6 md:p-10 lg:p-12 min-h-[390px] md:min-h-[470px] flex flex-col justify-between">
+                <div className="max-w-3xl">
+                  <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-4 py-2 text-xs md:text-sm text-white/90 mb-5 backdrop-blur-md shadow-lg">
+                    <span>✨</span>
+                    <span>Your digital stay guide</span>
+                  </div>
+
+                  <div className="uppercase tracking-[0.32em] text-[10px] md:text-[11px] text-white/60 mb-4">
+                    AI CO-HOST EXPERIENCE
+                  </div>
+
+                  <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-5 leading-[0.95] max-w-3xl drop-shadow-2xl">
+                    {heroTitle}
+                  </h1>
+
+                  <p className="text-white/90 text-base md:text-xl max-w-2xl leading-relaxed drop-shadow-xl">
+                    {heroDescription}
+                  </p>
+
+                  <div className="mt-7 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openView("ai")}
+                      className="bg-white text-black rounded-2xl px-5 py-4 font-black shadow-xl hover:scale-[1.015] transition"
+                    >
+                      Ask AI Concierge
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openView("essential")}
+                      className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
+                    >
+                      Open Stay Guide
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <InfoPill icon="📍" label={locationText} />
+
+                  {property.checkin_time && (
+                    <InfoPill
+                      icon="🔑"
+                      label={`Check-in: ${property.checkin_time}`}
+                    />
+                  )}
+
+                  {property.checkout_time && (
+                    <InfoPill
+                      icon="🚪"
+                      label={`Check-out: ${property.checkout_time}`}
+                    />
+                  )}
+
+                  <InfoPill
+                    icon="🤖"
+                    label="AI help available"
+                  />
+                </div>
               </div>
             </div>
           </div>
+        </header>
+      )}
 
-          <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 -mt-8 relative z-10 px-3 md:px-8">
-            <HubCard
-              href="#essential-info"
-              icon="📶"
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-7">
+        {activeView === "home" && (
+          <>
+            <section className="relative overflow-hidden bg-black text-white rounded-[40px] p-6 md:p-8 shadow-2xl">
+              <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+
+              <div className="relative grid lg:grid-cols-[1.2fr_0.8fr] gap-6 items-center">
+                <div>
+                  <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-4">
+                    AI CONCIERGE
+                  </div>
+
+                  <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
+                    Need anything? Ask AI first.
+                  </h2>
+
+                  <p className="text-white/65 text-base md:text-lg max-w-2xl leading-relaxed">
+                    Get instant help about WiFi, check-in, checkout, parking,
+                    appliances, restaurants, transport and local tips.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openView("ai")}
+                  className="bg-white text-black rounded-[30px] p-6 text-left shadow-xl hover:scale-[1.015] transition"
+                >
+                  <div className="text-5xl mb-4">🤖</div>
+
+                  <div className="text-2xl font-black mb-2">
+                    Open AI Concierge
+                  </div>
+
+                  <div className="text-gray-500 leading-relaxed">
+                    Ask in your language. Stay-related questions only.
+                  </div>
+                </button>
+              </div>
+            </section>
+
+            <section
+              id="wifi-home"
+              className="bg-white rounded-[36px] p-6 md:p-8 shadow-xl border border-black/5"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+                <div>
+                  <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+                    QUICK WIFI
+                  </div>
+
+                  <h2 className="text-3xl md:text-4xl font-black mb-2">
+                    Connect to WiFi
+                  </h2>
+
+                  <p className="text-gray-500">
+                    Network and password are kept visible here for fast access.
+                  </p>
+                </div>
+
+                <button
+                  onClick={copyWifi}
+                  className="bg-black text-white rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition"
+                >
+                  Copy WiFi
+                </button>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="rounded-[28px] bg-[#f4f1eb] p-5 border border-black/5">
+                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400 mb-2">
+                    Network
+                  </div>
+
+                  <div className="text-2xl md:text-3xl font-black break-words">
+                    {property.wifi_name || "Not available"}
+                  </div>
+                </div>
+
+                <div className="rounded-[28px] bg-black text-white p-5 border border-black">
+                  <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">
+                    Password
+                  </div>
+
+                  <div className="text-2xl md:text-3xl font-black break-words">
+                    {property.wifi_password || "Not available"}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <HomeHubCard
+                icon="🔑"
+                title="Essential Info"
+                description="Check-in, checkout, address, house rules and security notes."
+                onClick={() => openView("essential")}
+              />
+
+              <HomeHubCard
+                icon="🏡"
+                title="Apartment Guide"
+                description="About the stay, amenities, kitchen, AC, hot water, laundry and towels."
+                onClick={() => openView("apartment")}
+              />
+
+              <HomeHubCard
+                icon="📍"
+                title="Local Guide"
+                description="Parking, restaurants, transport and useful local recommendations."
+                onClick={() => openView("local")}
+              />
+
+              <HomeHubCard
+                icon="🛎️"
+                title="Extra Services"
+                description="Optional services, upgrades and host-supported extras."
+                onClick={() => openView("extras")}
+              />
+            </section>
+
+            <section className="bg-white rounded-[36px] p-6 md:p-8 shadow-xl border border-black/5">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+                <div>
+                  <h2 className="text-2xl md:text-4xl font-black mb-2">
+                    Need urgent help?
+                  </h2>
+
+                  <p className="text-gray-500 leading-relaxed max-w-2xl">
+                    Emergency information and host contact options are grouped
+                    under Help.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => openView("help")}
+                  className="rounded-2xl bg-black px-5 py-3 font-black text-white"
+                >
+                  Open Help
+                </button>
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeView === "essential" && (
+          <>
+            <ViewHeader
+              icon="🔑"
               title="Essential Info"
-              description="WiFi, check-in, checkout, address and house basics."
+              description="Important details for your stay: check-in, checkout, WiFi, house rules, address and access security."
+              onBack={() => openView("home")}
             />
 
-            <HubCard
-              href="#apartment-guide"
+            <DetailAccordion items={essentialItems} />
+
+            <AskAiCta onClick={() => openView("ai")} />
+          </>
+        )}
+
+        {activeView === "apartment" && (
+          <>
+            <ViewHeader
               icon="🏡"
               title="Apartment Guide"
-              description="Amenities, AC, hot water, laundry, towels and useful home notes."
+              description="Everything related to the home itself: amenities, appliances, kitchen, laundry, towels, AC, hot water and practical notes."
+              onBack={() => openView("home")}
             />
 
-            <HubCard
-              href="#local-guide"
+            <DetailAccordion items={apartmentItems} />
+
+            <AskAiCta onClick={() => openView("ai")} />
+          </>
+        )}
+
+        {activeView === "local" && (
+          <>
+            <ViewHeader
               icon="📍"
               title="Local Guide"
-              description="Parking, restaurants, transport and nearby recommendations."
+              description="Useful local information for parking, restaurants, transport and exploring the area."
+              onBack={() => openView("home")}
             />
 
-            <HubCard
-              href="#ai-concierge"
+            <DetailAccordion items={localItems} />
+
+            <AskAiCta onClick={() => openView("ai")} />
+          </>
+        )}
+
+        {activeView === "extras" && (
+          <>
+            <ViewHeader
+              icon="🛎️"
+              title="Extra Services"
+              description="Optional services, local upgrades and additional support that may be available during the stay."
+              onBack={() => openView("home")}
+            />
+
+            <DetailAccordion items={extraItems} />
+
+            <AskAiCta onClick={() => openView("ai")} />
+          </>
+        )}
+
+        {activeView === "help" && (
+          <>
+            <ViewHeader
+              icon="🚨"
+              title="Help & Support"
+              description="Emergency information, AI help, host contact and access security notes."
+              onBack={() => openView("home")}
+            />
+
+            <DetailAccordion items={helpItems} />
+
+            <AskAiCta onClick={() => openView("ai")} />
+          </>
+        )}
+
+        {activeView === "ai" && (
+          <>
+            <ViewHeader
               icon="🤖"
-              title="Ask AI"
-              description="Instant help in your language for stay-related questions."
-              dark
+              title="AI Concierge"
+              description="Ask anything about your stay: WiFi, check-in, checkout, parking, house rules, appliances, restaurants, transport and local tips."
+              onBack={() => openView("home")}
             />
-          </section>
-        </div>
-      </header>
 
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-8">
-        <section
-          id="ai-concierge"
-          className="relative overflow-hidden bg-black text-white rounded-[40px] p-5 md:p-8 shadow-2xl scroll-mt-24"
-        >
-          <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+            <section className="relative overflow-hidden bg-black text-white rounded-[40px] p-5 md:p-8 shadow-2xl">
+              <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+              <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
 
-          <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-6">
-            <div>
-              <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-4">
-                AI CONCIERGE
-              </div>
-
-              <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
-                Ask anything about your stay
-              </h2>
-
-              <p className="text-white/60 text-base md:text-lg max-w-2xl">
-                WiFi, check-in, checkout, parking, house rules, appliances,
-                restaurants, transport and local tips.
-              </p>
-
-              <div className="mt-4 grid md:grid-cols-2 gap-3">
-                <div className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white/70">
-                  Replies in your language.
+              <div className="relative mb-6">
+                <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-4">
+                  AI CONCIERGE
                 </div>
 
-                <div className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white/70">
-                  Stay-related questions only.
-                </div>
+                <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
+                  Ask anything about your stay
+                </h2>
+
+                <p className="text-white/60 text-base md:text-lg max-w-2xl">
+                  Replies in your language. Stay-related questions only.
+                </p>
               </div>
-            </div>
 
-            <div className="text-6xl">🤖</div>
-          </div>
-
-          <div className="relative grid md:grid-cols-3 gap-3 mb-6">
-            <PromptButton
-              onClick={() =>
-                sendMessage("What is the WiFi password?")
-              }
-            >
-              What is the WiFi password?
-            </PromptButton>
-
-            <PromptButton
-              onClick={() =>
-                sendMessage("What time is checkout?")
-              }
-            >
-              What time is checkout?
-            </PromptButton>
-
-            <PromptButton
-              onClick={() =>
-                sendMessage("Where can I park?")
-              }
-            >
-              Where can I park?
-            </PromptButton>
-
-            <PromptButton
-              onClick={() =>
-                sendMessage("Any restaurants nearby?")
-              }
-            >
-              Any restaurants nearby?
-            </PromptButton>
-
-            <PromptButton
-              onClick={() =>
-                sendMessage("How do I use the air conditioning?")
-              }
-            >
-              How do I use the air conditioning?
-            </PromptButton>
-
-            <PromptButton
-              onClick={() =>
-                sendMessage("I need help with check-in.")
-              }
-            >
-              I need help with check-in.
-            </PromptButton>
-          </div>
-
-          <ChatPanel
-            chatRef={chatRef}
-            messages={messages}
-            chatLoading={chatLoading}
-            chatInput={chatInput}
-            setChatInput={setChatInput}
-            sendMessage={sendMessage}
-          />
-        </section>
-
-        <SectionShell
-          id="essential-info"
-          eyebrow="ESSENTIAL INFO"
-          title="The basics you need first"
-          description="WiFi, arrival details, house rules and checkout notes are grouped here so guests do not need to scroll through the whole page."
-        >
-          <DetailAccordion items={essentialItems} />
-        </SectionShell>
-
-        <SectionShell
-          id="apartment-guide"
-          eyebrow="APARTMENT GUIDE"
-          title="How everything works at home"
-          description="Practical information about the apartment, amenities and useful stay essentials."
-        >
-          <DetailAccordion items={apartmentItems} />
-        </SectionShell>
-
-        <SectionShell
-          id="local-guide"
-          eyebrow="LOCAL GUIDE"
-          title="Around the area"
-          description="Parking, food, transport and local tips for exploring the neighbourhood."
-        >
-          <DetailAccordion items={localItems} />
-        </SectionShell>
-
-        <SectionShell
-          id="help-support"
-          eyebrow="HELP & SUPPORT"
-          title="Need help during your stay?"
-          description="Use the AI Concierge for instant stay-related help, or contact the host for urgent matters."
-        >
-          <DetailAccordion items={helpItems} />
-        </SectionShell>
-
-        <section className="bg-black text-white rounded-[40px] p-6 md:p-8 shadow-xl">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-            <div>
-              <h2 className="text-2xl md:text-4xl font-black mb-2">
-                Still need help?
-              </h2>
-
-              <p className="text-white/60 leading-relaxed max-w-2xl">
-                Ask the AI Concierge for stay-related questions, or contact the
-                host directly for urgent matters.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="#ai-concierge"
-                className="bg-white text-black rounded-2xl px-5 py-3 font-semibold"
-              >
-                Ask AI
-              </a>
-
-              {hostPhoneHref && (
-                <a
-                  href={hostPhoneHref}
-                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 font-semibold"
+              <div className="relative grid md:grid-cols-3 gap-3 mb-6">
+                <PromptButton
+                  onClick={() =>
+                    sendMessage("What is the WiFi password?")
+                  }
                 >
-                  Contact Host
-                </a>
-              )}
-            </div>
-          </div>
-        </section>
+                  What is the WiFi password?
+                </PromptButton>
+
+                <PromptButton
+                  onClick={() =>
+                    sendMessage("What time is checkout?")
+                  }
+                >
+                  What time is checkout?
+                </PromptButton>
+
+                <PromptButton
+                  onClick={() =>
+                    sendMessage("Where can I park?")
+                  }
+                >
+                  Where can I park?
+                </PromptButton>
+
+                <PromptButton
+                  onClick={() =>
+                    sendMessage("Any restaurants nearby?")
+                  }
+                >
+                  Any restaurants nearby?
+                </PromptButton>
+
+                <PromptButton
+                  onClick={() =>
+                    sendMessage("How do I use the air conditioning?")
+                  }
+                >
+                  How do I use the air conditioning?
+                </PromptButton>
+
+                <PromptButton
+                  onClick={() =>
+                    sendMessage("I need help with check-in.")
+                  }
+                >
+                  I need help with check-in.
+                </PromptButton>
+              </div>
+
+              <ChatPanel
+                chatRef={chatRef}
+                messages={messages}
+                chatLoading={chatLoading}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                sendMessage={sendMessage}
+              />
+            </section>
+          </>
+        )}
       </main>
 
       <div className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
         <div className="bg-black text-white rounded-[28px] shadow-2xl p-3 grid grid-cols-4 gap-2 border border-white/10">
-          <a
-            href="#essential-info"
-            className="bg-white/10 rounded-2xl py-3 text-center text-xs font-semibold"
+          <button
+            type="button"
+            onClick={() => openView("home")}
+            className={`rounded-2xl py-3 text-center text-xs font-semibold ${
+              activeView === "home"
+                ? "bg-white text-black"
+                : "bg-white/10 text-white"
+            }`}
           >
-            Guide
-          </a>
+            Home
+          </button>
 
-          <a
-            href="#ai-concierge"
-            className="bg-white rounded-2xl py-3 text-center text-xs font-semibold text-black"
+          <button
+            type="button"
+            onClick={() => openView("ai")}
+            className={`rounded-2xl py-3 text-center text-xs font-semibold ${
+              activeView === "ai"
+                ? "bg-white text-black"
+                : "bg-white/10 text-white"
+            }`}
           >
             Ask AI
-          </a>
+          </button>
 
-          <a
-            href="#local-guide"
-            className="bg-white/10 rounded-2xl py-3 text-center text-xs font-semibold"
+          <button
+            type="button"
+            onClick={() => openView("essential")}
+            className={`rounded-2xl py-3 text-center text-xs font-semibold ${
+              activeView === "essential"
+                ? "bg-white text-black"
+                : "bg-white/10 text-white"
+            }`}
           >
-            Local
-          </a>
+            WiFi
+          </button>
 
-          <a
-            href="#help-support"
-            className="bg-white/10 rounded-2xl py-3 text-center text-xs font-semibold"
+          <button
+            type="button"
+            onClick={() => openView("help")}
+            className={`rounded-2xl py-3 text-center text-xs font-semibold ${
+              activeView === "help"
+                ? "bg-white text-black"
+                : "bg-white/10 text-white"
+            }`}
           >
             Help
-          </a>
+          </button>
         </div>
       </div>
     </div>
