@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 import { GuestEventTracker } from "../_components/GuestEventTracker";
 
@@ -97,6 +97,40 @@ type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+};
+
+type GuestAccessStatus = {
+  checked: boolean;
+  loading: boolean;
+  verified: boolean;
+  blocked: boolean;
+  state: string;
+  reason: string;
+  token?: string;
+};
+
+type GuestAccessSettingsResponse = {
+  success: boolean;
+  settings?: {
+    enabled?: boolean;
+    require_token_for_guest_page?: boolean;
+  };
+};
+
+type GuestAccessValidateResponse = {
+  success: boolean;
+  allowed: boolean;
+  state: string;
+  reason?: string;
+  error?: string;
+};
+
+type DetailItem = {
+  id: string;
+  icon: string;
+  title: string;
+  content: ReactNode;
+  defaultOpen?: boolean;
 };
 
 function safeText(value?: string | null) {
@@ -239,14 +273,7 @@ function getHeroDescription(
   return rawDescription;
 }
 
-function splitHighlights(value?: string | null) {
-  return safeText(value)
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function splitServiceLines(value?: string | null) {
+function splitLines(value?: string | null) {
   return safeText(value)
     .split("\n")
     .map((item) => item.trim())
@@ -259,7 +286,7 @@ function getAboutThisStayCopy(
 ) {
   const guestPage = getGuestPage(property);
 
-  const configuredHighlights = splitHighlights(
+  const configuredHighlights = splitLines(
     guestPage.about_highlights
   );
 
@@ -269,8 +296,6 @@ function getAboutThisStayCopy(
   const fallbackForMalteseMaisonette =
     propertyName.includes("maltese maisonette") ||
     city === "sliema";
-
-  const fallbackTitle = "About this stay";
 
   const fallbackIntro = fallbackForMalteseMaisonette
     ? "This private one-bedroom maisonette gives you the feeling of a traditional Maltese home, with the comfort and independence of having the entire place to yourself."
@@ -297,7 +322,7 @@ function getAboutThisStayCopy(
       ];
 
   return {
-    title: safeText(guestPage.about_title) || fallbackTitle,
+    title: safeText(guestPage.about_title) || "About this stay",
     intro: safeText(guestPage.about_intro) || fallbackIntro,
     body:
       safeText(guestPage.about_description) ||
@@ -309,79 +334,93 @@ function getAboutThisStayCopy(
   };
 }
 
-function SectionCard({
-  icon,
-  title,
-  children,
-  tone = "default",
-}: {
-  icon: string;
-  title: string;
-  children: ReactNode;
-  tone?: "default" | "dark" | "danger" | "soft";
-}) {
-  const classes =
-    tone === "dark"
-      ? "bg-black text-white border-black"
-      : tone === "danger"
-        ? "bg-red-50 border-red-100 text-gray-950"
-        : tone === "soft"
-          ? "bg-zinc-50 border-zinc-100 text-gray-950"
-          : "bg-white border-black/5 text-gray-950";
-
+function LoadingScreen() {
   return (
-    <section
-      className={`rounded-[32px] border shadow-xl p-5 md:p-7 ${classes}`}
-    >
-      <h2 className="text-xl md:text-2xl font-black mb-4 flex items-center gap-3">
-        <span>{icon}</span>
-        <span>{title}</span>
-      </h2>
+    <div className="min-h-screen bg-[#f4f1eb] flex items-center justify-center p-6">
+      <div className="bg-white rounded-[36px] p-8 shadow-xl border border-black/5 text-center">
+        <div className="text-5xl mb-4">🏡</div>
 
-      <div className="leading-relaxed whitespace-pre-line text-[15px] md:text-base">
-        {children}
+        <div className="text-2xl font-black mb-2">
+          Loading your stay guide
+        </div>
+
+        <div className="text-gray-500">
+          Please wait a moment.
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-function QuickAction({
-  href,
-  icon,
+function ErrorScreen({
   title,
-  subtitle,
-  dark = false,
+  message,
+  icon = "⚠️",
 }: {
-  href: string;
-  icon: string;
   title: string;
-  subtitle: string;
-  dark?: boolean;
+  message: string;
+  icon?: string;
 }) {
   return (
-    <a
-      href={href}
-      className={`rounded-[28px] p-5 border shadow-xl hover:scale-[1.015] transition ${
-        dark
-          ? "bg-black text-white border-black"
-          : "bg-white text-black border-black/5"
-      }`}
-    >
-      <div className="text-3xl mb-4">{icon}</div>
+    <div className="min-h-screen bg-[#f4f1eb] flex items-center justify-center p-6">
+      <div className="bg-white rounded-[36px] p-8 shadow-xl border border-black/5 text-center max-w-lg">
+        <div className="text-5xl mb-4">{icon}</div>
 
-      <div className="font-black text-lg mb-1">
-        {title}
-      </div>
+        <div className="text-2xl font-black mb-2">
+          {title}
+        </div>
 
-      <div
-        className={`text-sm leading-relaxed ${
-          dark ? "text-white/60" : "text-gray-500"
-        }`}
-      >
-        {subtitle}
+        <div className="text-gray-500 leading-relaxed">
+          {message}
+        </div>
       </div>
-    </a>
+    </div>
   );
+}
+
+function getGuestAccessBlockedCopy(state: string) {
+  if (state === "missing_token") {
+    return {
+      icon: "🔑",
+      title: "Personal stay link required",
+      message:
+        "This guest page requires a valid personal stay access link. Please open the link provided by the host.",
+    };
+  }
+
+  if (state === "not_active_yet") {
+    return {
+      icon: "⏳",
+      title: "Access not active yet",
+      message:
+        "This guest access is not active yet. Please check your check-in details or contact the host.",
+    };
+  }
+
+  if (state === "expired") {
+    return {
+      icon: "🔒",
+      title: "Access expired",
+      message:
+        "This guest access has expired because the stay has ended.",
+    };
+  }
+
+  if (state === "revoked") {
+    return {
+      icon: "🚫",
+      title: "Access revoked",
+      message:
+        "This guest access is no longer available. Please contact the host if you need assistance.",
+    };
+  }
+
+  return {
+    icon: "❌",
+    title: "Invalid access link",
+    message:
+      "This guest access link could not be verified.",
+  };
 }
 
 function InfoPill({
@@ -399,60 +438,113 @@ function InfoPill({
   );
 }
 
-function MiniInfoCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="bg-white rounded-[28px] p-5 shadow-xl border border-black/5">
-      <div className="text-3xl mb-3">{icon}</div>
-
-      <div className="text-xs uppercase tracking-[0.22em] text-gray-400 mb-2">
-        {label}
-      </div>
-
-      <div className="font-black text-lg break-words">
-        {value || "Not available"}
-      </div>
-    </div>
-  );
-}
-
-function EssentialCard({
+function HubCard({
+  href,
   icon,
   title,
   description,
-  href,
+  dark = false,
 }: {
+  href: string;
   icon: string;
   title: string;
   description: string;
-  href?: string;
+  dark?: boolean;
 }) {
-  const content = (
-    <div className="bg-white rounded-[28px] p-5 shadow-xl border border-black/5 h-full hover:shadow-2xl transition">
-      <div className="text-3xl mb-3">{icon}</div>
+  return (
+    <a
+      href={href}
+      className={`rounded-[30px] p-5 md:p-6 border shadow-xl hover:scale-[1.015] transition block ${
+        dark
+          ? "bg-black text-white border-black"
+          : "bg-white text-black border-black/5"
+      }`}
+    >
+      <div className="text-4xl mb-5">{icon}</div>
 
-      <div className="font-black text-lg mb-2">
+      <div className="font-black text-xl mb-2">
         {title}
       </div>
 
-      <div className="text-gray-500 text-sm leading-relaxed">
+      <div
+        className={`text-sm leading-relaxed ${
+          dark ? "text-white/60" : "text-gray-500"
+        }`}
+      >
         {description}
       </div>
+    </a>
+  );
+}
+
+function SectionShell({
+  id,
+  eyebrow,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-24 space-y-4">
+      <div className="bg-white rounded-[36px] p-6 md:p-8 shadow-xl border border-black/5">
+        <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
+          {eyebrow}
+        </div>
+
+        <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight">
+          {title}
+        </h2>
+
+        <p className="text-gray-500 leading-relaxed max-w-3xl">
+          {description}
+        </p>
+      </div>
+
+      {children}
+    </section>
+  );
+}
+
+function DetailAccordion({
+  items,
+}: {
+  items: DetailItem[];
+}) {
+  return (
+    <div className="grid lg:grid-cols-2 gap-4">
+      {items.map((item) => (
+        <details
+          key={item.id}
+          open={item.defaultOpen}
+          className="group bg-white rounded-[28px] border border-black/5 shadow-xl overflow-hidden"
+        >
+          <summary className="cursor-pointer list-none p-5 md:p-6 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="text-3xl">{item.icon}</div>
+
+              <div className="font-black text-lg md:text-xl">
+                {item.title}
+              </div>
+            </div>
+
+            <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center text-xl font-black group-open:rotate-45 transition">
+              +
+            </div>
+          </summary>
+
+          <div className="px-5 md:px-6 pb-6 text-gray-600 leading-relaxed whitespace-pre-line">
+            {item.content}
+          </div>
+        </details>
+      ))}
     </div>
   );
-
-  if (href) {
-    return <a href={href}>{content}</a>;
-  }
-
-  return content;
 }
 
 function PromptButton({
@@ -472,9 +564,96 @@ function PromptButton({
   );
 }
 
+function ChatPanel({
+  chatRef,
+  messages,
+  chatLoading,
+  chatInput,
+  setChatInput,
+  sendMessage,
+}: {
+  chatRef: React.RefObject<HTMLDivElement | null>;
+  messages: ChatMessage[];
+  chatLoading: boolean;
+  chatInput: string;
+  setChatInput: (value: string) => void;
+  sendMessage: (messageOverride?: string) => void;
+}) {
+  return (
+    <div className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden">
+      <div
+        ref={chatRef}
+        className="h-[360px] md:h-[430px] overflow-y-auto p-4 md:p-6 space-y-4"
+      >
+        {messages.length === 0 && (
+          <div className="h-full flex items-center justify-center text-white/40 text-center px-4">
+            Start by asking a question about your stay.
+          </div>
+        )}
+
+        {messages.map((message) => (
+          <div
+            key={message.id}
+            className={`max-w-[88%] md:max-w-[85%] rounded-3xl px-5 py-4 ${
+              message.role === "user"
+                ? "bg-white text-black ml-auto"
+                : "bg-zinc-800 border border-white/10 text-white mr-auto"
+            }`}
+          >
+            <div className="text-xs opacity-50 mb-2 uppercase tracking-wide">
+              {message.role === "user"
+                ? "You"
+                : "AI Concierge"}
+            </div>
+
+            <div className="leading-relaxed whitespace-pre-line">
+              {message.content}
+            </div>
+          </div>
+        ))}
+
+        {chatLoading && (
+          <div className="bg-zinc-800 border border-white/10 text-white mr-auto max-w-[85%] rounded-3xl px-5 py-4">
+            AI Concierge is typing...
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-white/10 p-3 md:p-4 flex flex-col sm:flex-row gap-3">
+        <input
+          value={chatInput}
+          onChange={(event) =>
+            setChatInput(event.target.value)
+          }
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              sendMessage();
+            }
+          }}
+          placeholder="Ask about your stay..."
+          className="flex-1 bg-white text-black rounded-2xl px-5 py-4 outline-none"
+        />
+
+        <button
+          onClick={() => sendMessage()}
+          disabled={chatLoading || !chatInput.trim()}
+          className="bg-white text-black rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition disabled:opacity-40"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function GuestPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+
   const slug = String(params?.slug || "");
+  const guestAccessToken = safeText(
+    searchParams.get("guest_access_token")
+  );
 
   const [property, setProperty] =
     useState<Property | null>(null);
@@ -493,6 +672,16 @@ export default function GuestPage() {
 
   const [messages, setMessages] =
     useState<ChatMessage[]>([]);
+
+  const [guestAccessStatus, setGuestAccessStatus] =
+    useState<GuestAccessStatus>({
+      checked: false,
+      loading: true,
+      verified: false,
+      blocked: false,
+      state: "checking",
+      reason: "",
+    });
 
   const chatRef = useRef<HTMLDivElement | null>(null);
 
@@ -560,39 +749,20 @@ export default function GuestPage() {
     safeText(property?.emergency_info) ||
     safeText(property?.emergency_numbers);
 
-  const restaurants =
-    safeText(welcomeBook.restaurants);
-
-  const transport =
-    safeText(welcomeBook.transport);
-
-  const checkoutNotes =
-    safeText(welcomeBook.checkout_notes);
-
-  const extraNotes =
-    safeText(welcomeBook.extra_notes);
-
-  const trash =
-    safeText(welcomeBook.trash);
-
-  const ac =
-    safeText(welcomeBook.ac);
-
-  const boiler =
-    safeText(welcomeBook.boiler);
-
+  const restaurants = safeText(welcomeBook.restaurants);
+  const transport = safeText(welcomeBook.transport);
+  const checkoutNotes = safeText(welcomeBook.checkout_notes);
+  const extraNotes = safeText(welcomeBook.extra_notes);
+  const trash = safeText(welcomeBook.trash);
+  const ac = safeText(welcomeBook.ac);
+  const boiler = safeText(welcomeBook.boiler);
   const apartmentInstructions =
     safeText(welcomeBook.apartment_instructions);
-
-  const kitchen =
-    safeText(welcomeBook.kitchen);
-
+  const kitchen = safeText(welcomeBook.kitchen);
   const washingMachine =
     safeText(welcomeBook.washing_machine);
-
   const towelsLinen =
     safeText(welcomeBook.towels_linen);
-
   const beachTowels =
     safeText(welcomeBook.beach_towels);
 
@@ -602,11 +772,9 @@ export default function GuestPage() {
   const extraServicesIntro =
     safeText(extraServices.intro);
 
-  const extraServicesList =
-    safeText(extraServices.services);
-
-  const extraServiceItems =
-    splitServiceLines(extraServicesList);
+  const extraServiceItems = splitLines(
+    safeText(extraServices.services)
+  );
 
   const hasExtraServices =
     Boolean(
@@ -616,24 +784,13 @@ export default function GuestPage() {
           extraServiceItems.length > 0)
     );
 
-  const hasStayEssentials =
-    Boolean(
-      apartmentInstructions ||
-        kitchen ||
-        washingMachine ||
-        towelsLinen ||
-        beachTowels ||
-        trash ||
-        ac ||
-        boiler
-    );
-
-  const hasLocalGuide =
-    Boolean(restaurants || transport || localGuide || parking);
-
   useEffect(() => {
     loadProperty();
   }, [slug]);
+
+  useEffect(() => {
+    validateGuestPageAccess();
+  }, [slug, guestAccessToken]);
 
   useEffect(() => {
     if (!chatRef.current) {
@@ -643,6 +800,130 @@ export default function GuestPage() {
     chatRef.current.scrollTop =
       chatRef.current.scrollHeight;
   }, [messages, chatLoading]);
+
+  async function validateGuestPageAccess() {
+    if (!slug) {
+      setGuestAccessStatus({
+        checked: true,
+        loading: false,
+        verified: false,
+        blocked: false,
+        state: "no_slug",
+        reason: "",
+      });
+
+      return;
+    }
+
+    try {
+      setGuestAccessStatus((current) => ({
+        ...current,
+        loading: true,
+        state: "checking",
+      }));
+
+      const settingsResponse = await fetch(
+        `/api/guest-access/settings?property_slug=${encodeURIComponent(slug)}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      const settingsData =
+        (await settingsResponse.json()) as GuestAccessSettingsResponse;
+
+      const moduleEnabled =
+        settingsData.success &&
+        settingsData.settings?.enabled === true;
+
+      const requireTokenForGuestPage =
+        settingsData.success &&
+        settingsData.settings?.require_token_for_guest_page === true;
+
+      if (!moduleEnabled || !requireTokenForGuestPage) {
+        setGuestAccessStatus({
+          checked: true,
+          loading: false,
+          verified: false,
+          blocked: false,
+          state: "not_required",
+          reason: "Guest page access token is not required",
+          token: guestAccessToken || undefined,
+        });
+
+        return;
+      }
+
+      if (!guestAccessToken) {
+        setGuestAccessStatus({
+          checked: true,
+          loading: false,
+          verified: false,
+          blocked: true,
+          state: "missing_token",
+          reason: "Guest access token is required",
+        });
+
+        return;
+      }
+
+      const validateResponse = await fetch("/api/guest-access/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({
+          token: guestAccessToken,
+          property_slug: slug,
+          mark_used: true,
+        }),
+      });
+
+      const validateData =
+        (await validateResponse.json()) as GuestAccessValidateResponse;
+
+      if (!validateData.success || !validateData.allowed) {
+        setGuestAccessStatus({
+          checked: true,
+          loading: false,
+          verified: false,
+          blocked: true,
+          state: validateData.state || "invalid",
+          reason:
+            validateData.reason ||
+            validateData.error ||
+            "Guest access token is not valid",
+          token: guestAccessToken,
+        });
+
+        return;
+      }
+
+      setGuestAccessStatus({
+        checked: true,
+        loading: false,
+        verified: true,
+        blocked: false,
+        state: "active",
+        reason: "Guest access token is active",
+        token: guestAccessToken,
+      });
+    } catch (error) {
+      console.error("VALIDATE GUEST PAGE ACCESS ERROR:", error);
+
+      setGuestAccessStatus({
+        checked: true,
+        loading: false,
+        verified: false,
+        blocked: false,
+        state: "validation_failed_open",
+        reason:
+          "Guest access validation failed, but page remains available because enforcement is fail-open.",
+        token: guestAccessToken || undefined,
+      });
+    }
+  }
 
   async function loadProperty() {
     if (!slug) {
@@ -724,6 +1005,7 @@ export default function GuestPage() {
           propertyId: property.id,
           conversationId: `guest_${slug}`,
           channel: "guest_portal",
+          guestAccessToken: guestAccessToken || undefined,
         }),
       });
 
@@ -760,40 +1042,362 @@ export default function GuestPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#f4f1eb] flex items-center justify-center p-6">
-        <div className="bg-white rounded-[36px] p-8 shadow-xl border border-black/5 text-center">
-          <div className="text-5xl mb-4">🏡</div>
+  const essentialItems: DetailItem[] = [
+    {
+      id: "wifi",
+      icon: "📶",
+      title: "WiFi",
+      defaultOpen: true,
+      content: (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-3xl bg-[#f4f1eb] p-4 border border-black/5">
+              <div className="text-xs uppercase tracking-[0.2em] text-gray-400 mb-2">
+                Network
+              </div>
 
-          <div className="text-2xl font-black mb-2">
-            Loading your stay guide
+              <div className="font-black text-xl break-words">
+                {property?.wifi_name || "Not available"}
+              </div>
+            </div>
+
+            <div className="rounded-3xl bg-black text-white p-4 border border-black">
+              <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2">
+                Password
+              </div>
+
+              <div className="font-black text-xl break-words">
+                {property?.wifi_password || "Not available"}
+              </div>
+            </div>
           </div>
 
-          <div className="text-gray-500">
-            Please wait a moment.
+          <button
+            onClick={copyWifi}
+            className="rounded-2xl bg-black px-5 py-3 font-bold text-white"
+          >
+            Copy WiFi
+          </button>
+        </div>
+      ),
+    },
+    {
+      id: "arrival",
+      icon: "🔑",
+      title: "Check-in, address and arrival",
+      defaultOpen: true,
+      content: (
+        <div className="space-y-3">
+          <p>
+            <strong>Check-in:</strong>{" "}
+            {property?.checkin_time || "Not available"}
+          </p>
+
+          <p>
+            <strong>Check-out:</strong>{" "}
+            {property?.checkout_time || "Not available"}
+          </p>
+
+          {property?.address && (
+            <p>
+              <strong>Address:</strong>{" "}
+              {property.address}
+            </p>
+          )}
+
+          {property?.checkin_instructions && (
+            <p>{property.checkin_instructions}</p>
+          )}
+
+          <p className="text-sm text-gray-500 pt-2">
+            Private access codes are shared only through the host’s private
+            message, not on this public guest page.
+          </p>
+
+          {mapsHref && (
+            <a
+              href={mapsHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex rounded-2xl bg-black px-5 py-3 font-semibold text-white"
+            >
+              Open in Maps
+            </a>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "house-rules",
+      icon: "📋",
+      title: "House rules",
+      content:
+        houseRules ||
+        "House rules have not been added yet. Please respect the apartment, neighbours and quiet hours.",
+    },
+    {
+      id: "checkout",
+      icon: "🚪",
+      title: "Checkout notes",
+      content:
+        checkoutNotes ||
+        "Before leaving, please make sure the door is locked and follow the checkout instructions shared by the host.",
+    },
+  ];
+
+  const apartmentItems: DetailItem[] = [
+    {
+      id: "about",
+      icon: "🏡",
+      title: aboutThisStay.title,
+      defaultOpen: true,
+      content: (
+        <div className="space-y-4">
+          <p className="font-semibold text-gray-900">
+            {aboutThisStay.intro}
+          </p>
+
+          <p>{aboutThisStay.body}</p>
+
+          <div className="grid sm:grid-cols-2 gap-3 pt-2">
+            {aboutThisStay.highlights.map((item) => (
+              <div
+                key={item}
+                className="rounded-2xl bg-[#f4f1eb] px-4 py-3 font-bold text-gray-900"
+              >
+                ✓ {item}
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-    );
+      ),
+    },
+    {
+      id: "amenities",
+      icon: "🧺",
+      title: "Amenities",
+      content:
+        amenities ||
+        "Amenities information will be added here soon.",
+    },
+    {
+      id: "apartment-instructions",
+      icon: "🏠",
+      title: "Apartment instructions",
+      content:
+        apartmentInstructions ||
+        "Apartment instructions will be added here soon.",
+    },
+    {
+      id: "kitchen",
+      icon: "🍳",
+      title: "Kitchen",
+      content:
+        kitchen ||
+        "Kitchen instructions will be added here soon.",
+    },
+    {
+      id: "washing-machine",
+      icon: "🧼",
+      title: "Washing machine",
+      content:
+        washingMachine ||
+        "Washing machine instructions will be added here soon.",
+    },
+    {
+      id: "towels-linen",
+      icon: "🛏️",
+      title: "Towels and linen",
+      content:
+        towelsLinen ||
+        "Towels and linen information will be added here soon.",
+    },
+    {
+      id: "beach-towels",
+      icon: "🏖️",
+      title: "Beach towels",
+      content:
+        beachTowels ||
+        "Beach towel information will be added here soon.",
+    },
+    {
+      id: "ac",
+      icon: "❄️",
+      title: "Air conditioning",
+      content:
+        ac ||
+        "Air conditioning instructions will be added here soon.",
+    },
+    {
+      id: "boiler",
+      icon: "🚿",
+      title: "Hot water / boiler",
+      content:
+        boiler ||
+        "Hot water and boiler information will be added here soon.",
+    },
+    {
+      id: "trash",
+      icon: "♻️",
+      title: "Trash and recycling",
+      content:
+        trash ||
+        "Trash and recycling information will be added here soon.",
+    },
+    {
+      id: "extra-notes",
+      icon: "✨",
+      title: "Extra notes",
+      content:
+        extraNotes ||
+        "No extra notes have been added yet.",
+    },
+  ];
+
+  const localItems: DetailItem[] = [
+    {
+      id: "parking",
+      icon: "🅿️",
+      title: "Parking",
+      defaultOpen: Boolean(parking),
+      content:
+        parking ||
+        "Parking information has not been added yet. Please contact the host if you need exact guidance.",
+    },
+    {
+      id: "restaurants",
+      icon: "🍽️",
+      title: "Restaurants and bars",
+      content:
+        restaurants ||
+        "Restaurant recommendations will be added here soon.",
+    },
+    {
+      id: "transport",
+      icon: "🚌",
+      title: "Transport",
+      content:
+        transport ||
+        "Transport information will be added here soon.",
+    },
+    {
+      id: "local-guide",
+      icon: "📍",
+      title: "Local guide",
+      content:
+        localGuide ||
+        "Local recommendations will be added here soon.",
+    },
+  ];
+
+  const helpItems: DetailItem[] = [
+    {
+      id: "ai-help",
+      icon: "🤖",
+      title: "AI Concierge",
+      defaultOpen: true,
+      content:
+        "Use the AI Concierge for stay-related questions about WiFi, check-in, checkout, parking, appliances, restaurants, transport and local tips. It replies in the guest’s language.",
+    },
+    {
+      id: "emergency",
+      icon: "🚨",
+      title: "Emergency information",
+      defaultOpen: Boolean(emergency),
+      content:
+        emergency ||
+        "For emergencies, contact local emergency services immediately. For property-related issues, contact the host as well.",
+    },
+    {
+      id: "contact-host",
+      icon: "💬",
+      title: "Contact host",
+      content: (
+        <div className="space-y-4">
+          <p>
+            For urgent property-related matters, contact the host directly when
+            available.
+          </p>
+
+          {hostPhoneHref ? (
+            <a
+              href={hostPhoneHref}
+              className="inline-flex rounded-2xl bg-black px-5 py-3 font-semibold text-white"
+            >
+              Contact Host
+            </a>
+          ) : (
+            <p className="text-gray-500">
+              Host phone contact is not currently displayed on this page.
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "access-security",
+      icon: "🔐",
+      title: "Access and security note",
+      content:
+        "For security reasons, private lockbox codes, door codes and access codes are not displayed on this public guest page. Please check the private message sent by the host.",
+    },
+  ];
+
+  if (hasExtraServices) {
+    helpItems.push({
+      id: "extra-services",
+      icon: "🛎️",
+      title: extraServicesTitle,
+      content: (
+        <div className="space-y-4">
+          <p>
+            {extraServicesIntro ||
+              "Optional stay upgrades and extra services may be available on request."}
+          </p>
+
+          {extraServiceItems.length > 0 && (
+            <div className="space-y-3">
+              {extraServiceItems.map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl bg-[#f4f1eb] p-4 font-semibold text-gray-900"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    });
+  }
+
+  if (loading || guestAccessStatus.loading) {
+    return <LoadingScreen />;
   }
 
   if (loadError || !property) {
     return (
-      <div className="min-h-screen bg-[#f4f1eb] flex items-center justify-center p-6">
-        <div className="bg-white rounded-[36px] p-8 shadow-xl border border-black/5 text-center max-w-lg">
-          <div className="text-5xl mb-4">⚠️</div>
+      <ErrorScreen
+        title="Guest page unavailable"
+        message={
+          loadError || "We could not find this property."
+        }
+      />
+    );
+  }
 
-          <div className="text-2xl font-black mb-2">
-            Guest page unavailable
-          </div>
+  if (guestAccessStatus.blocked) {
+    const blockedCopy = getGuestAccessBlockedCopy(
+      guestAccessStatus.state
+    );
 
-          <div className="text-gray-500">
-            {loadError ||
-              "We could not find this property."}
-          </div>
-        </div>
-      </div>
+    return (
+      <ErrorScreen
+        icon={blockedCopy.icon}
+        title={blockedCopy.title}
+        message={blockedCopy.message}
+      />
     );
   }
 
@@ -807,12 +1411,23 @@ export default function GuestPage() {
         eventMetadata={{
           property_name: getPropertyName(property),
           page: "guest_page",
+          layout: "guest_hub",
+          guest_access_state: guestAccessStatus.state,
+          guest_access_verified: guestAccessStatus.verified,
         }}
       />
 
+      {guestAccessStatus.verified && (
+        <div className="px-4 md:px-8 pt-4">
+          <div className="max-w-6xl mx-auto rounded-[28px] border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800 shadow-sm">
+            ✅ Verified stay access active for this guest link.
+          </div>
+        </div>
+      )}
+
       <header className="relative overflow-hidden px-4 md:px-8 pt-5 md:pt-8">
         <div className="max-w-6xl mx-auto">
-          <div className="relative overflow-hidden rounded-[40px] md:rounded-[56px] bg-black text-white shadow-2xl min-h-[620px] md:min-h-[660px]">
+          <div className="relative overflow-hidden rounded-[40px] md:rounded-[48px] bg-black text-white shadow-2xl min-h-[430px] md:min-h-[500px]">
             {heroImageUrl && (
               <div
                 className="absolute inset-0 bg-cover bg-center opacity-100"
@@ -822,12 +1437,11 @@ export default function GuestPage() {
               />
             )}
 
-            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-black/5" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/10" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_35%,rgba(255,255,255,0.16),transparent_32%)]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-black/10" />
 
-            <div className="relative p-6 md:p-12 lg:p-14 min-h-[620px] md:min-h-[660px] flex flex-col justify-between">
-              <div className="max-w-4xl">
+            <div className="relative p-6 md:p-10 lg:p-12 min-h-[430px] md:min-h-[500px] flex flex-col justify-between">
+              <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 rounded-full px-4 py-2 text-xs md:text-sm text-white/90 mb-5 backdrop-blur-md shadow-lg">
                   <span>✨</span>
                   <span>Your digital stay guide</span>
@@ -837,7 +1451,7 @@ export default function GuestPage() {
                   AI CO-HOST EXPERIENCE
                 </div>
 
-                <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight mb-5 leading-[0.95] max-w-4xl drop-shadow-2xl">
+                <h1 className="text-4xl md:text-6xl font-black tracking-tight mb-5 leading-[0.95] max-w-3xl drop-shadow-2xl">
                   {heroTitle}
                 </h1>
 
@@ -854,431 +1468,81 @@ export default function GuestPage() {
                   </a>
 
                   <a
-                    href="#wifi"
+                    href="#essential-info"
                     className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
                   >
-                    View WiFi
+                    Open Stay Guide
                   </a>
-
-                  <a
-                    href="#welcome-book"
-                    className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
-                  >
-                    Stay Guide
-                  </a>
-
-                  {hasExtraServices && (
-                    <a
-                      href="#extra-services"
-                      className="bg-white/15 border border-white/20 text-white rounded-2xl px-5 py-4 font-bold backdrop-blur-md hover:bg-white/20 transition"
-                    >
-                      Extra Services
-                    </a>
-                  )}
                 </div>
               </div>
 
-              <div className="mt-10">
-                <div className="flex flex-wrap gap-3">
-                  <InfoPill icon="📍" label={locationText} />
+              <div className="mt-8 flex flex-wrap gap-3">
+                <InfoPill icon="📍" label={locationText} />
 
-                  {property.checkin_time && (
-                    <InfoPill
-                      icon="🔑"
-                      label={`Check-in: ${property.checkin_time}`}
-                    />
-                  )}
-
-                  {property.checkout_time && (
-                    <InfoPill
-                      icon="🚪"
-                      label={`Check-out: ${property.checkout_time}`}
-                    />
-                  )}
-
+                {property.checkin_time && (
                   <InfoPill
-                    icon="🌍"
-                    label="Multilingual assistance"
+                    icon="🔑"
+                    label={`Check-in: ${property.checkin_time}`}
                   />
-                </div>
+                )}
+
+                {property.checkout_time && (
+                  <InfoPill
+                    icon="🚪"
+                    label={`Check-out: ${property.checkout_time}`}
+                  />
+                )}
+
+                <InfoPill
+                  icon="🤖"
+                  label="AI help available"
+                />
               </div>
             </div>
           </div>
 
           <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 -mt-8 relative z-10 px-3 md:px-8">
-            <QuickAction
-              href="#wifi"
+            <HubCard
+              href="#essential-info"
               icon="📶"
-              title="WiFi"
-              subtitle="Network and password"
+              title="Essential Info"
+              description="WiFi, check-in, checkout, address and house basics."
             />
 
-            <QuickAction
+            <HubCard
+              href="#apartment-guide"
+              icon="🏡"
+              title="Apartment Guide"
+              description="Amenities, AC, hot water, laundry, towels and useful home notes."
+            />
+
+            <HubCard
+              href="#local-guide"
+              icon="📍"
+              title="Local Guide"
+              description="Parking, restaurants, transport and nearby recommendations."
+            />
+
+            <HubCard
               href="#ai-concierge"
               icon="🤖"
               title="Ask AI"
-              subtitle="Help in your language"
+              description="Instant help in your language for stay-related questions."
               dark
-            />
-
-            <QuickAction
-              href={hasExtraServices ? "#extra-services" : "#welcome-book"}
-              icon={hasExtraServices ? "🛎️" : "📘"}
-              title={hasExtraServices ? "Extras" : "Stay Guide"}
-              subtitle={
-                hasExtraServices
-                  ? "Services and offers"
-                  : "Rules, tips and services"
-              }
-            />
-
-            <QuickAction
-              href="#help"
-              icon="🚨"
-              title="Need Help"
-              subtitle="Emergency and host support"
             />
           </section>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-7 md:space-y-8">
-        <section className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
-          <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
-            BEFORE YOU START
-          </div>
-
-          <h2 className="text-3xl md:text-5xl font-black mb-5">
-            Everything you need for a smooth stay
-          </h2>
-
-          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <EssentialCard
-              icon="📶"
-              title="Connect to WiFi"
-              description="The network and password are available below. Tap copy if needed."
-              href="#wifi"
-            />
-
-            <EssentialCard
-              icon="🔑"
-              title="Check access info"
-              description="Private access codes are only shared in host messages, not on this public page."
-              href="#arrival"
-            />
-
-            <EssentialCard
-              icon="🤖"
-              title="Ask the AI Concierge"
-              description="Use it for stay-related questions in your language."
-              href="#ai-concierge"
-            />
-
-            <EssentialCard
-              icon={hasExtraServices ? "🛎️" : "🚨"}
-              title={hasExtraServices ? "Explore extra services" : "Need urgent help?"}
-              description={
-                hasExtraServices
-                  ? "Optional local services, trusted partners and stay upgrades."
-                  : "Use the emergency section or contact the host when available."
-              }
-              href={hasExtraServices ? "#extra-services" : "#help"}
-            />
-          </div>
-        </section>
-
-        <section className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <MiniInfoCard
-            icon="📍"
-            label="Location"
-            value={locationText}
-          />
-
-          <MiniInfoCard
-            icon="🔑"
-            label="Check-in"
-            value={property.checkin_time || "Not available"}
-          />
-
-          <MiniInfoCard
-            icon="🚪"
-            label="Check-out"
-            value={property.checkout_time || "Not available"}
-          />
-
-          <MiniInfoCard
-            icon="💬"
-            label="Support"
-            value={
-              property.host_phone
-                ? "Host contact available"
-                : "AI Concierge available"
-            }
-          />
-        </section>
-
-        <section className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
-          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
-            <div>
-              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-4">
-                THE APARTMENT
-              </div>
-
-              <h2 className="text-3xl md:text-5xl font-black mb-5 leading-tight">
-                {aboutThisStay.title}
-              </h2>
-
-              <p className="text-lg md:text-xl leading-relaxed text-gray-800 mb-5">
-                {aboutThisStay.intro}
-              </p>
-
-              <p className="text-gray-500 leading-relaxed text-base md:text-lg whitespace-pre-line">
-                {aboutThisStay.body}
-              </p>
-            </div>
-
-            <div className="bg-[#f4f1eb] rounded-[32px] p-5 md:p-6 border border-black/5">
-              <div className="text-xs uppercase tracking-[0.25em] text-gray-400 mb-5">
-                Highlights
-              </div>
-
-              <div className="space-y-3">
-                {aboutThisStay.highlights.map((item) => (
-                  <div
-                    key={item}
-                    className="bg-white rounded-2xl px-4 py-4 font-bold shadow-sm border border-black/5 flex items-center gap-3"
-                  >
-                    <span>✓</span>
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          id="wifi"
-          className="relative overflow-hidden bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5"
-        >
-          <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-black/5 blur-3xl" />
-
-          <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-4">
-                QUICK ACCESS
-              </div>
-
-              <h2 className="text-3xl md:text-5xl font-black mb-3">
-                Connect to WiFi
-              </h2>
-
-              <p className="text-gray-500 leading-relaxed max-w-2xl">
-                Tap copy and paste the network details into your phone settings if needed.
-              </p>
-            </div>
-
-            <button
-              onClick={copyWifi}
-              className="bg-black text-white rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition"
-            >
-              Copy WiFi
-            </button>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4 mt-7">
-            <div className="bg-[#f4f1eb] border border-black/5 rounded-[28px] p-5">
-              <div className="text-gray-400 text-xs uppercase tracking-[0.2em] mb-2">
-                Network
-              </div>
-
-              <div className="text-2xl md:text-3xl font-black break-words">
-                {property.wifi_name || "Not available"}
-              </div>
-            </div>
-
-            <div className="bg-black text-white border border-black rounded-[28px] p-5">
-              <div className="text-white/40 text-xs uppercase tracking-[0.2em] mb-2">
-                Password
-              </div>
-
-              <div className="text-2xl md:text-3xl font-black break-words">
-                {property.wifi_password || "Not available"}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="arrival" className="grid lg:grid-cols-3 gap-6">
-          <SectionCard icon="🏡" title="Arrival">
-            <div className="space-y-3">
-              <p>
-                <strong>Check-in:</strong>{" "}
-                {property.checkin_time || "Not available"}
-              </p>
-
-              <p>
-                <strong>Check-out:</strong>{" "}
-                {property.checkout_time || "Not available"}
-              </p>
-
-              {property.address && (
-                <p>
-                  <strong>Address:</strong>{" "}
-                  {property.address}
-                </p>
-              )}
-
-              <p className="text-sm text-gray-500 pt-2">
-                For security reasons, private access codes are shared only through the host’s private message, not on this public guest page.
-              </p>
-
-              {mapsHref && (
-                <a
-                  href={mapsHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex bg-black text-white rounded-2xl px-5 py-3 font-semibold mt-2"
-                >
-                  Open in Maps
-                </a>
-              )}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            icon="🚨"
-            title="Emergency"
-            tone="danger"
-          >
-            <div id="help">
-              {emergency ||
-                "For emergencies, contact local emergency services."}
-            </div>
-          </SectionCard>
-
-          <SectionCard icon="💬" title="Need help?">
-            <div className="space-y-4">
-              <p>
-                Ask the AI Concierge for quick help about WiFi, check-in, checkout, parking, house rules, appliances, restaurants, transport and local tips.
-              </p>
-
-              <p className="text-sm text-gray-500">
-                The AI Concierge replies in the guest’s language and is limited to questions related to the stay.
-              </p>
-
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="#ai-concierge"
-                  className="inline-flex bg-black text-white rounded-2xl px-5 py-3 font-semibold"
-                >
-                  Ask AI
-                </a>
-
-                {hostPhoneHref && (
-                  <a
-                    href={hostPhoneHref}
-                    className="inline-flex bg-white border border-gray-200 text-black rounded-2xl px-5 py-3 font-semibold"
-                  >
-                    Contact Host
-                  </a>
-                )}
-              </div>
-            </div>
-          </SectionCard>
-        </section>
-
-        {property.checkin_instructions && (
-          <SectionCard
-            icon="🔑"
-            title="Arrival Instructions"
-          >
-            <div className="space-y-4">
-              <p>{property.checkin_instructions}</p>
-
-              <p className="text-sm text-gray-500">
-                Private access codes are not displayed on this public guest page. Please check the host’s private message if an access code is required.
-              </p>
-            </div>
-          </SectionCard>
-        )}
-
-        {hasStayEssentials && (
-          <section className="space-y-6">
-            <div className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
-              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
-                STAY ESSENTIALS
-              </div>
-
-              <h2 className="text-3xl md:text-5xl font-black">
-                Practical home information
-              </h2>
-
-              <p className="text-gray-500 mt-3 max-w-2xl">
-                Useful details for appliances, towels, laundry, rubbish, AC and hot water.
-              </p>
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-6">
-              {apartmentInstructions && (
-                <SectionCard icon="🏠" title="Apartment Instructions">
-                  {apartmentInstructions}
-                </SectionCard>
-              )}
-
-              {kitchen && (
-                <SectionCard icon="🍳" title="Kitchen">
-                  {kitchen}
-                </SectionCard>
-              )}
-
-              {washingMachine && (
-                <SectionCard icon="🧺" title="Washing Machine">
-                  {washingMachine}
-                </SectionCard>
-              )}
-
-              {towelsLinen && (
-                <SectionCard icon="🛏️" title="Towels & Linen">
-                  {towelsLinen}
-                </SectionCard>
-              )}
-
-              {beachTowels && (
-                <SectionCard icon="🏖️" title="Beach Towels">
-                  {beachTowels}
-                </SectionCard>
-              )}
-
-              {trash && (
-                <SectionCard icon="♻️" title="Trash & Recycling">
-                  {trash}
-                </SectionCard>
-              )}
-
-              {ac && (
-                <SectionCard icon="❄️" title="Air Conditioning">
-                  {ac}
-                </SectionCard>
-              )}
-
-              {boiler && (
-                <SectionCard icon="🚿" title="Hot Water / Boiler">
-                  {boiler}
-                </SectionCard>
-              )}
-            </div>
-          </section>
-        )}
-
+      <main className="max-w-6xl mx-auto px-4 md:px-6 py-8 md:py-12 space-y-8">
         <section
           id="ai-concierge"
-          className="relative overflow-hidden bg-black text-white rounded-[40px] p-5 md:p-8 shadow-2xl"
+          className="relative overflow-hidden bg-black text-white rounded-[40px] p-5 md:p-8 shadow-2xl scroll-mt-24"
         >
           <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
 
-          <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-6">
+          <div className="relative flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-6">
             <div>
               <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-4">
                 AI CONCIERGE
@@ -1289,7 +1553,8 @@ export default function GuestPage() {
               </h2>
 
               <p className="text-white/60 text-base md:text-lg max-w-2xl">
-                WiFi, check-in, checkout, parking, house rules, appliances, restaurants, transport and local tips.
+                WiFi, check-in, checkout, parking, house rules, appliances,
+                restaurants, transport and local tips.
               </p>
 
               <div className="mt-4 grid md:grid-cols-2 gap-3">
@@ -1356,251 +1621,51 @@ export default function GuestPage() {
             </PromptButton>
           </div>
 
-          <div className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden">
-            <div
-              ref={chatRef}
-              className="h-[400px] md:h-[460px] overflow-y-auto p-4 md:p-6 space-y-4"
-            >
-              {messages.length === 0 && (
-                <div className="h-full flex items-center justify-center text-white/40 text-center px-4">
-                  Start by asking a question about your stay.
-                </div>
-              )}
-
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`max-w-[88%] md:max-w-[85%] rounded-3xl px-5 py-4 ${
-                    message.role === "user"
-                      ? "bg-white text-black ml-auto"
-                      : "bg-zinc-800 border border-white/10 text-white mr-auto"
-                  }`}
-                >
-                  <div className="text-xs opacity-50 mb-2 uppercase tracking-wide">
-                    {message.role === "user"
-                      ? "You"
-                      : "AI Concierge"}
-                  </div>
-
-                  <div className="leading-relaxed whitespace-pre-line">
-                    {message.content}
-                  </div>
-                </div>
-              ))}
-
-              {chatLoading && (
-                <div className="bg-zinc-800 border border-white/10 text-white mr-auto max-w-[85%] rounded-3xl px-5 py-4">
-                  AI Concierge is typing...
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-white/10 p-3 md:p-4 flex flex-col sm:flex-row gap-3">
-              <input
-                value={chatInput}
-                onChange={(event) =>
-                  setChatInput(event.target.value)
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    sendMessage();
-                  }
-                }}
-                placeholder="Ask about your stay..."
-                className="flex-1 bg-white text-black rounded-2xl px-5 py-4 outline-none"
-              />
-
-              <button
-                onClick={() => sendMessage()}
-                disabled={chatLoading || !chatInput.trim()}
-                className="bg-white text-black rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition disabled:opacity-40"
-              >
-                Send
-              </button>
-            </div>
-          </div>
+          <ChatPanel
+            chatRef={chatRef}
+            messages={messages}
+            chatLoading={chatLoading}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            sendMessage={sendMessage}
+          />
         </section>
 
-        <section id="welcome-book" className="space-y-6">
-          <div className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
-            <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
-              WELCOME BOOK
-            </div>
+        <SectionShell
+          id="essential-info"
+          eyebrow="ESSENTIAL INFO"
+          title="The basics you need first"
+          description="WiFi, arrival details, house rules and checkout notes are grouped here so guests do not need to scroll through the whole page."
+        >
+          <DetailAccordion items={essentialItems} />
+        </SectionShell>
 
-            <h2 className="text-3xl md:text-5xl font-black">
-              Everything useful in one place
-            </h2>
+        <SectionShell
+          id="apartment-guide"
+          eyebrow="APARTMENT GUIDE"
+          title="How everything works at home"
+          description="Practical information about the apartment, amenities and useful stay essentials."
+        >
+          <DetailAccordion items={apartmentItems} />
+        </SectionShell>
 
-            <p className="text-gray-500 mt-3 max-w-2xl">
-              House rules, practical notes, local recommendations and checkout information for a smooth stay.
-            </p>
-          </div>
+        <SectionShell
+          id="local-guide"
+          eyebrow="LOCAL GUIDE"
+          title="Around the area"
+          description="Parking, food, transport and local tips for exploring the neighbourhood."
+        >
+          <DetailAccordion items={localItems} />
+        </SectionShell>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            {amenities && (
-              <SectionCard icon="🧺" title="Amenities">
-                {amenities}
-              </SectionCard>
-            )}
-
-            {houseRules && (
-              <SectionCard icon="📋" title="House Rules">
-                {houseRules}
-              </SectionCard>
-            )}
-
-            {checkoutNotes && (
-              <SectionCard icon="🚪" title="Checkout Notes">
-                {checkoutNotes}
-              </SectionCard>
-            )}
-
-            {parking && !hasLocalGuide && (
-              <SectionCard icon="🅿️" title="Parking">
-                {parking}
-              </SectionCard>
-            )}
-
-            {extraNotes && (
-              <SectionCard icon="✨" title="Extra Notes">
-                {extraNotes}
-              </SectionCard>
-            )}
-
-            {!amenities &&
-              !houseRules &&
-              !checkoutNotes &&
-              !extraNotes && (
-                <SectionCard icon="📘" title="Guest Notes" tone="soft">
-                  More stay information will be added here soon. For anything urgent, please use the AI Concierge or contact the host.
-                </SectionCard>
-              )}
-          </div>
-        </section>
-
-        {hasExtraServices && (
-          <section id="extra-services" className="space-y-6">
-            <div className="relative overflow-hidden bg-gradient-to-br from-zinc-950 via-black to-zinc-800 text-white rounded-[40px] p-6 md:p-8 shadow-2xl">
-              <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-
-              <div className="relative">
-                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2 text-xs md:text-sm text-white/80 mb-5">
-                  <span>🛎️</span>
-                  <span>Optional stay upgrades</span>
-                </div>
-
-                <div className="uppercase tracking-[0.3em] text-xs text-white/40 mb-3">
-                  EXTRA SERVICES
-                </div>
-
-                <h2 className="text-3xl md:text-5xl font-black mb-4 leading-tight">
-                  {extraServicesTitle}
-                </h2>
-
-                <p className="text-white/65 text-base md:text-lg max-w-3xl leading-relaxed">
-                  {extraServicesIntro ||
-                    "Enhance your stay with selected local services, partner recommendations and optional upgrades. Availability may vary, so please contact the host before booking."}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-6">
-              {extraServiceItems.length > 0 ? (
-                extraServiceItems.map((item) => (
-                  <SectionCard
-                    key={item}
-                    icon="✨"
-                    title={item.split("—")[0]?.trim() || "Extra Service"}
-                    tone="soft"
-                  >
-                    {item.includes("—")
-                      ? item.split("—").slice(1).join("—").trim()
-                      : item}
-                  </SectionCard>
-                ))
-              ) : (
-                <SectionCard icon="✨" title="Extra Services" tone="soft">
-                  Optional local services and stay upgrades may be available on request. Please contact the host for details.
-                </SectionCard>
-              )}
-            </div>
-
-            <div className="bg-white rounded-[36px] p-6 md:p-7 shadow-xl border border-black/5 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-              <div>
-                <h3 className="text-2xl font-black mb-2">
-                  Interested in one of these services?
-                </h3>
-
-                <p className="text-gray-500 leading-relaxed">
-                  Ask the AI Concierge or contact the host to confirm availability, price and booking details.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-3">
-                <a
-                  href="#ai-concierge"
-                  className="bg-black text-white rounded-2xl px-5 py-3 font-semibold"
-                >
-                  Ask AI
-                </a>
-
-                {hostPhoneHref && (
-                  <a
-                    href={hostPhoneHref}
-                    className="bg-white border border-gray-200 text-black rounded-2xl px-5 py-3 font-semibold"
-                  >
-                    Contact Host
-                  </a>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {hasLocalGuide && (
-          <section className="space-y-6">
-            <div className="bg-white rounded-[40px] p-6 md:p-8 shadow-xl border border-black/5">
-              <div className="uppercase tracking-[0.3em] text-xs text-gray-400 mb-3">
-                LOCAL GUIDE
-              </div>
-
-              <h2 className="text-3xl md:text-5xl font-black">
-                Around the area
-              </h2>
-
-              <p className="text-gray-500 mt-3 max-w-2xl">
-                Parking, transport, restaurants and useful local recommendations.
-              </p>
-            </div>
-
-            <div className="grid lg:grid-cols-2 gap-6">
-              {parking && (
-                <SectionCard icon="🅿️" title="Parking">
-                  {parking}
-                </SectionCard>
-              )}
-
-              {restaurants && (
-                <SectionCard icon="🍽️" title="Restaurants & Bars">
-                  {restaurants}
-                </SectionCard>
-              )}
-
-              {transport && (
-                <SectionCard icon="🚌" title="Transport">
-                  {transport}
-                </SectionCard>
-              )}
-
-              {localGuide && (
-                <SectionCard icon="📍" title="Local Guide">
-                  {localGuide}
-                </SectionCard>
-              )}
-            </div>
-          </section>
-        )}
+        <SectionShell
+          id="help-support"
+          eyebrow="HELP & SUPPORT"
+          title="Need help during your stay?"
+          description="Use the AI Concierge for instant stay-related help, or contact the host for urgent matters."
+        >
+          <DetailAccordion items={helpItems} />
+        </SectionShell>
 
         <section className="bg-black text-white rounded-[40px] p-6 md:p-8 shadow-xl">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
@@ -1610,7 +1675,8 @@ export default function GuestPage() {
               </h2>
 
               <p className="text-white/60 leading-relaxed max-w-2xl">
-                Ask the AI Concierge for stay-related questions, or contact the host directly for urgent matters.
+                Ask the AI Concierge for stay-related questions, or contact the
+                host directly for urgent matters.
               </p>
             </div>
 
@@ -1636,26 +1702,33 @@ export default function GuestPage() {
       </main>
 
       <div className="fixed bottom-3 left-3 right-3 z-50 md:hidden">
-        <div className="bg-black text-white rounded-[28px] shadow-2xl p-3 grid grid-cols-3 gap-2 border border-white/10">
+        <div className="bg-black text-white rounded-[28px] shadow-2xl p-3 grid grid-cols-4 gap-2 border border-white/10">
           <a
-            href="#wifi"
-            className="bg-white/10 rounded-2xl py-3 text-center text-sm font-semibold"
+            href="#essential-info"
+            className="bg-white/10 rounded-2xl py-3 text-center text-xs font-semibold"
           >
-            WiFi
+            Guide
           </a>
 
           <a
             href="#ai-concierge"
-            className="bg-white rounded-2xl py-3 text-center text-sm font-semibold text-black"
+            className="bg-white rounded-2xl py-3 text-center text-xs font-semibold text-black"
           >
             Ask AI
           </a>
 
           <a
-            href={hasExtraServices ? "#extra-services" : "#welcome-book"}
-            className="bg-white/10 rounded-2xl py-3 text-center text-sm font-semibold"
+            href="#local-guide"
+            className="bg-white/10 rounded-2xl py-3 text-center text-xs font-semibold"
           >
-            {hasExtraServices ? "Extras" : "Guide"}
+            Local
+          </a>
+
+          <a
+            href="#help-support"
+            className="bg-white/10 rounded-2xl py-3 text-center text-xs font-semibold"
+          >
+            Help
           </a>
         </div>
       </div>
