@@ -54,4 +54,5 @@ temp/
 coverage/
 
 # Misc
-*.log
+android/app/google-services.json
+android/app/*.keystore

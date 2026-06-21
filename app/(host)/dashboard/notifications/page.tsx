@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { DashboardHeader } from "@/components/organisms/DashboardHeader"
+import { NotificationSettings } from "@/components/organisms/NotificationSettings"
 
 type NotificationFilter =
   | "all"
@@ -411,6 +412,10 @@ export default function NotificationsPage() {
           >
             Issues
           </Link>
+        </div>
+
+        <div className="mb-8">
+          <NotificationSettings />
         </div>
 
         <Card variant="white" border padding="p-5 md:p-6" className="mb-8">
