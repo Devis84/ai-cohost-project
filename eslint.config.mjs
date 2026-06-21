@@ -13,7 +13,7 @@ const eslintConfig = defineConfig([
   "react-hooks/immutability": "off",
   "@next/next/no-img-element": "warn",
   "@next/next/no-html-link-for-pages": "off",
-  "@typescript-eslint/no-unused-vars": "warn",
+  "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
 },
   },
 

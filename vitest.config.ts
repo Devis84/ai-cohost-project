@@ -23,6 +23,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+      // Capacitor packages are not installed in the dev/test environment.
+      // Stub modules allow Vite's import analysis to resolve them; vi.mock()
+      // in individual test files replaces them with controllable fakes.
+      '@capacitor/core': path.resolve(__dirname, './__mocks__/@capacitor/core.ts'),
+      '@capacitor/push-notifications': path.resolve(
+        __dirname,
+        './__mocks__/@capacitor/push-notifications.ts',
+      ),
     },
   },
 })
