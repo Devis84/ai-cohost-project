@@ -1,10 +1,20 @@
-
-export const dynamic = "force-dynamic";
+ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
- import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { supabaseServer } from "@/lib/supabase/supabase-server";
+import {
+  buildAccessMetadata,
+  canCreateProperty,
+  canEditProperty,
+  filterPropertiesForAccess,
+  forbiddenResponse,
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+  writeAuditLog,
+  writeBlockedAuditLog,
+} from "@/lib/partner-access";
 
 type PropertyPayload = {
   property_name?: string;
@@ -29,6 +39,17 @@ type PropertyPayload = {
   emergency_numbers?: string;
   lockbox_code?: string;
   knowledge_base?: unknown;
+  ai_enabled?: boolean;
+  whatsapp_enabled?: boolean;
+  telegram_enabled?: boolean;
+  welcomebook_enabled?: boolean;
+};
+
+type PropertyRow = {
+  id: string;
+  slug: string | null;
+  property_name: string | null;
+  [key: string]: unknown;
 };
 
 function createSlug(value: string) {
@@ -43,6 +64,10 @@ function getString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function getBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
 function cleanPayload(body: PropertyPayload) {
   const propertyName =
     body.property_name ||
@@ -50,8 +75,7 @@ function cleanPayload(body: PropertyPayload) {
     body.title ||
     "";
 
-  const cleanPropertyName =
-    propertyName.trim();
+  const cleanPropertyName = propertyName.trim();
 
   const slug =
     body.slug?.trim() ||
@@ -108,11 +132,31 @@ function cleanPayload(body: PropertyPayload) {
     ),
     lockbox_code: getString(body.lockbox_code),
     knowledge_base: knowledgeBase,
+    ai_enabled: getBoolean(body.ai_enabled, true),
+    whatsapp_enabled: getBoolean(
+      body.whatsapp_enabled,
+      false
+    ),
+    telegram_enabled: getBoolean(
+      body.telegram_enabled,
+      false
+    ),
+    welcomebook_enabled: getBoolean(
+      body.welcomebook_enabled,
+      true
+    ),
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accessContext =
+      await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { data, error } = await supabaseServer
       .from("properties")
       .select("*")
@@ -124,9 +168,16 @@ export async function GET() {
       throw error;
     }
 
+    const filteredProperties =
+      await filterPropertiesForAccess(
+        ((data || []) as PropertyRow[]),
+        accessContext
+      );
+
     return NextResponse.json({
       success: true,
-      properties: data || [],
+      properties: filteredProperties,
+      access: buildAccessMetadata(accessContext),
     });
   } catch (error) {
     console.error("GET /api/properties error:", error);
@@ -146,6 +197,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const accessContext =
+      await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const body =
       (await request.json()) as PropertyPayload;
 
@@ -163,18 +221,52 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: existingBySlug } =
+    const { data: existingBySlug, error: existingError } =
       await supabaseServer
         .from("properties")
-        .select("id")
+        .select("*")
         .eq("slug", payload.slug)
         .maybeSingle();
 
+    if (existingError) {
+      throw existingError;
+    }
+
     if (existingBySlug?.id) {
+      const existingProperty =
+        existingBySlug as PropertyRow;
+
+      const allowed = await canEditProperty(
+        existingProperty,
+        accessContext
+      );
+
+      if (!allowed) {
+        await writeBlockedAuditLog({
+          request,
+          accessContext,
+          action: "property_update_attempt_blocked",
+          entityType: "property",
+          entityId: existingProperty.id,
+          propertyId: existingProperty.id,
+          propertySlug: existingProperty.slug,
+          metadata: {
+            reason: "missing_edit_permission",
+            attempted_slug: payload.slug,
+            attempted_property_name:
+              payload.property_name,
+          },
+        });
+
+        return forbiddenResponse(
+          "You do not have permission to edit this property."
+        );
+      }
+
       const { data, error } = await supabaseServer
         .from("properties")
         .update(payload)
-        .eq("id", existingBySlug.id)
+        .eq("id", existingProperty.id)
         .select("*")
         .single();
 
@@ -182,11 +274,49 @@ export async function POST(request: Request) {
         throw error;
       }
 
+      await writeAuditLog({
+        request,
+        accessContext,
+        action: "property_updated",
+        entityType: "property",
+        entityId: existingProperty.id,
+        propertyId: existingProperty.id,
+        propertySlug:
+          typeof data.slug === "string"
+            ? data.slug
+            : payload.slug,
+        metadata: {
+          mode: "updated",
+          property_name: data.property_name,
+          slug: data.slug,
+        },
+      });
+
       return NextResponse.json({
         success: true,
         mode: "updated",
         property: data,
       });
+    }
+
+    if (!canCreateProperty(accessContext)) {
+      await writeBlockedAuditLog({
+        request,
+        accessContext,
+        action: "property_create_attempt_blocked",
+        entityType: "property",
+        propertySlug: payload.slug,
+        metadata: {
+          reason: "missing_create_permission",
+          attempted_property_name:
+            payload.property_name,
+          attempted_slug: payload.slug,
+        },
+      });
+
+      return forbiddenResponse(
+        "You do not have permission to create new properties."
+      );
     }
 
     const { data, error } = await supabaseServer
@@ -201,6 +331,21 @@ export async function POST(request: Request) {
     if (error) {
       throw error;
     }
+
+    await writeAuditLog({
+      request,
+      accessContext,
+      action: "property_created",
+      entityType: "property",
+      entityId: data.id,
+      propertyId: data.id,
+      propertySlug: data.slug,
+      metadata: {
+        mode: "created",
+        property_name: data.property_name,
+        slug: data.slug,
+      },
+    });
 
     return NextResponse.json({
       success: true,

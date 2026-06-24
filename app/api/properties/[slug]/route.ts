@@ -1,10 +1,19 @@
-
-export const dynamic = "force-dynamic";
+ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
- import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { supabaseServer } from "@/lib/supabase/supabase-server";
+import {
+  canDeleteProperty,
+  canEditProperty,
+  canViewProperty,
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+  writeAuditLog,
+  writeBlockedAuditLog,
+  forbiddenResponse,
+} from "@/lib/partner-access";
 
 type RouteContext = {
   params: Promise<{
@@ -15,6 +24,7 @@ type RouteContext = {
 type PropertyPayload = {
   id?: string;
   created_at?: string;
+  updated_at?: string;
   property_name?: string;
   name?: string;
   title?: string;
@@ -37,6 +47,17 @@ type PropertyPayload = {
   emergency_numbers?: string;
   lockbox_code?: string;
   knowledge_base?: unknown;
+  ai_enabled?: boolean;
+  whatsapp_enabled?: boolean;
+  telegram_enabled?: boolean;
+  welcomebook_enabled?: boolean;
+};
+
+type PropertyRow = {
+  id: string;
+  slug: string | null;
+  property_name: string | null;
+  [key: string]: unknown;
 };
 
 function createSlug(value: string) {
@@ -62,7 +83,7 @@ async function findProperty(identifier: string) {
     .maybeSingle();
 
   if (byId) {
-    return byId;
+    return byId as PropertyRow;
   }
 
   const { data: bySlug } = await supabaseServer
@@ -72,7 +93,7 @@ async function findProperty(identifier: string) {
     .maybeSingle();
 
   if (bySlug) {
-    return bySlug;
+    return bySlug as PropertyRow;
   }
 
   const { data: byName } = await supabaseServer
@@ -82,7 +103,7 @@ async function findProperty(identifier: string) {
     .maybeSingle();
 
   if (byName) {
-    return byName;
+    return byName as PropertyRow;
   }
 
   return null;
@@ -108,10 +129,17 @@ function cleanUpdatePayload(body: PropertyPayload) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext
 ) {
   try {
+    const accessContext =
+      await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { slug } = await context.params;
 
     const property = await findProperty(slug);
@@ -127,6 +155,45 @@ export async function GET(
         }
       );
     }
+
+    const allowed = await canViewProperty(
+      property,
+      accessContext
+    );
+
+    if (!allowed) {
+      await writeBlockedAuditLog({
+        request,
+        accessContext,
+        action: "unauthorized_property_access_blocked",
+        entityType: "property",
+        entityId: property.id,
+        propertyId: property.id,
+        propertySlug: property.slug,
+        metadata: {
+          method: "GET",
+          requested_identifier: slug,
+        },
+      });
+
+      return forbiddenResponse(
+        "You do not have permission to view this property."
+      );
+    }
+
+    await writeAuditLog({
+      request,
+      accessContext,
+      action: "property_viewed",
+      entityType: "property",
+      entityId: property.id,
+      propertyId: property.id,
+      propertySlug: property.slug,
+      metadata: {
+        method: "GET",
+        requested_identifier: slug,
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -155,6 +222,13 @@ export async function PATCH(
   context: RouteContext
 ) {
   try {
+    const accessContext =
+      await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { slug } = await context.params;
 
     const property = await findProperty(slug);
@@ -168,6 +242,32 @@ export async function PATCH(
         {
           status: 404,
         }
+      );
+    }
+
+    const allowed = await canEditProperty(
+      property,
+      accessContext
+    );
+
+    if (!allowed) {
+      await writeBlockedAuditLog({
+        request,
+        accessContext,
+        action: "property_update_attempt_blocked",
+        entityType: "property",
+        entityId: property.id,
+        propertyId: property.id,
+        propertySlug: property.slug,
+        metadata: {
+          method: "PATCH",
+          requested_identifier: slug,
+          reason: "missing_edit_permission",
+        },
+      });
+
+      return forbiddenResponse(
+        "You do not have permission to edit this property."
       );
     }
 
@@ -186,6 +286,25 @@ export async function PATCH(
     if (error) {
       throw error;
     }
+
+    await writeAuditLog({
+      request,
+      accessContext,
+      action: "property_updated",
+      entityType: "property",
+      entityId: property.id,
+      propertyId: property.id,
+      propertySlug:
+        typeof data.slug === "string"
+          ? data.slug
+          : property.slug,
+      metadata: {
+        method: "PATCH",
+        requested_identifier: slug,
+        property_name: data.property_name,
+        slug: data.slug,
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -213,10 +332,17 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: RouteContext
 ) {
   try {
+    const accessContext =
+      await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { slug } = await context.params;
 
     const property = await findProperty(slug);
@@ -233,6 +359,32 @@ export async function DELETE(
       );
     }
 
+    const allowed = await canDeleteProperty(
+      property,
+      accessContext
+    );
+
+    if (!allowed) {
+      await writeBlockedAuditLog({
+        request,
+        accessContext,
+        action: "property_delete_attempt_blocked",
+        entityType: "property",
+        entityId: property.id,
+        propertyId: property.id,
+        propertySlug: property.slug,
+        metadata: {
+          method: "DELETE",
+          requested_identifier: slug,
+          reason: "missing_delete_permission",
+        },
+      });
+
+      return forbiddenResponse(
+        "You do not have permission to delete this property."
+      );
+    }
+
     const { error } = await supabaseServer
       .from("properties")
       .delete()
@@ -241,6 +393,21 @@ export async function DELETE(
     if (error) {
       throw error;
     }
+
+    await writeAuditLog({
+      request,
+      accessContext,
+      action: "property_deleted",
+      entityType: "property",
+      entityId: property.id,
+      propertyId: property.id,
+      propertySlug: property.slug,
+      metadata: {
+        method: "DELETE",
+        requested_identifier: slug,
+        property_name: property.property_name,
+      },
+    });
 
     return NextResponse.json({
       success: true,

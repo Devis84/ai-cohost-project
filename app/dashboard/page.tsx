@@ -37,11 +37,83 @@ const malteseMaisonetteHeroImage =
 const selectedPropertyStorageKey =
   "ai_cohost_selected_property_slug";
 
+type DashboardAccess = {
+  email?: string | null;
+  role: string;
+  isAdmin: boolean;
+  isPartner: boolean;
+  isViewer?: boolean;
+  isActive?: boolean;
+  canCreateProperty: boolean;
+  canDeleteProperty: boolean;
+  reason?: string;
+};
+
+const defaultDashboardAccess: DashboardAccess = {
+  email: null,
+  role: "admin",
+  isAdmin: true,
+  isPartner: false,
+  isViewer: false,
+  isActive: true,
+  canCreateProperty: true,
+  canDeleteProperty: true,
+  reason: "frontend_default_admin",
+};
+
+function normalizeDashboardAccess(value: unknown): DashboardAccess {
+  if (!value || typeof value !== "object") {
+    return defaultDashboardAccess;
+  }
+
+  const access = value as Partial<DashboardAccess>;
+
+  return {
+    email:
+      typeof access.email === "string" ? access.email : null,
+    role:
+      typeof access.role === "string"
+        ? access.role
+        : defaultDashboardAccess.role,
+    isAdmin:
+      typeof access.isAdmin === "boolean"
+        ? access.isAdmin
+        : defaultDashboardAccess.isAdmin,
+    isPartner:
+      typeof access.isPartner === "boolean"
+        ? access.isPartner
+        : false,
+    isViewer:
+      typeof access.isViewer === "boolean"
+        ? access.isViewer
+        : false,
+    isActive:
+      typeof access.isActive === "boolean"
+        ? access.isActive
+        : true,
+    canCreateProperty:
+      typeof access.canCreateProperty === "boolean"
+        ? access.canCreateProperty
+        : true,
+    canDeleteProperty:
+      typeof access.canDeleteProperty === "boolean"
+        ? access.canDeleteProperty
+        : true,
+    reason:
+      typeof access.reason === "string"
+        ? access.reason
+        : "",
+  };
+}
+
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("general");
 
   const [properties, setProperties] =
     useState<Property[]>([]);
+
+  const [dashboardAccess, setDashboardAccess] =
+    useState<DashboardAccess>(defaultDashboardAccess);
 
   const [selectedSlug, setSelectedSlug] = useState("");
 
@@ -124,6 +196,15 @@ export default function Dashboard() {
     );
   }, [selectedSlug, propertyName]);
 
+  const isPartnerMode = useMemo(() => {
+    return (
+      dashboardAccess.isPartner ||
+      dashboardAccess.role === "partner" ||
+      !dashboardAccess.canCreateProperty ||
+      !dashboardAccess.canDeleteProperty
+    );
+  }, [dashboardAccess]);
+
   const extraServices = knowledgeBase.extra_services;
 
   const heroPreviewTitle = useMemo(() => {
@@ -187,6 +268,7 @@ export default function Dashboard() {
     propertyName.trim() &&
       !saving &&
       !loadingSelectedProperty &&
+      (!isNewProperty || dashboardAccess.canCreateProperty) &&
       (isNewProperty ||
         (selectedSlug &&
           loadedPropertyIdentifier &&
@@ -204,6 +286,10 @@ export default function Dashboard() {
 
     if (!propertyName.trim()) {
       return "Property name is required";
+    }
+
+    if (isNewProperty && !dashboardAccess.canCreateProperty) {
+      return "This account cannot create new properties";
     }
 
     if (
@@ -225,6 +311,7 @@ export default function Dashboard() {
     loadingSelectedProperty,
     propertyName,
     isNewProperty,
+    dashboardAccess.canCreateProperty,
     selectedSlug,
     loadedPropertyIdentifier,
   ]);
@@ -288,6 +375,8 @@ export default function Dashboard() {
         );
       }
 
+      setDashboardAccess(normalizeDashboardAccess(data.access));
+
       const loadedProperties =
         (data.properties || []) as Property[];
 
@@ -295,6 +384,7 @@ export default function Dashboard() {
 
       if (loadedProperties.length === 0) {
         selectProperty("");
+        resetForm();
         return;
       }
 
@@ -434,6 +524,11 @@ export default function Dashboard() {
   }
 
   function addProperty() {
+    if (!dashboardAccess.canCreateProperty) {
+      alert("This account cannot create new properties.");
+      return;
+    }
+
     const cleanName = newProperty.trim();
 
     if (!cleanName) {
@@ -564,6 +659,11 @@ export default function Dashboard() {
       return;
     }
 
+    if (isNewProperty && !dashboardAccess.canCreateProperty) {
+      alert("This account cannot create new properties.");
+      return;
+    }
+
     if (loadingSelectedProperty) {
       alert("Please wait until the selected property has finished loading.");
       return;
@@ -671,6 +771,11 @@ export default function Dashboard() {
   }
 
   async function deleteProperty() {
+    if (!dashboardAccess.canDeleteProperty) {
+      alert("This account cannot delete properties.");
+      return;
+    }
+
     if (!selectedSlug) {
       return;
     }
@@ -795,6 +900,14 @@ export default function Dashboard() {
                 Manage welcome pages, AI concierge, check-in instructions,
                 local recommendations and guest experience from one place.
               </p>
+
+              {isPartnerMode && (
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-emerald-400/10 border border-emerald-300/20 px-4 py-2 text-sm text-emerald-100">
+                  <span>Limited Partner Access</span>
+                  <span className="text-white/40">•</span>
+                  <span>Assigned properties only</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4 min-w-[280px]">
@@ -890,6 +1003,9 @@ export default function Dashboard() {
                 whatsappEnabled={whatsappEnabled}
                 telegramEnabled={telegramEnabled}
                 welcomebookEnabled={welcomebookEnabled}
+                canCreateProperty={dashboardAccess.canCreateProperty}
+                canDeleteProperty={dashboardAccess.canDeleteProperty}
+                accessRole={dashboardAccess.role}
                 onSelectProperty={(value) => {
                   setIsNewProperty(false);
                   selectProperty(value);
