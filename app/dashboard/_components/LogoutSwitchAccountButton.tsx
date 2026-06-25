@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -35,7 +35,7 @@ export default function LogoutSwitchAccountButton({
         type="button"
         onClick={logout}
         disabled={loading}
-        className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-xs font-semibold text-white/80 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-semibold text-gray-900 transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? "Logging out..." : "Logout"}
       </button>
@@ -47,13 +47,17 @@ export default function LogoutSwitchAccountButton({
       type="button"
       onClick={logout}
       disabled={loading}
-      className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm font-semibold text-white/85 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
+      className="w-full text-left px-5 py-4 rounded-2xl transition border bg-white border-gray-200 text-gray-950 hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <span>
-        {loading ? "Logging out..." : "Logout / Switch account"}
-      </span>
+      <span className="flex items-center justify-between gap-3">
+        <span>
+          🚪 {loading ? "Logging out..." : "Logout / Switch account"}
+        </span>
 
-      <span className="text-white/45">↪</span>
+        <span className="text-gray-400 group-hover:text-white">
+          ↪
+        </span>
+      </span>
     </button>
   );
 }
