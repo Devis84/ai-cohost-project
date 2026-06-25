@@ -1,35 +1,48 @@
-import { NextResponse } from "next/server";
-
-
-export const dynamic = "force-dynamic";
+ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function GET() {
-  const response = NextResponse.json({
-    success: true,
-    message: "Logged out",
-  });
+import { NextResponse } from "next/server";
 
-  response.cookies.set("ai_cohost_auth", "", {
+function clearAuthCookies(response: NextResponse) {
+  const options = {
     path: "/",
     maxAge: 0,
-    sameSite: "lax",
-  });
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+  };
+
+  response.cookies.set(
+    "ai_cohost_auth",
+    "",
+    options
+  );
+
+  response.cookies.set(
+    "ai_cohost_user_email",
+    "",
+    options
+  );
 
   return response;
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const redirectUrl =
+    url.searchParams.get("redirect") || "/login";
+
+  const response = NextResponse.redirect(
+    new URL(redirectUrl, request.url)
+  );
+
+  return clearAuthCookies(response);
 }
 
 export async function POST() {
   const response = NextResponse.json({
     success: true,
-    message: "Logged out",
   });
 
-  response.cookies.set("ai_cohost_auth", "", {
-    path: "/",
-    maxAge: 0,
-    sameSite: "lax",
-  });
-
-  return response;
+  return clearAuthCookies(response);
 }

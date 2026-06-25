@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,30 +10,54 @@ export default function LoginClient() {
   const redirect =
     searchParams.get("redirect") || "/dashboard";
 
-  const [email, setEmail] =
-    useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success"
+  >("idle");
 
-  const [password, setPassword] =
-    useState("");
+  async function login() {
+    const cleanEmail = email.trim().toLowerCase();
 
-  const [error, setError] =
-    useState("");
-
-  function login() {
     setError("");
 
-    if (
-      email === process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
-      password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD
-    ) {
-      document.cookie =
-        "ai_cohost_auth=true; path=/; max-age=86400; SameSite=Lax";
-
-      router.push(redirect);
+    if (!cleanEmail) {
+      setError("Please enter your email address.");
       return;
     }
 
-    setError("Invalid email or password");
+    setStatus("loading");
+
+    try {
+      const response = await fetch("/api/auth/email-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error || "Login failed. Please try again."
+        );
+      }
+
+      setStatus("success");
+      router.push(redirect);
+      router.refresh();
+    } catch (error) {
+      setStatus("idle");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Login failed. Please try again."
+      );
+    }
   }
 
   return (
@@ -45,11 +69,12 @@ export default function LoginClient() {
           </div>
 
           <h1 className="text-3xl font-bold mb-2">
-            Login
+            Dashboard Login
           </h1>
 
-          <p className="text-gray-500">
-            Access your host dashboard.
+          <p className="text-gray-500 leading-relaxed">
+            Enter the email authorized by the admin to access your host or
+            partner dashboard.
           </p>
         </div>
 
@@ -57,19 +82,12 @@ export default function LoginClient() {
           <input
             className="w-full border border-gray-200 rounded-2xl p-4"
             placeholder="Email"
+            type="email"
+            autoComplete="email"
             value={email}
+            disabled={status === "loading"}
             onChange={(event) =>
               setEmail(event.target.value)
-            }
-          />
-
-          <input
-            className="w-full border border-gray-200 rounded-2xl p-4"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(event) =>
-              setPassword(event.target.value)
             }
             onKeyDown={(event) => {
               if (event.key === "Enter") {
@@ -79,18 +97,32 @@ export default function LoginClient() {
           />
 
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 rounded-2xl p-4 text-sm">
+            <div className="bg-red-50 border border-red-100 text-red-600 rounded-2xl p-4 text-sm leading-relaxed">
               {error}
+            </div>
+          )}
+
+          {status === "success" && (
+            <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl p-4 text-sm leading-relaxed">
+              Login successful. Redirecting to your dashboard...
             </div>
           )}
 
           <button
             type="button"
             onClick={login}
-            className="w-full bg-black text-white rounded-2xl p-4 font-semibold hover:opacity-90 transition"
+            disabled={status === "loading"}
+            className="w-full bg-black text-white rounded-2xl p-4 font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Login
+            {status === "loading"
+              ? "Checking access..."
+              : "Continue"}
           </button>
+
+          <p className="text-xs leading-relaxed text-gray-400">
+            Access is limited to emails already authorized by the admin.
+            No password is required for this MVP test version.
+          </p>
         </div>
       </div>
     </div>
