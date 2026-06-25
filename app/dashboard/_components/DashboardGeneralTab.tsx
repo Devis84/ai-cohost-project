@@ -1,5 +1,7 @@
  "use client";
 
+import GuestPageImageSection from "./GuestPageImageSection";
+
 import {
   FieldLabel,
   SectionHeader,
@@ -295,6 +297,13 @@ export function DashboardGeneralTab({
           </div>
         )}
       </section>
+
+      <GuestPageImageSection
+        selectedSlug={selectedSlug}
+        propertyName={propertyName}
+        knowledgeBase={knowledgeBase}
+        accessRole={accessRole}
+      />
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
         <SectionHeader
