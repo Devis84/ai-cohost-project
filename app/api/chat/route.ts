@@ -818,8 +818,6 @@ function evaluateGuestQuestionScope(
     "malware",
     "phishing",
     "steal",
-    "illegal",
-    "drugs",
     "cocaine",
     "weed dealer",
     "fake id",
@@ -875,6 +873,7 @@ function evaluateGuestQuestionScope(
     "apartment",
     "property",
     "house",
+    "villa",
     "flat",
     "stay",
     "booking",
@@ -907,19 +906,45 @@ function evaluateGuestQuestionScope(
     "aparcamiento",
     "estacionamiento",
     "parken",
+    "allowed",
+    "allow",
+    "can i",
+    "may i",
+    "is it ok",
+    "is it okay",
     "rules",
     "house rules",
     "quiet",
     "smoking",
+    "smoke",
     "party",
+    "parties",
+    "event",
+    "events",
+    "pets",
+    "pet",
+    "guests",
+    "maximum guests",
+    "max guests",
+    "occupancy",
     "regole",
     "silenzio",
     "fumare",
     "fumo",
     "festa",
+    "feste",
+    "animali",
     "règles",
+    "autorisé",
+    "autorisée",
     "reglas",
+    "permitido",
+    "fiesta",
+    "fiestas",
+    "fumar",
     "regeln",
+    "erlaubt",
+    "rauchen",
     "trash",
     "rubbish",
     "garbage",
@@ -979,7 +1004,6 @@ function evaluateGuestQuestionScope(
     "stirare",
     "vapore",
     "vaporizzatore",
-    "stiro",
     "machine à laver",
     "cuisine",
     "lave-linge",
@@ -993,9 +1017,27 @@ function evaluateGuestQuestionScope(
     "sofa",
     "tv",
     "remote",
+    "pool",
+    "swimming pool",
+    "private pool",
+    "hot water pool",
+    "cinema",
+    "outdoor cinema",
+    "lounge",
+    "sunken lounge",
+    "amenity",
+    "amenities",
+    "facility",
+    "facilities",
+    "feature",
+    "features",
+    "workspace",
+    "desk",
     "asciugamani",
     "lenzuola",
     "letto",
+    "piscina",
+    "servizi",
     "serviettes",
     "draps",
     "cama",
@@ -1015,7 +1057,6 @@ function evaluateGuestQuestionScope(
     "ristorante",
     "ristoranti",
     "mangiare",
-    "bar",
     "caffè",
     "supermercato",
     "farmacia",
@@ -1059,12 +1100,9 @@ function evaluateGuestQuestionScope(
     "ospedale",
     "medico",
     "urgence",
-    "police",
     "hôpital",
     "emergencia",
-    "urgente",
     "policía",
-    "hospital",
     "notfall",
     "polizei",
     "host",
@@ -1084,7 +1122,11 @@ function evaluateGuestQuestionScope(
     "hilfe",
     "cockroach",
     "insect",
+    "insects",
     "bug",
+    "bugs",
+    "mosquito",
+    "mosquitoes",
     "mold",
     "mould",
     "leak",
@@ -1092,8 +1134,13 @@ function evaluateGuestQuestionScope(
     "electricity",
     "power",
     "noise",
+    "construction",
+    "nearby construction",
+    "building work",
+    "housekeeping",
     "scarafaggio",
     "insetto",
+    "insetti",
     "muffa",
     "perdita",
     "acqua",
@@ -1177,15 +1224,17 @@ HOSPITALITY STYLE:
 GUEST PORTAL SCOPE RULES:
 You may only help with questions directly related to:
 - the guest's stay
-- the apartment/property
+- the apartment/property/villa
 - check-in and checkout
 - WiFi
 - general access guidance, arrival guidance and directions
-- house rules
+- house rules, pets, smoking, parties, events, occupancy and quiet hours
 - trash, appliances, AC, boiler, hot water, washing machine and amenities
+- pool, outdoor areas, kitchen, bed, towels, linen and housekeeping
 - parking
 - restaurants, transport, local area and useful nearby services
 - guest support, maintenance issues and emergencies
+- construction notice, insects and tropical environment information where relevant
 
 SENSITIVE ACCESS RULE:
 Do not reveal lockbox codes, door codes, access codes, key safe codes, private entry codes or private security instructions on the public guest portal.
@@ -1243,8 +1292,113 @@ function createFallbackReply({
   const propertyName =
     property.property_name || "the property";
 
+  const normalizedMessage = normalizeForScope(message);
+
   if (isSensitiveAccessRequest(message)) {
     return getSensitiveAccessReply(message);
+  }
+
+  if (
+    includesAny(normalizedMessage, [
+      "rule",
+      "rules",
+      "house rule",
+      "house rules",
+      "allowed",
+      "allow",
+      "can i",
+      "may i",
+      "is it ok",
+      "is it okay",
+      "smoking",
+      "smoke",
+      "party",
+      "parties",
+      "event",
+      "events",
+      "quiet",
+      "noise",
+      "pet",
+      "pets",
+      "drug",
+      "drugs",
+      "guest",
+      "guests",
+      "maximum guests",
+      "max guests",
+      "occupancy",
+      "regole",
+      "permesso",
+      "posso",
+      "fumare",
+      "festa",
+      "feste",
+      "animali",
+      "règles",
+      "autorisé",
+      "fumer",
+      "reglas",
+      "permitido",
+      "fiesta",
+      "fiestas",
+      "fumar",
+      "regeln",
+      "erlaubt",
+      "rauchen",
+    ])
+  ) {
+    const houseRules = valueOrFallback(
+      welcome.house_rules || property.house_rules,
+      `No specific house rules have been provided yet for ${propertyName}. Please contact the host for confirmation.`
+    );
+
+    return `Here are the main house rules for ${propertyName}:\n\n${houseRules}`;
+  }
+
+  if (
+    includesAny(normalizedMessage, [
+      "pool",
+      "swimming pool",
+      "private pool",
+      "hot water pool",
+      "cinema",
+      "outdoor cinema",
+      "lounge",
+      "sunken lounge",
+      "kitchen",
+      "bed",
+      "king bed",
+      "amenity",
+      "amenities",
+      "feature",
+      "features",
+      "facility",
+      "facilities",
+      "workspace",
+      "desk",
+      "parking",
+      "piscina",
+      "cucina",
+      "letto",
+      "servizi",
+      "équipements",
+      "piscine",
+      "cuisine",
+      "lit",
+      "servicios",
+      "cocina",
+      "cama",
+      "ausstattung",
+      "küche",
+      "bett",
+    ])
+  ) {
+    const amenities = valueOrFallback(
+      welcome.amenities || property.amenities,
+      `No detailed amenities have been provided yet for ${propertyName}. Please contact the host for confirmation.`
+    );
+
+    return `${propertyName} includes the following amenities and features:\n\n${amenities}`;
   }
 
   if (
@@ -1351,26 +1505,6 @@ function createFallbackReply({
 
   if (
     includesAny(message, [
-      "rule",
-      "rules",
-      "smoking",
-      "party",
-      "quiet",
-      "regole",
-      "règles",
-      "reglas",
-      "regeln",
-    ])
-  ) {
-    return (
-      welcome.house_rules ||
-      property.house_rules ||
-      "House rules have not been provided yet. Please use normal care, avoid disturbing neighbours and contact the host if you are unsure."
-    );
-  }
-
-  if (
-    includesAny(message, [
       "restaurant",
       "food",
       "eat",
@@ -1439,15 +1573,22 @@ function createFallbackReply({
     includesAny(message, [
       "cockroach",
       "insect",
+      "insects",
       "bug",
+      "bugs",
+      "mosquito",
+      "mosquitoes",
       "broken",
       "problem",
       "issue",
       "cannot",
       "can't",
       "not working",
+      "construction",
+      "noise",
       "scarafaggio",
       "insetto",
+      "insetti",
       "problema",
       "rotto",
       "non funziona",
@@ -1470,7 +1611,7 @@ function createFallbackReply({
     return `${description}\n\nUseful information: ${faq}`;
   }
 
-  return `I can help with WiFi, check-in, parking, house rules, restaurants, transport and emergency information for ${propertyName}.`;
+  return `I can help with WiFi, check-in, parking, house rules, restaurants, transport, amenities and emergency information for ${propertyName}.`;
 }
 
 function sanitizeGuestPortalReply({
