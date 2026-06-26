@@ -9,6 +9,10 @@ const allowedEventTypes = [
   "issue_reported",
 ] as const;
 
+const whatsappNotificationEnabledSlugs = [
+  "maltese-maisonette",
+];
+
 type GuestEventType = (typeof allowedEventTypes)[number];
 
 type GuestEventPayload = {
@@ -111,6 +115,34 @@ function getWhatsAppApiVersion() {
   );
 }
 
+function normalizePropertySlug(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function shouldSendHostWhatsAppNotification({
+  propertySlug,
+  eventType,
+  isFirstEvent,
+}: {
+  propertySlug: string;
+  eventType: GuestEventType;
+  isFirstEvent: boolean;
+}) {
+  const normalizedSlug = normalizePropertySlug(propertySlug);
+
+  if (!isFirstEvent) {
+    return false;
+  }
+
+  if (eventType !== "guest_page_opened") {
+    return false;
+  }
+
+  return whatsappNotificationEnabledSlugs.includes(
+    normalizedSlug
+  );
+}
+
 function normalizeWhatsAppPhone(value?: string | null) {
   if (!value) {
     return "";
@@ -208,11 +240,13 @@ async function sendHostWhatsAppNotification({
   notification,
   propertySlug,
   eventType,
+  metadata,
 }: {
   supabase: ReturnType<typeof getSupabaseAdminClient>;
   notification: HostNotificationRecord;
   propertySlug: string;
   eventType: GuestEventType;
+  metadata: Record<string, unknown>;
 }) {
   const hostPhone = normalizeWhatsAppPhone(
     process.env.WHATSAPP_HOST_PHONE
@@ -239,14 +273,28 @@ async function sendHostWhatsAppNotification({
     };
   }
 
-  const message = `AI Co-Host notification
+  const propertyName =
+    typeof metadata.property_name === "string" &&
+    metadata.property_name.trim()
+      ? metadata.property_name.trim()
+      : propertySlug;
 
-${notification.title}
+  const openedAt = new Date().toLocaleString("en-GB", {
+    timeZone: "Europe/Rome",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 
-${notification.message}
+  const message = `🏡 AI Co-Host notification
 
-Property: ${propertySlug}
-Event: ${eventType}`;
+Guest page opened
+
+Property: ${propertyName}
+Slug: ${propertySlug}
+Event: ${eventType}
+Time: ${openedAt}
+
+A guest opened the Maltese Maisonette guest page.`;
 
   const response = await fetch(
     `https://graph.facebook.com/${apiVersion}/${phoneId}/messages`,
@@ -346,6 +394,7 @@ async function createHostNotification({
         ...metadata,
         generated_from: "guest_events_api",
         whatsapp_preferred: true,
+        whatsapp_notification_scope: "maltese_maisonette_only",
       },
     })
     .select("id, title, message")
@@ -420,6 +469,13 @@ export async function POST(request: NextRequest) {
 
     const ipAddress = getClientIp(request);
 
+    const shouldNotifyHost =
+      shouldSendHostWhatsAppNotification({
+        propertySlug,
+        eventType,
+        isFirstEvent,
+      });
+
     const { data: insertedEvent, error: insertError } =
       await supabase
         .from("guest_page_events")
@@ -448,12 +504,7 @@ export async function POST(request: NextRequest) {
     let hostNotificationCreated = false;
     let hostWhatsAppNotification = null;
 
-    if (
-      isFirstEvent &&
-      insertedEvent?.id &&
-      (eventType === "guest_page_opened" ||
-        eventType === "issue_reported")
-    ) {
+    if (shouldNotifyHost && insertedEvent?.id) {
       const notification = await createHostNotification({
         supabase,
         propertySlug,
@@ -470,6 +521,7 @@ export async function POST(request: NextRequest) {
           notification,
           propertySlug,
           eventType,
+          metadata,
         });
 
       const { error: updateEventError } = await supabase
@@ -491,6 +543,8 @@ export async function POST(request: NextRequest) {
       event: insertedEvent,
       host_notification_created: hostNotificationCreated,
       host_whatsapp_notification: hostWhatsAppNotification,
+      whatsapp_notification_scope:
+        "guest_page_opened_maltese_maisonette_only",
     });
   } catch (error) {
     console.error("GUEST EVENT ERROR:", error);
