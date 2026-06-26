@@ -8,6 +8,13 @@
   about_highlights: string;
 };
 
+export type GuestSupport = {
+  whatsapp_enabled: boolean;
+  whatsapp_number: string;
+  whatsapp_label: string;
+  whatsapp_message_template: string;
+};
+
 export type WelcomeBook = {
   description: string;
   amenities: string;
@@ -61,6 +68,7 @@ export type AiTraining = {
 
 export type KnowledgeBase = {
   guest_page: GuestPageContent;
+  guest_support: GuestSupport;
   welcome_book: WelcomeBook;
   extra_services: ExtraServices;
   local_guide: LocalGuide;
@@ -69,6 +77,7 @@ export type KnowledgeBase = {
 
 export type StoredKnowledgeBase = {
   guest_page?: Partial<GuestPageContent>;
+  guest_support?: Partial<GuestSupport>;
   welcome_book?: Partial<WelcomeBook>;
   extra_services?: Partial<ExtraServices>;
   local_guide?: Partial<LocalGuide>;

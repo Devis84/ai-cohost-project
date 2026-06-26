@@ -1,7 +1,8 @@
-import type {
+ import type {
   AiTraining,
   ExtraServices,
   GuestPageContent,
+  GuestSupport,
   KnowledgeBase,
   LocalGuide,
   Property,
@@ -18,6 +19,13 @@ export function createEmptyKnowledgeBase(): KnowledgeBase {
       about_intro: "",
       about_description: "",
       about_highlights: "",
+    },
+
+    guest_support: {
+      whatsapp_enabled: false,
+      whatsapp_number: "",
+      whatsapp_label: "Host",
+      whatsapp_message_template: "",
     },
 
     welcome_book: {
@@ -102,6 +110,9 @@ export function mergeKnowledgeBase(property: Property): KnowledgeBase {
   const savedGuestPage: Partial<GuestPageContent> =
     property.knowledge_base?.guest_page || {};
 
+  const savedGuestSupport: Partial<GuestSupport> =
+    property.knowledge_base?.guest_support || {};
+
   const savedWelcome: Partial<WelcomeBook> =
     property.knowledge_base?.welcome_book || {};
 
@@ -113,6 +124,10 @@ export function mergeKnowledgeBase(property: Property): KnowledgeBase {
 
   const savedAi: Partial<AiTraining> =
     property.knowledge_base?.ai_training || {};
+
+  const defaultWhatsappMessage = property.property_name
+    ? `Hi, I’m staying at ${property.property_name} and I need some help.`
+    : "Hi, I’m staying at the property and I need some help.";
 
   return {
     guest_page: {
@@ -133,6 +148,22 @@ export function mergeKnowledgeBase(property: Property): KnowledgeBase {
         safeString(property.description),
       about_highlights:
         savedGuestPage.about_highlights || "",
+    },
+
+    guest_support: {
+      ...empty.guest_support,
+      ...savedGuestSupport,
+      whatsapp_enabled: Boolean(
+        savedGuestSupport.whatsapp_enabled
+      ),
+      whatsapp_number:
+        savedGuestSupport.whatsapp_number || "",
+      whatsapp_label:
+        savedGuestSupport.whatsapp_label ||
+        empty.guest_support.whatsapp_label,
+      whatsapp_message_template:
+        savedGuestSupport.whatsapp_message_template ||
+        defaultWhatsappMessage,
     },
 
     welcome_book: {

@@ -25,6 +25,7 @@ import type {
   AiTraining,
   ExtraServices,
   GuestPageContent,
+  GuestSupport,
   KnowledgeBase,
   LocalGuide,
   Property,
@@ -830,6 +831,19 @@ export default function Dashboard() {
     }));
   }
 
+  function updateGuestSupport(
+    field: keyof GuestSupport,
+    value: string | boolean
+  ) {
+    setKnowledgeBase((current) => ({
+      ...current,
+      guest_support: {
+        ...current.guest_support,
+        [field]: value,
+      },
+    }));
+  }
+
   function updateWelcomeBook(
     field: keyof WelcomeBook,
     value: string
@@ -1030,6 +1044,7 @@ export default function Dashboard() {
                 onSetWhatsappEnabled={setWhatsappEnabled}
                 onSetTelegramEnabled={setTelegramEnabled}
                 onSetWelcomebookEnabled={setWelcomebookEnabled}
+                onUpdateGuestSupport={updateGuestSupport}
                 onUpdateWelcomeBook={updateWelcomeBook}
                 onUpdateLocalGuide={updateLocalGuide}
                 onUpdateExtraServices={updateExtraServices}

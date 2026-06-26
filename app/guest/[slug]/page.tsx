@@ -21,6 +21,13 @@ type GuestPageContent = {
   about_highlights?: string;
 };
 
+type GuestSupport = {
+  whatsapp_enabled?: boolean;
+  whatsapp_number?: string;
+  whatsapp_label?: string;
+  whatsapp_message_template?: string;
+};
+
 type WelcomeBook = {
   description?: string;
   amenities?: string;
@@ -60,6 +67,7 @@ type AiTraining = {
 
 type KnowledgeBase = {
   guest_page?: GuestPageContent;
+  guest_support?: GuestSupport;
   welcome_book?: WelcomeBook;
   extra_services?: ExtraServices;
   ai_training?: AiTraining;
@@ -164,6 +172,10 @@ function getGuestPage(property?: Property | null): GuestPageContent {
   return property?.knowledge_base?.guest_page || {};
 }
 
+function getGuestSupport(property?: Property | null): GuestSupport {
+  return property?.knowledge_base?.guest_support || {};
+}
+
 function getWelcomeBook(property?: Property | null): WelcomeBook {
   return property?.knowledge_base?.welcome_book || {};
 }
@@ -182,6 +194,31 @@ function getPhoneHref(value?: string | null) {
   const cleanPhone = phone.replace(/[^\d+]/g, "");
 
   return cleanPhone ? `tel:${cleanPhone}` : "";
+}
+
+function normalizeWhatsAppNumber(value?: string | null) {
+  return safeText(value).replace(/[^\d]/g, "");
+}
+
+function getWhatsAppHref({
+  number,
+  message,
+}: {
+  number?: string | null;
+  message?: string | null;
+}) {
+  const cleanNumber = normalizeWhatsAppNumber(number);
+
+  if (!cleanNumber) {
+    return "";
+  }
+
+  const cleanMessage = safeText(message);
+  const encodedMessage = encodeURIComponent(cleanMessage);
+
+  return encodedMessage
+    ? `https://wa.me/${cleanNumber}?text=${encodedMessage}`
+    : `https://wa.me/${cleanNumber}`;
 }
 
 function getMapsHref(property?: Property | null) {
@@ -482,6 +519,48 @@ function HomeHubCard({
   );
 }
 
+function WhatsAppContactCard({
+  label,
+  href,
+}: {
+  label: string;
+  href: string;
+}) {
+  if (!href) {
+    return null;
+  }
+
+  return (
+    <section className="bg-emerald-600 text-white rounded-[36px] p-6 md:p-8 shadow-xl border border-emerald-700/20">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+        <div>
+          <div className="uppercase tracking-[0.3em] text-xs text-white/60 mb-3">
+            DIRECT SUPPORT
+          </div>
+
+          <h2 className="text-2xl md:text-4xl font-black mb-2">
+            Need help from {label}?
+          </h2>
+
+          <p className="text-white/80 leading-relaxed max-w-2xl">
+            Contact the host, villa team or property manager directly on
+            WhatsApp for property-related support during your stay.
+          </p>
+        </div>
+
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-2xl bg-white px-5 py-4 text-center font-black text-emerald-700 shadow-lg hover:opacity-90 transition"
+        >
+          Message on WhatsApp
+        </a>
+      </div>
+    </section>
+  );
+}
+
 function PromptButton({
   children,
   onClick,
@@ -728,6 +807,10 @@ export default function GuestPage() {
     return getWelcomeBook(property);
   }, [property]);
 
+  const guestSupport = useMemo(() => {
+    return getGuestSupport(property);
+  }, [property]);
+
   const extraServices = useMemo(() => {
     return getExtraServices(property);
   }, [property]);
@@ -766,6 +849,26 @@ export default function GuestPage() {
   const mapsHref = useMemo(() => {
     return getMapsHref(property);
   }, [property]);
+
+  const whatsappLabel =
+    safeText(guestSupport.whatsapp_label) || "the host";
+
+  const whatsappDefaultMessage = `Hi, I’m staying at ${getPropertyName(
+    property
+  )} and I need some help.`;
+
+  const whatsappMessage =
+    safeText(guestSupport.whatsapp_message_template) ||
+    whatsappDefaultMessage;
+
+  const whatsappHref = getWhatsAppHref({
+    number: guestSupport.whatsapp_number,
+    message: whatsappMessage,
+  });
+
+  const showWhatsAppContact = Boolean(
+    guestSupport.whatsapp_enabled && whatsappHref
+  );
 
   const houseRules =
     safeText(welcomeBook.house_rules) ||
@@ -1407,6 +1510,17 @@ export default function GuestPage() {
               Ask AI
             </button>
 
+            {showWhatsAppContact && (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white"
+              >
+                Message on WhatsApp
+              </a>
+            )}
+
             {hostPhoneHref && (
               <a
                 href={hostPhoneHref}
@@ -1440,26 +1554,45 @@ export default function GuestPage() {
         "For emergencies, contact local emergency services immediately. For property-related issues, contact the host as well.",
     },
     {
-      id: "contact-host",
+      id: "contact-host-whatsapp",
       icon: "💬",
-      title: "Contact host",
+      title: showWhatsAppContact
+        ? `Contact ${whatsappLabel} on WhatsApp`
+        : "Contact host",
+      defaultOpen: showWhatsAppContact,
       content: (
         <div className="space-y-4">
           <p>
-            For urgent property-related matters, contact the host directly when
-            available.
+            For urgent property-related matters, contact the host, villa team
+            or property manager directly when available.
           </p>
 
-          {hostPhoneHref ? (
-            <a
-              href={hostPhoneHref}
-              className="inline-flex rounded-2xl bg-black px-5 py-3 font-semibold text-white"
-            >
-              Contact Host
-            </a>
-          ) : (
+          <div className="flex flex-wrap gap-3">
+            {showWhatsAppContact && (
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white"
+              >
+                Message on WhatsApp
+              </a>
+            )}
+
+            {hostPhoneHref && (
+              <a
+                href={hostPhoneHref}
+                className="inline-flex rounded-2xl bg-black px-5 py-3 font-semibold text-white"
+              >
+                Call Host
+              </a>
+            )}
+          </div>
+
+          {!showWhatsAppContact && !hostPhoneHref && (
             <p className="text-gray-500">
-              Host phone contact is not currently displayed on this page.
+              Host contact details are not currently displayed on this page.
+              Please use the contact details shared in your booking platform.
             </p>
           )}
         </div>
@@ -1578,6 +1711,17 @@ export default function GuestPage() {
                     >
                       Open Stay Guide
                     </button>
+
+                    {showWhatsAppContact && (
+                      <a
+                        href={whatsappHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="bg-emerald-500 text-white rounded-2xl px-5 py-4 font-black shadow-xl hover:bg-emerald-600 transition"
+                      >
+                        WhatsApp {whatsappLabel}
+                      </a>
+                    )}
                   </div>
                 </div>
 
@@ -1602,6 +1746,13 @@ export default function GuestPage() {
                     icon="🤖"
                     label="AI help available"
                   />
+
+                  {showWhatsAppContact && (
+                    <InfoPill
+                      icon="💬"
+                      label={`WhatsApp ${whatsappLabel}`}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1649,6 +1800,13 @@ export default function GuestPage() {
                 </button>
               </div>
             </section>
+
+            {showWhatsAppContact && (
+              <WhatsAppContactCard
+                label={whatsappLabel}
+                href={whatsappHref}
+              />
+            )}
 
             <section
               id="wifi-home"

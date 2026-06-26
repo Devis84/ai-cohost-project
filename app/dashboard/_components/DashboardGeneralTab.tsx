@@ -1,12 +1,12 @@
  "use client";
 
-import GuestPageImageSection from "./GuestPageImageSection";
-
 import {
   FieldLabel,
   SectionHeader,
   TextArea,
 } from "./DashboardUi";
+
+import GuestWhatsAppContactSection from "./GuestWhatsAppContactSection";
 
 import {
   createSlug,
@@ -15,6 +15,7 @@ import {
 
 import type {
   ExtraServices,
+  GuestSupport,
   KnowledgeBase,
   LocalGuide,
   Property,
@@ -66,6 +67,10 @@ type DashboardGeneralTabProps = {
   onSetWhatsappEnabled: (value: boolean) => void;
   onSetTelegramEnabled: (value: boolean) => void;
   onSetWelcomebookEnabled: (value: boolean) => void;
+  onUpdateGuestSupport: (
+    field: keyof GuestSupport,
+    value: string | boolean
+  ) => void;
   onUpdateWelcomeBook: (
     field: keyof WelcomeBook,
     value: string
@@ -125,6 +130,7 @@ export function DashboardGeneralTab({
   onSetWhatsappEnabled,
   onSetTelegramEnabled,
   onSetWelcomebookEnabled,
+  onUpdateGuestSupport,
   onUpdateWelcomeBook,
   onUpdateLocalGuide,
   onUpdateExtraServices,
@@ -297,13 +303,6 @@ export function DashboardGeneralTab({
           </div>
         )}
       </section>
-
-      <GuestPageImageSection
-        selectedSlug={selectedSlug}
-        propertyName={propertyName}
-        knowledgeBase={knowledgeBase}
-        accessRole={accessRole}
-      />
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
         <SectionHeader
@@ -575,6 +574,12 @@ export function DashboardGeneralTab({
         />
       </section>
 
+      <GuestWhatsAppContactSection
+        guestSupport={knowledgeBase.guest_support}
+        propertyName={propertyName}
+        onUpdateGuestSupport={onUpdateGuestSupport}
+      />
+
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
         <SectionHeader
           icon="⚙️"
@@ -596,7 +601,7 @@ export function DashboardGeneralTab({
           </label>
 
           <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
-            <span>WhatsApp Integration</span>
+            <span>WhatsApp API Automation</span>
 
             <input
               type="checkbox"
