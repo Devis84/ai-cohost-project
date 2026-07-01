@@ -47,6 +47,16 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
         />
 
         <div className="mt-4">
+          <GuestV2TodayCard
+            title={stay.today.title}
+            subtitle={stay.today.subtitle}
+            progressLabel={stay.stay.progressLabel}
+            progressPercent={stay.stay.progressPercent}
+            items={stay.today.items}
+          />
+        </div>
+
+        <div className="mt-4">
           <GuestV2SmartCard
             icon={stay.smartTip.icon}
             eyebrow={stay.smartTip.eyebrow}
@@ -60,16 +70,6 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
             token={stay.token}
             sections={stay.sections}
             checkoutTime={stay.stay.checkoutTime}
-          />
-        </div>
-
-        <div className="mt-5">
-          <GuestV2TodayCard
-            title={stay.today.title}
-            subtitle={stay.today.subtitle}
-            progressLabel={stay.stay.progressLabel}
-            progressPercent={stay.stay.progressPercent}
-            items={stay.today.items}
           />
         </div>
       </section>
