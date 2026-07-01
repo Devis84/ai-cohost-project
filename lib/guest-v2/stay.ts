@@ -45,6 +45,7 @@ export type GuestV2Stay = {
   property: {
     name: string;
     location: string;
+    imageUrl: string;
   };
   host: {
     whatsappNumber: string;
@@ -53,6 +54,11 @@ export type GuestV2Stay = {
   stay: {
     statusLabel: string;
     checkoutTime: string;
+    checkinDate: string;
+    checkoutDate: string;
+    dayLabel: string;
+    progressLabel: string;
+    progressPercent: number;
   };
   weather: {
     label: string;
@@ -64,6 +70,8 @@ export type GuestV2Stay = {
     body: string;
   };
   today: {
+    title: string;
+    subtitle: string;
     items: {
       icon: string;
       label: string;
@@ -241,6 +249,7 @@ export function buildGuestV2Stay(token: string): GuestV2Stay {
     property: {
       name: propertyName,
       location: "Sliema · Malta",
+      imageUrl: "",
     },
     host: {
       whatsappNumber: hostWhatsappNumber,
@@ -249,6 +258,11 @@ export function buildGuestV2Stay(token: string): GuestV2Stay {
     stay: {
       statusLabel: "Checkout in 3 days",
       checkoutTime: "10:00",
+      checkinDate: "",
+      checkoutDate: "",
+      dayLabel: "Demo stay",
+      progressLabel: "Stay progress",
+      progressPercent: 45,
     },
     weather: {
       label: "Sunny · 29°C",
@@ -257,13 +271,15 @@ export function buildGuestV2Stay(token: string): GuestV2Stay {
       icon: "🌤️",
       eyebrow: "Smart stay tip",
       title: "Perfect day to explore",
-      body: "Great weather today. Ask the AI Concierge for the best nearby beaches, restaurants or sunset spots.",
+      body: "Great weather today. Ask the AI Concierge for nearby beaches, restaurants or sunset spots.",
     },
     today: {
+      title: "Enjoy your stay",
+      subtitle: "Everything you need is one tap away.",
       items: [
         {
           icon: "✅",
-          label: "Check-in completed",
+          label: "Guest access active",
         },
         {
           icon: "🌤️",

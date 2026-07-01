@@ -4,6 +4,7 @@ import { GuestV2Hero } from "@/components/guest-v2/GuestV2Hero";
 import { GuestV2SectionGrid } from "@/components/guest-v2/GuestV2SectionGrid";
 import { GuestV2Shell } from "@/components/guest-v2/GuestV2Shell";
 import { GuestV2SmartCard } from "@/components/guest-v2/GuestV2SmartCard";
+import { GuestV2TodayCard } from "@/components/guest-v2/GuestV2TodayCard";
 import { buildGuestV2StayFromToken } from "@/lib/guest-v2/stay-builder";
 
 type GuestV2PageProps = {
@@ -41,6 +42,8 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
           propertyLocation={stay.property.location}
           stayStatus={stay.stay.statusLabel}
           weatherLabel={stay.weather.label}
+          dayLabel={stay.stay.dayLabel}
+          imageUrl={stay.property.imageUrl}
         />
 
         <div className="mt-4">
@@ -60,22 +63,15 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
           />
         </div>
 
-        <section className="mt-5 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-black/5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-black/35">
-            Today&apos;s stay
-          </p>
-
-          <div className="mt-4 space-y-3">
-            {stay.today.items.map((item) => (
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f6f1e8] text-sm">
-                  {item.icon}
-                </span>
-                <p className="text-sm font-semibold">{item.label}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="mt-5">
+          <GuestV2TodayCard
+            title={stay.today.title}
+            subtitle={stay.today.subtitle}
+            progressLabel={stay.stay.progressLabel}
+            progressPercent={stay.stay.progressPercent}
+            items={stay.today.items}
+          />
+        </div>
       </section>
     </GuestV2Shell>
   );

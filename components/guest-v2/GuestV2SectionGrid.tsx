@@ -1,4 +1,4 @@
-import Link from "next/link";
+ import Link from "next/link";
 
 export type GuestV2SectionItem = {
   title: string;
@@ -20,8 +20,14 @@ export function GuestV2SectionGrid({
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-bold">Your stay</h2>
-        <p className="text-xs font-medium text-black/35">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-black/35">
+            Quick actions
+          </p>
+          <h2 className="mt-1 text-lg font-bold">What do you need?</h2>
+        </div>
+
+        <p className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-black/45 shadow-sm ring-1 ring-black/5">
           Checkout {checkoutTime}
         </p>
       </div>
@@ -31,14 +37,19 @@ export function GuestV2SectionGrid({
           <Link
             key={section.slug}
             href={`/guest-v2/${token}/section/${section.slug}`}
-            className="flex min-h-28 flex-col justify-between rounded-[1.65rem] bg-white p-4 shadow-sm ring-1 ring-black/5 transition active:scale-[0.98]"
+            className="group flex min-h-28 flex-col justify-between rounded-[1.75rem] bg-white p-4 shadow-sm ring-1 ring-black/5 transition active:scale-[0.98]"
           >
-            <div className="text-3xl">{section.icon}</div>
+            <div className="flex items-center justify-between">
+              <div className="text-3xl">{section.icon}</div>
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f6f1e8] text-sm text-black/50 transition group-active:translate-x-0.5">
+                →
+              </div>
+            </div>
 
             <div>
               <h3 className="text-base font-bold">{section.title}</h3>
               <p className="mt-1 text-xs font-medium text-black/35">
-                Tap to open
+                Open section
               </p>
             </div>
           </Link>
