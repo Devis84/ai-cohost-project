@@ -1,5 +1,7 @@
  "use client";
 
+import { useState } from "react";
+
 import {
   FieldLabel,
   SectionHeader,
@@ -135,6 +137,23 @@ export function DashboardGeneralTab({
   onUpdateLocalGuide,
   onUpdateExtraServices,
 }: DashboardGeneralTabProps) {
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    description: false,
+    location: false,
+    rules: false,
+    checkout: false,
+    emergency: false,
+    whatsapp: false,
+    modules: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
   const isLimitedAccess =
     accessRole === "partner" ||
     accessRole === "viewer" ||
@@ -305,92 +324,122 @@ export function DashboardGeneralTab({
       </section>
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-        <SectionHeader
-          icon="📝"
-          title="Property Description"
-          description="Add the main description of the property. You can paste the same text used on Airbnb, Booking.com or your direct listing."
-        />
+        <button
+          type="button"
+          onClick={() => toggleSection("description")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="📝"
+              title="Property Description"
+              description="Add the main description of the property. You can paste the same text used on Airbnb, Booking.com or your direct listing."
+            />
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.description ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-        <TextArea
-          placeholder="Property description. Paste the property description used on Airbnb, Booking.com or your direct listing."
-          value={knowledgeBase.welcome_book.description}
-          onChange={(value) =>
-            onUpdateWelcomeBook(
-              "description",
-              value
-            )
-          }
-          large
-        />
+        {expandedSections.description && (
+          <div className="mt-6">
+            <TextArea
+              placeholder="Property description. Paste the property description used on Airbnb, Booking.com or your direct listing."
+              value={knowledgeBase.welcome_book.description}
+              onChange={(value) =>
+                onUpdateWelcomeBook(
+                  "description",
+                  value
+                )
+              }
+              large
+            />
+          </div>
+        )}
       </section>
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-        <SectionHeader
-          icon="📍"
-          title="Location & Arrival"
-          description="Add the location details and useful arrival information for guests."
-        />
-
-        <div className="grid md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <FieldLabel
-              title="Town / City"
-              description="The town or area where the property is located."
+        <button
+          type="button"
+          onClick={() => toggleSection("location")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="📍"
+              title="Location & Arrival"
+              description="Add the location details and useful arrival information for guests."
             />
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.location ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-            <input
-              className="w-full border border-gray-200 rounded-2xl p-4"
-              placeholder="Example: Sliema"
-              value={city}
-              onChange={(event) =>
-                onSetCity(event.target.value)
+        {expandedSections.location && (
+          <div className="mt-6 space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <FieldLabel
+                  title="Town / City"
+                  description="The town or area where the property is located."
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Example: Sliema"
+                  value={city}
+                  onChange={(event) =>
+                    onSetCity(event.target.value)
+                  }
+                />
+              </div>
+
+              <div>
+                <FieldLabel
+                  title="Country"
+                  description="The country where the property is located."
+                />
+
+                <input
+                  className="w-full border border-gray-200 rounded-2xl p-4"
+                  placeholder="Example: Malta"
+                  value={country}
+                  onChange={(event) =>
+                    onSetCountry(event.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel
+                title="Full address"
+                description="Full property address for host reference and guest arrival instructions."
+              />
+
+              <input
+                className="w-full border border-gray-200 rounded-2xl p-4"
+                placeholder="Enter the full property address"
+                value={address}
+                onChange={(event) =>
+                  onSetAddress(event.target.value)
+                }
+              />
+            </div>
+
+            <TextArea
+              placeholder="How to reach the property from the airport. Add taxi, Bolt/Uber, public transport, approximate travel time and useful arrival tips."
+              value={knowledgeBase.local_guide.transport_getting_around}
+              onChange={(value) =>
+                onUpdateLocalGuide(
+                  "transport_getting_around",
+                  value
+                )
               }
             />
           </div>
-
-          <div>
-            <FieldLabel
-              title="Country"
-              description="The country where the property is located."
-            />
-
-            <input
-              className="w-full border border-gray-200 rounded-2xl p-4"
-              placeholder="Example: Malta"
-              value={country}
-              onChange={(event) =>
-                onSetCountry(event.target.value)
-              }
-            />
-          </div>
-        </div>
-
-        <div className="mb-5">
-          <FieldLabel
-            title="Full address"
-            description="Full property address for host reference and guest arrival instructions."
-          />
-
-          <input
-            className="w-full border border-gray-200 rounded-2xl p-4"
-            placeholder="Enter the full property address"
-            value={address}
-            onChange={(event) =>
-              onSetAddress(event.target.value)
-            }
-          />
-        </div>
-
-        <TextArea
-          placeholder="How to reach the property from the airport. Add taxi, Bolt/Uber, public transport, approximate travel time and useful arrival tips."
-          value={knowledgeBase.local_guide.transport_getting_around}
-          onChange={(value) =>
-            onUpdateLocalGuide(
-              "transport_getting_around",
-              value
-            )
-          }
-        />
+        )}
       </section>
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
@@ -518,141 +567,224 @@ export function DashboardGeneralTab({
       </section>
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-        <SectionHeader
-          icon="📋"
-          title="House Rules"
-          description="Add the main house rules guests should follow during their stay."
-        />
+        <button
+          type="button"
+          onClick={() => toggleSection("rules")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="📋"
+              title="House Rules"
+              description="Add the main house rules guests should follow during their stay."
+            />
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.rules ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-        <TextArea
-          placeholder="House rules. Add the main house rules for this property."
-          value={knowledgeBase.welcome_book.house_rules}
-          onChange={(value) =>
-            onUpdateWelcomeBook(
-              "house_rules",
-              value
-            )
-          }
-          large
-        />
+        {expandedSections.rules && (
+          <div className="mt-6">
+            <TextArea
+              placeholder="House rules. Add the main house rules for this property."
+              value={knowledgeBase.welcome_book.house_rules}
+              onChange={(value) =>
+                onUpdateWelcomeBook(
+                  "house_rules",
+                  value
+                )
+              }
+              large
+            />
+          </div>
+        )}
       </section>
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-        <SectionHeader
-          icon="🚪"
-          title="Check-out Instructions"
-          description="Explain what guests should do before leaving the property."
-        />
+        <button
+          type="button"
+          onClick={() => toggleSection("checkout")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="🚪"
+              title="Check-out Instructions"
+              description="Explain what guests should do before leaving the property."
+            />
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.checkout ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-        <TextArea
-          placeholder="Check-out instructions. Add check-out instructions for guests."
-          value={knowledgeBase.welcome_book.checkout_notes}
-          onChange={(value) =>
-            onUpdateWelcomeBook(
-              "checkout_notes",
-              value
-            )
-          }
-          large
-        />
+        {expandedSections.checkout && (
+          <div className="mt-6">
+            <TextArea
+              placeholder="Check-out instructions. Add check-out instructions for guests."
+              value={knowledgeBase.welcome_book.checkout_notes}
+              onChange={(value) =>
+                onUpdateWelcomeBook(
+                  "checkout_notes",
+                  value
+                )
+              }
+              large
+            />
+          </div>
+        )}
       </section>
-
-      <section className="bg-white rounded-[32px] p-7 shadow-xl border border-red-100">
-        <SectionHeader
-          icon="🚨"
-          title="Emergency Contacts"
-          description="Add emergency numbers, host contact, maintenance contact or useful local emergency information."
-        />
-
-        <textarea
-          className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
-          placeholder="Add emergency contacts and useful numbers."
-          value={emergencyNumbers}
-          onChange={(event) =>
-            onSetEmergencyNumbers(event.target.value)
-          }
-        />
-      </section>
-
-      <GuestWhatsAppContactSection
-        guestSupport={knowledgeBase.guest_support}
-        propertyName={propertyName}
-        onUpdateGuestSupport={onUpdateGuestSupport}
-      />
 
       <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
-        <SectionHeader
-          icon="⚙️"
-          title="Modules"
-          description="Enable or disable guest-facing modules for this property."
-        />
+        <button
+          type="button"
+          onClick={() => toggleSection("emergency")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="🚨"
+              title="Emergency Contacts"
+              description="Add emergency numbers, host contact, maintenance contact or useful local emergency information."
+            />
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.emergency ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
-            <span>AI Concierge</span>
-
-            <input
-              type="checkbox"
-              checked={aiEnabled}
+        {expandedSections.emergency && (
+          <div className="mt-6">
+            <textarea
+              className="w-full border border-gray-200 rounded-2xl p-4 min-h-[180px]"
+              placeholder="Add emergency contacts and useful numbers."
+              value={emergencyNumbers}
               onChange={(event) =>
-                onSetAiEnabled(event.target.checked)
+                onSetEmergencyNumbers(event.target.value)
               }
             />
-          </label>
+          </div>
+        )}
+      </section>
 
-          <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
-            <span>WhatsApp API Automation</span>
-
-            <input
-              type="checkbox"
-              checked={whatsappEnabled}
-              onChange={(event) =>
-                onSetWhatsappEnabled(event.target.checked)
-              }
+      <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+        <button
+          type="button"
+          onClick={() => toggleSection("whatsapp")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="💬"
+              title="WhatsApp Contact"
+              description="Configure WhatsApp messaging settings for guests."
             />
-          </label>
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.whatsapp ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-          <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
-            <span>Telegram Integration</span>
-
-            <input
-              type="checkbox"
-              checked={telegramEnabled}
-              onChange={(event) =>
-                onSetTelegramEnabled(event.target.checked)
-              }
+        {expandedSections.whatsapp && (
+          <div className="mt-6">
+            <GuestWhatsAppContactSection
+              guestSupport={knowledgeBase.guest_support}
+              propertyName={propertyName}
+              onUpdateGuestSupport={onUpdateGuestSupport}
             />
-          </label>
+          </div>
+        )}
+      </section>
 
-          <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
-            <span>Welcome Book</span>
-
-            <input
-              type="checkbox"
-              checked={welcomebookEnabled}
-              onChange={(event) =>
-                onSetWelcomebookEnabled(
-                  event.target.checked
-                )
-              }
+      <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+        <button
+          type="button"
+          onClick={() => toggleSection("modules")}
+          className="w-full text-left hover:opacity-75 transition"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <SectionHeader
+              icon="⚙️"
+              title="Modules & Features"
+              description="Enable or disable guest-facing modules and features for this property."
             />
-          </label>
+            <div className="mt-1 text-2xl text-gray-400">
+              {expandedSections.modules ? "−" : "+"}
+            </div>
+          </div>
+        </button>
 
-          <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5">
-            <span>Extra Services</span>
+        {expandedSections.modules && (
+          <div className="mt-6">
+            <div className="grid md:grid-cols-2 gap-4">
+              <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5 hover:bg-gray-100 transition cursor-pointer">
+                <span className="font-medium">AI Concierge</span>
 
-            <input
-              type="checkbox"
-              checked={knowledgeBase.extra_services.enabled}
-              onChange={(event) =>
-                onUpdateExtraServices(
-                  "enabled",
-                  event.target.checked
-                )
-              }
-            />
-          </label>
-        </div>
+                <input
+                  type="checkbox"
+                  checked={aiEnabled}
+                  onChange={(event) =>
+                    onSetAiEnabled(event.target.checked)
+                  }
+                />
+              </label>
+
+              <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5 hover:bg-gray-100 transition cursor-pointer">
+                <span className="font-medium">WhatsApp API Automation</span>
+
+                <input
+                  type="checkbox"
+                  checked={whatsappEnabled}
+                  onChange={(event) =>
+                    onSetWhatsappEnabled(event.target.checked)
+                  }
+                />
+              </label>
+
+              <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5 hover:bg-gray-100 transition cursor-pointer">
+                <span className="font-medium">Telegram Integration</span>
+
+                <input
+                  type="checkbox"
+                  checked={telegramEnabled}
+                  onChange={(event) =>
+                    onSetTelegramEnabled(event.target.checked)
+                  }
+                />
+              </label>
+
+              <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5 hover:bg-gray-100 transition cursor-pointer">
+                <span className="font-medium">Welcome Book</span>
+
+                <input
+                  type="checkbox"
+                  checked={welcomebookEnabled}
+                  onChange={(event) =>
+                    onSetWelcomebookEnabled(
+                      event.target.checked
+                    )
+                  }
+                />
+              </label>
+
+              <label className="flex items-center justify-between bg-gray-50 rounded-2xl p-5 hover:bg-gray-100 transition cursor-pointer">
+                <span className="font-medium">Extra Services</span>
+
+                <input
+                  type="checkbox"
+                  checked={knowledgeBase.extra_services.enabled}
+                  onChange={(event) =>
+                    onUpdateExtraServices(
+                      "enabled",
+                      event.target.checked
+                    )
+                  }
+                />
+              </label>
+            </div>
+          </div>
+        )}
       </section>
     </>
   );

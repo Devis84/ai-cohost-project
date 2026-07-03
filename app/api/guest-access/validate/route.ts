@@ -3,11 +3,13 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getTokenStayState } from "@/lib/stay-lifecycle-integration";
 
 type ValidateGuestAccessBody = {
   token?: string;
   property_slug?: string;
   mark_used?: boolean;
+  gracePeriodHours?: number;
 };
 
 function getSupabaseAdminClient() {
@@ -161,6 +163,15 @@ export async function POST(request: NextRequest) {
       validUntil: data.valid_until,
     });
 
+    // Calculate stay lifecycle state
+    const stayState = getTokenStayState(
+      {
+        ...data,
+        checkout_date: data.checkout_date || data.valid_until,
+      },
+      { gracePeriodHours: body.gracePeriodHours || 4 }
+    );
+
     if (markUsed) {
       await supabase
         .from("guest_access_tokens")
@@ -174,6 +185,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       ...accessState,
+      stay_state: stayState,
       token: {
         id: data.id,
         property_id: data.property_id,

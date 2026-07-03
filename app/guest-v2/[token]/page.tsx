@@ -5,7 +5,9 @@ import { GuestV2SectionGrid } from "@/components/guest-v2/GuestV2SectionGrid";
 import { GuestV2Shell } from "@/components/guest-v2/GuestV2Shell";
 import { GuestV2SmartCard } from "@/components/guest-v2/GuestV2SmartCard";
 import { GuestV2TodayCard } from "@/components/guest-v2/GuestV2TodayCard";
+import { GuestV2StayExpired } from "@/components/GuestV2StayExpired";
 import { buildGuestV2StayFromToken } from "@/lib/guest-v2/stay-builder";
+import { getTokenStayState } from "@/lib/stay-lifecycle-integration";
 
 type GuestV2PageProps = {
   params: Promise<{
@@ -24,6 +26,31 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
         message={stay.access.message}
         stateLabel={stay.access.state}
         whatsappUrl={stay.host.whatsappUrl}
+      />
+    );
+  }
+
+  // Get stay lifecycle state (upcoming, active, grace_period, expired)
+  const stayState = getTokenStayState(
+    {
+      valid_from: stay.stay.checkinDate,
+      checkout_date: stay.stay.checkoutDate,
+      valid_until: stay.stay.checkoutDate,
+    },
+    { gracePeriodHours: 4 }
+  );
+
+  // Show thank you page if stay is expired
+  if (stayState?.state === "expired") {
+    return (
+      <GuestV2StayExpired
+        propertyName={stay.property.name}
+        checkoutDate={stay.stay.checkoutDate}
+        guestName={stay.guest.name}
+        contactInfo={{
+          email: "", // Not in type - handle gracefully
+          phone: stay.host.whatsappNumber,
+        }}
       />
     );
   }

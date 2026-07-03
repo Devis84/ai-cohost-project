@@ -150,7 +150,7 @@ export function DashboardCommandCenter({
 
       </div>
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4 mb-7">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
 
         <CommandCard
 
@@ -258,7 +258,7 @@ export function DashboardCommandCenter({
 
       </div>
 
-      <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4 mb-7">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-7">
 
         <StatusPill
 
@@ -320,7 +320,7 @@ export function DashboardCommandCenter({
 
         </div>
 
-        <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm text-gray-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-sm text-gray-700">
 
           <div className="bg-white rounded-2xl p-4">
 
