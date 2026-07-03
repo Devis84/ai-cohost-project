@@ -7,22 +7,22 @@ type GuestV2HeaderProps = {
 
 export function GuestV2Header({ token, hostWhatsappUrl }: GuestV2HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 border-b border-black/5 bg-[#f6f1e8]/95 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-black/5 bg-[#f6f1e8]/98 px-4 py-3 backdrop-blur">
       <div className="grid grid-cols-2 gap-2">
         <Link
           href={`/guest-v2/${token}/ai`}
-          className="rounded-full bg-black px-4 py-3 text-center text-sm font-semibold text-white shadow-sm active:scale-[0.98]"
+          className="rounded-full bg-black px-4 py-3 text-center text-sm font-bold text-white shadow-md transition active:scale-[0.98] active:shadow-lg"
         >
-          💬 AI Concierge
+          💬 Chat AI
         </Link>
 
         <a
           href={hostWhatsappUrl}
           target="_blank"
           rel="noreferrer"
-          className="rounded-full bg-white px-4 py-3 text-center text-sm font-semibold text-black shadow-sm ring-1 ring-black/10 active:scale-[0.98]"
+          className="rounded-full bg-[#25D366] px-4 py-3 text-center text-sm font-bold text-white shadow-md transition active:scale-[0.98] active:shadow-lg"
         >
-          🟢 WhatsApp Host
+          🟢 WhatsApp
         </a>
       </div>
     </header>

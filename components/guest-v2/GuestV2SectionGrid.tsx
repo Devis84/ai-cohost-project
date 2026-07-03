@@ -13,13 +13,13 @@ type GuestV2SectionGridProps = {
 };
 
 const sectionCopy: Record<string, string> = {
-  wifi: "Password & QR code",
-  "house-guide": "Everything you need",
+  wifi: "Network & password",
+  "house-guide": "Rules & appliances",
   food: "Restaurants & delivery",
   transport: "Taxi • Bus • Airport",
   "local-guide": "Places nearby",
-  emergency: "Contacts & support",
-  "extra-services": "Late checkout & add-ons",
+  emergency: "Support contacts",
+  "extra-services": "Add-ons & services",
 };
 
 export function GuestV2SectionGrid({
@@ -27,47 +27,54 @@ export function GuestV2SectionGrid({
   sections,
   checkoutTime,
 }: GuestV2SectionGridProps) {
+  // Prioritize WiFi and emergency sections
+  const prioritySlugs = ["wifi", "house-guide", "emergency"];
+  const sortedSections = [
+    ...sections.filter((s) => prioritySlugs.includes(s.slug)),
+    ...sections.filter((s) => !prioritySlugs.includes(s.slug)),
+  ];
+
   return (
     <section>
-      <div className="mb-3 flex items-end justify-between gap-3">
+      <div className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-black/30">
-            Quick Actions
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-black/30">
+            Quick Access
           </p>
 
-          <h2 className="mt-1 text-xl font-black text-black">
+          <h2 className="mt-1 text-2xl font-black text-black">
             What do you need?
           </h2>
         </div>
 
-        <p className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-black/45 shadow-sm ring-1 ring-black/5">
+        <div className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-black/50 shadow-sm ring-1 ring-black/5">
           Checkout {checkoutTime}
-        </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {sections.map((section) => (
+        {sortedSections.map((section) => (
           <Link
             key={section.slug}
             href={`/guest-v2/${token}/section/${section.slug}`}
-            className="group flex min-h-32 flex-col justify-between rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-black/5 transition active:scale-[0.98]"
+            className="group flex min-h-36 flex-col justify-between rounded-[1.75rem] bg-white p-4 shadow-md ring-1 ring-black/5 transition active:scale-[0.98] active:shadow-lg"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f6f1e8] text-3xl">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#f6f1e8] to-[#ede8e0] text-3xl shadow-sm">
                 {section.icon}
               </div>
 
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-sm font-black text-white transition group-active:translate-x-0.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black text-xs font-black text-white transition group-active:translate-x-0.5">
                 →
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-black leading-tight">
+              <h3 className="text-base font-black leading-tight text-black">
                 {section.title}
               </h3>
 
-              <p className="mt-1 text-sm font-medium leading-tight text-black/45">
+              <p className="mt-1.5 text-xs font-medium leading-tight text-black/50">
                 {sectionCopy[section.slug] || "Open section"}
               </p>
             </div>

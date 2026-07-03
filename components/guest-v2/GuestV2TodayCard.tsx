@@ -19,55 +19,55 @@ export function GuestV2TodayCard({
   items,
 }: GuestV2TodayCardProps) {
   return (
-    <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-black/5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-400">
-            TODAY&apos;S STAY
+    <section className="rounded-[2rem] bg-gradient-to-br from-white to-[#faf8f5] p-6 shadow-md ring-1 ring-black/5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-black/35">
+            Today's Stay
           </p>
 
-          <h2 className="mt-2 text-2xl font-black text-neutral-900">
+          <h2 className="mt-2 text-2xl font-black leading-tight text-black">
             {title}
           </h2>
 
-          <p className="mt-1 text-sm text-neutral-500">
+          <p className="mt-1 text-sm text-black/60">
             {subtitle}
           </p>
         </div>
 
-        <div className="rounded-2xl bg-[#F4F1EA] px-4 py-3 text-right">
-          <div className="text-xs text-neutral-500">
-            Stay Progress
+        <div className="rounded-[1.5rem] bg-black/5 px-4 py-3 text-center">
+          <div className="text-xs font-semibold text-black/50">
+            Progress
           </div>
 
-          <div className="text-lg font-black">
+          <div className="mt-1 text-2xl font-black text-black">
             {progressPercent}%
           </div>
         </div>
       </div>
 
-      <div className="mt-5 h-3 overflow-hidden rounded-full bg-neutral-200">
+      <div className="mt-5 overflow-hidden rounded-full bg-black/8">
         <div
-          className="h-full rounded-full bg-black transition-all"
+          className="h-2 rounded-full bg-black transition-all duration-500 ease-out"
           style={{
             width: `${progressPercent}%`,
           }}
         />
       </div>
 
-      <p className="mt-2 text-sm font-medium text-neutral-600">
+      <p className="mt-3 text-sm font-medium text-black/60">
         {progressLabel}
       </p>
 
-      <div className="mt-6 grid gap-3">
+      <div className="mt-5 space-y-2">
         {items.map((item) => (
           <div
             key={item.label}
-            className="flex items-center gap-3 rounded-2xl bg-neutral-50 px-4 py-3"
+            className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm transition active:scale-[0.98]"
           >
-            <span className="text-xl">{item.icon}</span>
+            <span className="text-lg">{item.icon}</span>
 
-            <span className="font-medium">
+            <span className="font-semibold text-black">
               {item.label}
             </span>
           </div>
