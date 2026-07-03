@@ -23,7 +23,7 @@ export function GuestV2TodayCard({
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-black/35">
-            Today's Stay
+            Today&apos;s Stay
           </p>
 
           <h2 className="mt-2 text-2xl font-black leading-tight text-black">

@@ -45,34 +45,30 @@ export default async function GuestV2SectionPage({ params }: SectionPageProps) {
         hostWhatsappUrl={stay.host.whatsappUrl}
       />
 
-      <section className="px-4 pb-8 pt-4">
+      <section className="px-4 pb-12 pt-5 space-y-5">
         <Link
           href={`/guest-v2/${stay.token}`}
-          className="inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-black shadow-sm ring-1 ring-black/5 active:scale-[0.98]"
+          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-black shadow-md ring-1 ring-black/5 transition active:scale-[0.98]"
         >
-          ← Back to stay
+          ← Back
         </Link>
 
-        <div className="mt-4">
-          <GuestV2SectionHero
-            title={section.title}
-            icon={section.icon}
-            eyebrow={section.eyebrow}
-            intro={section.intro}
-            propertyLocation={stay.property.location}
-          />
-        </div>
+        <GuestV2SectionHero
+          title={section.title}
+          icon={section.icon}
+          eyebrow={section.eyebrow}
+          intro={section.intro}
+          propertyLocation={stay.property.location}
+        />
 
-        <div className="mt-4">
-          <GuestV2SmartCard
-            icon="💬"
-            eyebrow="Need help?"
-            title={section.primaryAction}
-            body="The AI Concierge can answer instantly using the information prepared by the host for this stay."
-          />
-        </div>
+        <GuestV2SmartCard
+          icon="💬"
+          eyebrow="Need help?"
+          title={section.primaryAction}
+          body="The AI Concierge can answer instantly using the information prepared by the host for this stay."
+        />
 
-        <section className="mt-4 space-y-3">
+        <section className="space-y-2">
           {section.items.map((item) => (
             <GuestV2InfoCard
               key={item.title}

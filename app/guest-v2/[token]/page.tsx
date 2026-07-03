@@ -62,7 +62,7 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
         hostWhatsappUrl={stay.host.whatsappUrl}
       />
 
-      <section className="px-4 pb-8 pt-4">
+      <section className="px-4 pb-12 pt-5 space-y-5">
         <GuestV2Hero
           guestName={stay.guest.name}
           propertyName={stay.property.name}
@@ -73,32 +73,26 @@ export default async function GuestV2Page({ params }: GuestV2PageProps) {
           imageUrl={stay.property.imageUrl}
         />
 
-        <div className="mt-4">
-          <GuestV2TodayCard
-            title={stay.today.title}
-            subtitle={stay.today.subtitle}
-            progressLabel={stay.stay.progressLabel}
-            progressPercent={stay.stay.progressPercent}
-            items={stay.today.items}
-          />
-        </div>
+        <GuestV2TodayCard
+          title={stay.today.title}
+          subtitle={stay.today.subtitle}
+          progressLabel={stay.stay.progressLabel}
+          progressPercent={stay.stay.progressPercent}
+          items={stay.today.items}
+        />
 
-        <div className="mt-4">
-          <GuestV2SmartCard
-            icon={stay.smartTip.icon}
-            eyebrow={stay.smartTip.eyebrow}
-            title={stay.smartTip.title}
-            body={stay.smartTip.body}
-          />
-        </div>
+        <GuestV2SmartCard
+          icon={stay.smartTip.icon}
+          eyebrow={stay.smartTip.eyebrow}
+          title={stay.smartTip.title}
+          body={stay.smartTip.body}
+        />
 
-        <div className="mt-5">
-          <GuestV2SectionGrid
-            token={stay.token}
-            sections={stay.sections}
-            checkoutTime={stay.stay.checkoutTime}
-          />
-        </div>
+        <GuestV2SectionGrid
+          token={stay.token}
+          sections={stay.sections}
+          checkoutTime={stay.stay.checkoutTime}
+        />
       </section>
     </GuestV2Shell>
   );
