@@ -394,6 +394,20 @@ export function DashboardSidebar({
 
       </SidebarSection>
 
+      <SidebarSection title="Compliance & Legal">
+
+        <SidebarLink
+
+          href="/dashboard/italy-compliance"
+
+          icon="🇮🇹"
+
+          label="Italian Compliance"
+
+        />
+
+      </SidebarSection>
+
       <SidebarSection title="Account">
 
         <LogoutSwitchAccountButton />
