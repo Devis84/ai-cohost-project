@@ -296,6 +296,16 @@ export function DashboardSidebar({
 
         <SidebarLink
 
+          href="/dashboard/calendar"
+
+          icon="📆"
+
+          label="Calendar"
+
+        />
+
+        <SidebarLink
+
           href="/dashboard/inbox"
 
           icon="💬"
