@@ -336,6 +336,20 @@ export function DashboardSidebar({
 
       </SidebarSection>
 
+      <SidebarSection title="Insights & Reports">
+
+        <SidebarLink
+
+          href="/dashboard/analytics"
+
+          icon="📊"
+
+          label="Analytics"
+
+        />
+
+      </SidebarSection>
+
       <SidebarSection title="Business">
 
         <SidebarLink
