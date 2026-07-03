@@ -1,4 +1,16 @@
- export type GuestPageContent = {
+ export type DashboardAccess = {
+  email?: string | null;
+  role: string;
+  isAdmin: boolean;
+  isPartner: boolean;
+  isViewer?: boolean;
+  isActive?: boolean;
+  canCreateProperty: boolean;
+  canDeleteProperty: boolean;
+  reason?: string;
+};
+
+export type GuestPageContent = {
   hero_title: string;
   hero_intro: string;
   hero_image_url: string;
