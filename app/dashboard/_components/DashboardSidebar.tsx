@@ -286,6 +286,16 @@ export function DashboardSidebar({
 
         <SidebarLink
 
+          href="/dashboard/bookings"
+
+          icon="📅"
+
+          label="Bookings & Stays"
+
+        />
+
+        <SidebarLink
+
           href="/dashboard/inbox"
 
           icon="💬"
