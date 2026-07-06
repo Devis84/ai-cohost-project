@@ -1,4 +1,5 @@
  import { getLocalizedHostAttentionReply } from "@/lib/ai/engine/language";
+import { buildUnifiedKnowledgeModel } from "@/lib/ai/engine/knowledge-engine";
 import { isSensitiveAccessRequest } from "@/lib/ai/engine/safety";
 
 export type FallbackPropertyRecord = {
@@ -53,9 +54,8 @@ export function createFallbackReply({
   hideSensitiveAccessInfo: boolean;
   sensitiveAccessReply: string;
 }) {
-  const welcome = property.knowledge_base?.welcome_book || {};
-  const aiTraining = property.knowledge_base?.ai_training || {};
-  const propertyName = property.property_name || "the property";
+  const knowledge = buildUnifiedKnowledgeModel(property);
+  const propertyName = knowledge.meta.propertyName || "the property";
 
   if (isSensitiveAccessRequest(message)) {
     return sensitiveAccessReply;
@@ -80,7 +80,7 @@ export function createFallbackReply({
     ])
   ) {
     const houseRules = valueOrFallback(
-      welcome.house_rules || property.house_rules,
+      knowledge.welcomeBook.houseRules,
       `No specific house rules have been provided yet for ${propertyName}. Please contact the host for confirmation.`
     );
 
@@ -100,10 +100,10 @@ export function createFallbackReply({
     ])
   ) {
     return `The WiFi network is "${valueOrFallback(
-      property.wifi_name,
+      knowledge.stay.wifiName,
       "not available"
     )}" and the password is "${valueOrFallback(
-      property.wifi_password,
+      knowledge.stay.wifiPassword,
       "not available"
     )}".`;
   }
@@ -123,16 +123,16 @@ export function createFallbackReply({
       "chiavi",
     ])
   ) {
-    const checkinTime = valueOrFallback(property.checkin_time, "not available");
+    const checkinTime = valueOrFallback(knowledge.stay.checkinTime, "not available");
     const instructions = valueOrFallback(
-      property.checkin_instructions,
+      knowledge.stay.checkinInstructions,
       "No check-in instructions have been provided yet."
     );
 
     const privateAccessNote = hideSensitiveAccessInfo
       ? " For private access codes, please check the host's private message or contact the host directly."
-      : property.lockbox_code
-        ? ` The lockbox code is ${property.lockbox_code}.`
+      : knowledge.stay.lockboxCode
+        ? ` The lockbox code is ${knowledge.stay.lockboxCode}.`
         : "";
 
     return `Check-in is from ${checkinTime}. ${instructions}${privateAccessNote}`;
@@ -150,12 +150,12 @@ export function createFallbackReply({
     ])
   ) {
     const checkoutTime = valueOrFallback(
-      property.checkout_time,
+      knowledge.stay.checkoutTime,
       "not available"
     );
 
     const checkoutNotes =
-      welcome.checkout_notes ||
+      knowledge.welcomeBook.checkoutNotes ||
       "Before leaving, please make sure the door is locked and the keys are left as instructed by the host.";
 
     return `Check-out is at ${checkoutTime}. ${checkoutNotes}`;
@@ -163,8 +163,7 @@ export function createFallbackReply({
 
   if (includesAny(message, ["parking", "park", "car", "garage", "parcheggio"])) {
     return (
-      welcome.parking ||
-      property.parking_info ||
+      knowledge.welcomeBook.parking ||
       "Parking information has not been provided yet. Please contact the host if you need exact parking guidance."
     );
   }
@@ -182,7 +181,8 @@ export function createFallbackReply({
     ])
   ) {
     return (
-      welcome.restaurants ||
+      knowledge.localGuide.restaurants ||
+      knowledge.welcomeBook.restaurants ||
       "Restaurant recommendations have not been added yet. You can ask the host for personal recommendations nearby."
     );
   }
@@ -199,7 +199,8 @@ export function createFallbackReply({
     ])
   ) {
     return (
-      welcome.transport ||
+      knowledge.localGuide.transportGettingAround ||
+      knowledge.welcomeBook.transport ||
       "Transport information has not been added yet. A taxi or ride-hailing app is usually the simplest option."
     );
   }
@@ -216,9 +217,8 @@ export function createFallbackReply({
     ])
   ) {
     return (
-      property.emergency_numbers ||
-      welcome.emergency ||
-      property.emergency_info ||
+      knowledge.stay.emergencyNumbers ||
+      knowledge.welcomeBook.emergency ||
       "For emergencies, call the local emergency number immediately. If this is property-related, contact the host as well."
     );
   }
@@ -245,11 +245,10 @@ export function createFallbackReply({
   }
 
   const description =
-    welcome.description ||
-    property.description ||
+    knowledge.welcomeBook.description ||
     `${propertyName} is ready for your stay.`;
 
-  const faq = aiTraining.faq || property.ai_knowledge || "";
+  const faq = knowledge.aiTraining.faq || "";
 
   if (faq) {
     return `${description}\n\nUseful information: ${faq}`;

@@ -499,7 +499,7 @@ function HomeHubCard({
     <button
       type="button"
       onClick={onClick}
-      className="text-left rounded-[30px] p-5 md:p-6 border shadow-xl hover:scale-[1.015] transition bg-white text-black border-black/5"
+      className="text-left rounded-[30px] p-5 md:p-6 border shadow-xl hover:scale-[1.015] transition bg-white text-black border-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30"
     >
       <div className="text-4xl mb-5">{icon}</div>
 
@@ -571,7 +571,7 @@ function PromptButton({
   return (
     <button
       onClick={onClick}
-      className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-left hover:bg-white/15 transition text-sm md:text-base"
+      className="bg-white/10 border border-white/10 rounded-2xl px-4 py-3 text-left hover:bg-white/15 transition text-sm md:text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
     >
       {children}
     </button>
@@ -681,13 +681,13 @@ function ChatPanel({
             }
           }}
           placeholder="Ask about your stay..."
-          className="flex-1 bg-white text-black rounded-2xl px-5 py-4 outline-none"
+          className="flex-1 bg-white text-black rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-white/40"
         />
 
         <button
           onClick={() => sendMessage()}
           disabled={chatLoading || !chatInput.trim()}
-          className="bg-white text-black rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition disabled:opacity-40"
+          className="bg-white text-black rounded-2xl px-6 py-4 font-bold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Send
         </button>
@@ -752,7 +752,7 @@ function AskAiCta({
         <button
           type="button"
           onClick={onClick}
-          className="bg-white text-black rounded-2xl px-5 py-3 font-black"
+          className="bg-white text-black rounded-2xl px-5 py-3 font-black hover:opacity-90 transition w-full md:w-auto"
         >
           Ask AI
         </button>

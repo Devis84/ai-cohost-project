@@ -1,4 +1,5 @@
 import { buildKnowledgePrompt } from "@/lib/ai/prompt-builder";
+import { buildUnifiedKnowledgeModel } from "@/lib/ai/engine/knowledge-engine";
 
 export type PropertyRecordForHospitality = {
   id: string;
@@ -47,10 +48,6 @@ export type PropertyRecordForHospitality = {
   } | null;
 };
 
-function safeString(value: unknown) {
-  return typeof value === "string" ? value : "";
-}
-
 export function normalizePropertyForPrompt({
   property,
   hideSensitiveAccessInfo,
@@ -58,49 +55,54 @@ export function normalizePropertyForPrompt({
   property: PropertyRecordForHospitality;
   hideSensitiveAccessInfo: boolean;
 }) {
+  const model = buildUnifiedKnowledgeModel({
+    ...property,
+    contacts: [],
+  });
+
   return {
     id: property.id,
-    property_name: property.property_name || "Untitled property",
-    slug: safeString(property.slug),
-    city: safeString(property.city),
-    country: safeString(property.country),
-    address: safeString(property.address),
-    wifi_name: safeString(property.wifi_name),
-    wifi_password: safeString(property.wifi_password),
-    checkin_time: safeString(property.checkin_time),
-    checkout_time: safeString(property.checkout_time),
-    checkin_instructions: safeString(property.checkin_instructions),
-    lockbox_code: hideSensitiveAccessInfo ? "" : safeString(property.lockbox_code),
-    emergency_numbers: safeString(property.emergency_numbers),
-    house_rules: safeString(property.house_rules),
-    description: safeString(property.description),
-    amenities: safeString(property.amenities),
-    parking_info: safeString(property.parking_info),
-    local_info: safeString(property.local_info),
-    emergency_info: safeString(property.emergency_info),
-    ai_knowledge: safeString(property.ai_knowledge),
+    property_name: model.meta.propertyName,
+    slug: model.meta.slug,
+    city: model.meta.city,
+    country: model.meta.country,
+    address: model.meta.address,
+    wifi_name: model.stay.wifiName,
+    wifi_password: model.stay.wifiPassword,
+    checkin_time: model.stay.checkinTime,
+    checkout_time: model.stay.checkoutTime,
+    checkin_instructions: model.stay.checkinInstructions,
+    lockbox_code: hideSensitiveAccessInfo ? "" : model.stay.lockboxCode,
+    emergency_numbers: model.stay.emergencyNumbers,
+    house_rules: model.welcomeBook.houseRules,
+    description: model.welcomeBook.description,
+    amenities: model.welcomeBook.amenities,
+    parking_info: model.welcomeBook.parking,
+    local_info: model.localGuide.neighbourhoodOverview,
+    emergency_info: model.welcomeBook.emergency,
+    ai_knowledge: model.aiTraining.faq,
     knowledge_base: {
       welcome_book: {
-        description: safeString(property.knowledge_base?.welcome_book?.description),
-        amenities: safeString(property.knowledge_base?.welcome_book?.amenities),
-        house_rules: safeString(property.knowledge_base?.welcome_book?.house_rules),
-        parking: safeString(property.knowledge_base?.welcome_book?.parking),
-        trash: safeString(property.knowledge_base?.welcome_book?.trash),
-        ac: safeString(property.knowledge_base?.welcome_book?.ac),
-        boiler: safeString(property.knowledge_base?.welcome_book?.boiler),
-        restaurants: safeString(property.knowledge_base?.welcome_book?.restaurants),
-        transport: safeString(property.knowledge_base?.welcome_book?.transport),
-        local_guide: safeString(property.knowledge_base?.welcome_book?.local_guide),
-        emergency: safeString(property.knowledge_base?.welcome_book?.emergency),
-        checkout_notes: safeString(property.knowledge_base?.welcome_book?.checkout_notes),
-        extra_notes: safeString(property.knowledge_base?.welcome_book?.extra_notes),
+        description: model.welcomeBook.description,
+        amenities: model.welcomeBook.amenities,
+        house_rules: model.welcomeBook.houseRules,
+        parking: model.welcomeBook.parking,
+        trash: model.welcomeBook.trash,
+        ac: model.welcomeBook.ac,
+        boiler: model.welcomeBook.boiler,
+        restaurants: model.welcomeBook.restaurants,
+        transport: model.welcomeBook.transport,
+        local_guide: model.welcomeBook.localGuide,
+        emergency: model.welcomeBook.emergency,
+        checkout_notes: model.welcomeBook.checkoutNotes,
+        extra_notes: model.welcomeBook.extraNotes,
       },
       ai_training: {
-        faq: safeString(property.knowledge_base?.ai_training?.faq),
-        troubleshooting: safeString(property.knowledge_base?.ai_training?.troubleshooting),
-        guest_style: safeString(property.knowledge_base?.ai_training?.guest_style),
-        hidden_notes: safeString(property.knowledge_base?.ai_training?.hidden_notes),
-        additional_notes: safeString(property.knowledge_base?.ai_training?.additional_notes),
+        faq: model.aiTraining.faq,
+        troubleshooting: model.aiTraining.troubleshooting,
+        guest_style: model.aiTraining.guestStyle,
+        hidden_notes: model.aiTraining.hiddenNotes,
+        additional_notes: model.aiTraining.additionalNotes,
       },
     },
   };

@@ -77,6 +77,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (message.length < 2) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "message is too short",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (message.length > 1200) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "message is too long",
+        },
+        { status: 400 }
+      );
+    }
+
     const stay = await buildGuestV2StayFromToken(token);
 
     if (!stay.access.allowed) {
@@ -126,7 +146,7 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    const chatData = await chatResponse.json();
+    const chatData = await chatResponse.json().catch(() => ({}));
 
     if (!chatResponse.ok || !chatData?.success) {
       return NextResponse.json(
@@ -154,10 +174,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to contact AI Concierge",
+        error: "Unable to contact AI Concierge",
       },
       { status: 500 }
     );

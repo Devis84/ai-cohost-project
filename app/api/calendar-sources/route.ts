@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -42,6 +46,12 @@ function getSupabaseAdminClient() {
 
 export async function GET(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const { searchParams } = new URL(request.url);
@@ -94,10 +104,7 @@ export async function GET(request: Request) {
       {
         success: false,
         calendar_sources: [],
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load calendar sources",
+        error: "Unable to load calendar sources",
       },
       { status: 500 }
     );
@@ -106,6 +113,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const body =
@@ -213,10 +226,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to create calendar source",
+        error: "Unable to create calendar source",
       },
       { status: 500 }
     );
@@ -225,6 +235,12 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const body =
@@ -300,10 +316,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to update calendar source",
+        error: "Unable to update calendar source",
       },
       { status: 500 }
     );
@@ -312,6 +325,12 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const { searchParams } = new URL(request.url);
@@ -345,10 +364,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to delete calendar source",
+        error: "Unable to delete calendar source",
       },
       { status: 500 }
     );

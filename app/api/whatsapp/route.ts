@@ -63,6 +63,45 @@ function getVerifyToken() {
   );
 }
 
+function getWebhookSecret() {
+  return process.env.WHATSAPP_WEBHOOK_SECRET || "";
+}
+
+function getRequestWebhookSecret(request: Request) {
+  const url = new URL(request.url);
+
+  const querySecret =
+    url.searchParams.get("secret") ||
+    url.searchParams.get("webhook_secret") ||
+    "";
+
+  const headerSecret =
+    request.headers.get("x-webhook-secret") ||
+    request.headers.get("x-whatsapp-webhook-secret") ||
+    "";
+
+  const authorization =
+    request.headers.get("authorization") || "";
+
+  const bearerSecret = authorization.toLowerCase().startsWith("bearer ")
+    ? authorization.slice("bearer ".length).trim()
+    : "";
+
+  return querySecret || headerSecret || bearerSecret;
+}
+
+function isAuthorizedWebhookRequest(request: Request) {
+  const expectedSecret = getWebhookSecret();
+
+  if (!expectedSecret) {
+    return false;
+  }
+
+  const requestSecret = getRequestWebhookSecret(request);
+
+  return requestSecret === expectedSecret;
+}
+
 function getDefaultPropertySlug() {
   return (
     process.env.WHATSAPP_DEFAULT_PROPERTY_SLUG ||
@@ -433,6 +472,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (!isAuthorizedWebhookRequest(request)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Unauthorized",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
     const body =
       (await request.json()) as WhatsAppWebhookBody;
 

@@ -29,6 +29,7 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [properties, setProperties] = useState<Map<string, Property>>(new Map())
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [filterChannel, setFilterChannel] = useState<string | null>(null)
   const [filterPriority, setFilterPriority] = useState<string | null>(null)
@@ -36,10 +37,14 @@ export default function ConversationsPage() {
   async function loadData() {
     try {
       setLoading(true)
+      setError("")
 
       // Fetch properties
       const propsRes = await fetch("/api/properties")
-      const propsData = await propsRes.json()
+      const propsData = await propsRes.json().catch(() => ({}))
+      if (!propsRes.ok || !propsData.success) {
+        throw new Error("Unable to load conversations")
+      }
       const propsMap = new Map<string, Property>()
       if (propsData.properties) {
         propsData.properties.forEach((prop: Property) => {
@@ -50,7 +55,10 @@ export default function ConversationsPage() {
 
       // Fetch conversations
       const convRes = await fetch("/api/conversations")
-      const convData = await convRes.json()
+      const convData = await convRes.json().catch(() => ({}))
+      if (!convRes.ok || !convData.success) {
+        throw new Error("Unable to load conversations")
+      }
       const allConversations = (convData.conversations || []) as Conversation[]
       
       // Sort by last_message_at descending (most recent first)
@@ -63,6 +71,8 @@ export default function ConversationsPage() {
       setConversations(sorted)
     } catch (err) {
       console.error("Failed to load conversations:", err)
+      setError("Unable to load conversations right now")
+      setConversations([])
     } finally {
       setLoading(false)
     }
@@ -168,12 +178,27 @@ export default function ConversationsPage() {
       <div className="max-w-7xl mx-auto">
         {/* HERO */}
         <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-6 sm:p-8 shadow-2xl mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+          <h1 className="text-3xl sm:text-4xl font-black mb-2">
             Conversations
           </h1>
-          <p className="text-white/60">
+          <p className="text-white/70 text-sm sm:text-base">
             Track all guest conversations across properties and channels.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={loadData}
+              className="inline-flex items-center gap-2 rounded-xl bg-white text-black px-4 py-2 text-sm font-semibold hover:opacity-90 transition"
+            >
+              Refresh
+            </button>
+            <a
+              href="/dashboard/inbox"
+              className="inline-flex items-center gap-2 rounded-xl bg-white/10 border border-white/20 text-white px-4 py-2 text-sm font-semibold hover:bg-white/20 transition"
+            >
+              Open Inbox
+            </a>
+          </div>
         </div>
 
         {/* FILTERS & SEARCH */}
@@ -246,6 +271,21 @@ export default function ConversationsPage() {
             </div>
             <p className="text-gray-600">Loading conversations...</p>
           </div>
+        ) : error ? (
+          <div className="bg-red-50 rounded-[24px] shadow-lg border border-red-200 p-8 text-center">
+            <div className="text-3xl mb-3">⚠️</div>
+            <h3 className="text-xl font-semibold text-red-700 mb-2">
+              Unable to load conversations
+            </h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              type="button"
+              onClick={loadData}
+              className="px-4 py-2 bg-red-700 text-white rounded-lg font-semibold hover:bg-red-800 transition"
+            >
+              Retry
+            </button>
+          </div>
         ) : filteredConversations.length === 0 ? (
           // Empty State
           <div className="bg-white rounded-[24px] shadow-lg border border-black/5 p-8 text-center">
@@ -255,11 +295,17 @@ export default function ConversationsPage() {
                 ? "No conversations found"
                 : "No conversations yet"}
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               {searchQuery || filterChannel || filterPriority
                 ? "Try adjusting your search or filters."
                 : "Guest conversations will appear here."}
             </p>
+            <a
+              href="/dashboard/chat"
+              className="inline-flex rounded-xl bg-black text-white px-4 py-2 text-sm font-semibold hover:opacity-90 transition"
+            >
+              Open AI Concierge Monitor
+            </a>
           </div>
         ) : (
           // Conversations Grid

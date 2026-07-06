@@ -3,6 +3,10 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 type RevokeGuestAccessBody = {
   token?: string;
@@ -39,6 +43,12 @@ function cleanText(value: unknown) {
 
 export async function POST(request: NextRequest) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const body = (await request.json()) as RevokeGuestAccessBody;
 
     const id = cleanText(body.id);

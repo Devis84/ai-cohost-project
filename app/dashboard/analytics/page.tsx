@@ -31,6 +31,7 @@ type AnalyticsMetrics = {
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(
     null
@@ -38,30 +39,29 @@ export default function AnalyticsPage() {
 
   async function loadAnalytics() {
     try {
-      setLoading(true);
+      if (metrics) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await fetch(
         "/api/dashboard-analytics"
       );
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (!data.success) {
-        throw new Error(
-          data.error || "Failed to load analytics"
-        );
+      if (!response.ok || !data.success) {
+        throw new Error("Unable to load analytics right now");
       }
 
       setMetrics(data.metrics);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load analytics";
-      setError(message);
+      setError("Unable to load analytics right now");
       console.error("Analytics error:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -97,9 +97,10 @@ export default function AnalyticsPage() {
             </p>
             <button
               onClick={loadAnalytics}
-              className="mt-4 px-4 py-2 bg-red-700 text-white rounded-lg font-semibold hover:bg-red-800 transition"
+              disabled={refreshing}
+              className="mt-4 px-4 py-2 bg-red-700 text-white rounded-lg font-semibold hover:bg-red-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Retry
+              {refreshing ? "Retrying..." : "Retry"}
             </button>
           </div>
         </div>
@@ -132,6 +133,14 @@ export default function AnalyticsPage() {
           <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
             Track AI conversations, guest engagement, and usage across all your properties.
           </p>
+          <button
+            type="button"
+            onClick={loadAnalytics}
+            disabled={refreshing}
+            className="mt-4 inline-flex items-center rounded-xl bg-black text-white px-4 py-2 text-sm font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? "Refreshing..." : "Refresh Analytics"}
+          </button>
         </div>
 
         {/* KEY METRICS GRID */}
@@ -422,10 +431,16 @@ export default function AnalyticsPage() {
             <h2 className="text-2xl font-black mb-2">
               No conversations yet
             </h2>
-            <p className="text-gray-600 max-w-sm mx-auto">
+            <p className="text-gray-600 max-w-sm mx-auto mb-4">
               Once guests start messaging your AI Co-Host,
               you&apos;ll see analytics and activity here.
             </p>
+            <a
+              href="/dashboard/inbox"
+              className="inline-flex rounded-xl bg-black text-white px-4 py-2 text-sm font-semibold hover:opacity-90 transition"
+            >
+              Open Inbox
+            </a>
           </div>
         )}
       </div>

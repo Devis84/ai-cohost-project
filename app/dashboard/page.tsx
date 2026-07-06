@@ -6,6 +6,7 @@ import { DashboardCommandCenter } from "./_components/DashboardCommandCenter";
 import { DashboardGeneralTab } from "./_components/DashboardGeneralTab";
 import { DashboardGuestPageTab } from "./_components/DashboardGuestPageTab";
 import { DashboardHeader } from "./_components/DashboardHeader";
+import { DashboardOnboardingChecklist } from "./_components/DashboardOnboardingChecklist";
 import { DashboardSaveBar } from "./_components/DashboardSaveBar";
 import { DashboardSidebar } from "./_components/DashboardSidebar";
 
@@ -13,6 +14,10 @@ import { ExtraServicesSection } from "./_sections/ExtraServicesSection";
 import { WelcomeBookSection } from "./_sections/WelcomeBookSection";
 import { LocalGuideSection } from "./_sections/LocalGuideSection";
 import { AiTrainingSection } from "./_sections/AiTrainingSection";
+import {
+  SmartSetupAssistantSection,
+  type SetupAssistantDraft,
+} from "./_sections/SmartSetupAssistantSection";
 
 import { createSlug } from "./_lib/dashboard-utils";
 
@@ -106,18 +111,20 @@ export default function Dashboard() {
     propertyName,
     city,
     country,
+    address,
     wifiName,
     wifiPassword,
     checkin,
     checkout,
     checkinNotes,
+    emergencyNumbers,
+    lockboxCode,
     knowledgeBase,
     aiEnabled,
     welcomebookEnabled,
     saving,
     loadingSelectedProperty,
     isNewProperty,
-    canCreateProperty: dashboardAccess.canCreateProperty,
     loadedPropertyIdentifier,
     dashboardAccessIsPartner: dashboardAccess.isPartner,
     dashboardAccessRole: dashboardAccess.role,
@@ -319,6 +326,151 @@ export default function Dashboard() {
     }
   }
 
+  function applyAutofillDraft(draft: SetupAssistantDraft) {
+    const clean = (value: string) => value.trim();
+    const fromDraft = (value: string, current: string) => {
+      const next = clean(value);
+      return next ? next : current;
+    };
+
+    setKnowledgeBase((current) => ({
+      ...current,
+      guest_page: {
+        ...current.guest_page,
+        hero_title: fromDraft(
+          draft.guest_page.hero_title,
+          current.guest_page.hero_title
+        ),
+        hero_intro: fromDraft(
+          draft.guest_page.hero_intro,
+          current.guest_page.hero_intro
+        ),
+        about_description: fromDraft(
+          draft.guest_page.about_description,
+          current.guest_page.about_description
+        ),
+        about_highlights: fromDraft(
+          draft.property_highlights || draft.guest_page.about_highlights,
+          current.guest_page.about_highlights
+        ),
+      },
+      welcome_book: {
+        ...current.welcome_book,
+        description: fromDraft(
+          draft.welcome_book.description,
+          current.welcome_book.description
+        ),
+        amenities: fromDraft(
+          draft.welcome_book.amenities,
+          current.welcome_book.amenities
+        ),
+        house_rules: fromDraft(
+          draft.house_rules || draft.welcome_book.house_rules,
+          current.welcome_book.house_rules
+        ),
+        apartment_instructions: fromDraft(
+          draft.welcome_book.apartment_instructions,
+          current.welcome_book.apartment_instructions
+        ),
+        checkout_notes: fromDraft(
+          draft.welcome_book.checkout_notes,
+          current.welcome_book.checkout_notes
+        ),
+        parking: fromDraft(
+          draft.parking_notes || draft.welcome_book.parking,
+          current.welcome_book.parking
+        ),
+        extra_notes: fromDraft(
+          draft.welcome_book.extra_notes,
+          current.welcome_book.extra_notes
+        ),
+        restaurants: fromDraft(
+          draft.welcome_book.restaurants,
+          current.welcome_book.restaurants
+        ),
+        transport: fromDraft(
+          draft.welcome_book.transport,
+          current.welcome_book.transport
+        ),
+        local_guide: fromDraft(
+          draft.welcome_book.local_guide,
+          current.welcome_book.local_guide
+        ),
+      },
+      local_guide: {
+        ...current.local_guide,
+        neighbourhood_overview: fromDraft(
+          draft.local_guide.neighbourhood_overview,
+          current.local_guide.neighbourhood_overview
+        ),
+        restaurants: fromDraft(
+          draft.local_guide.restaurants,
+          current.local_guide.restaurants
+        ),
+        things_to_visit: fromDraft(
+          draft.local_guide.things_to_visit,
+          current.local_guide.things_to_visit
+        ),
+        transport_getting_around: fromDraft(
+          draft.local_guide.transport_getting_around,
+          current.local_guide.transport_getting_around
+        ),
+        host_recommendations: fromDraft(
+          draft.local_guide.host_recommendations,
+          current.local_guide.host_recommendations
+        ),
+      },
+      ai_training: {
+        ...current.ai_training,
+        faq: fromDraft(
+          draft.ai_training.faq,
+          current.ai_training.faq
+        ),
+        troubleshooting: fromDraft(
+          draft.ai_training.troubleshooting,
+          current.ai_training.troubleshooting
+        ),
+        guest_style: fromDraft(
+          draft.ai_training.guest_style,
+          current.ai_training.guest_style
+        ),
+        escalation_rules: fromDraft(
+          draft.ai_training.escalation_rules,
+          current.ai_training.escalation_rules
+        ),
+      },
+      extra_services: {
+        ...current.extra_services,
+        enabled:
+          draft.extra_services.enabled ||
+          current.extra_services.enabled,
+        title: fromDraft(
+          draft.extra_services.title,
+          current.extra_services.title
+        ),
+        intro: fromDraft(
+          draft.extra_services.intro,
+          current.extra_services.intro
+        ),
+        services: fromDraft(
+          draft.extra_services.services,
+          current.extra_services.services
+        ),
+        host_note: fromDraft(
+          draft.extra_services.host_note,
+          current.extra_services.host_note
+        ),
+      },
+    }));
+
+    setCheckinNotes(
+      fromDraft(
+        draft.checkin_notes || draft.welcome_book.apartment_instructions,
+        checkinNotes
+      )
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       <DashboardHeader
@@ -330,7 +482,6 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 pb-32">
         <DashboardCommandCenter
           propertyName={propertyName}
-          propertiesCount={properties.length}
           aiEnabled={aiEnabled}
           commandLocationLabel={computed.commandLocationLabel}
           guestPageUrl={computed.guestPageUrl}
@@ -342,11 +493,22 @@ export default function Dashboard() {
           commandExtraServicesReady={
             computed.commandExtraServicesReady
           }
+          readiness={computed.readiness}
+          loadingReadiness={computed.loadingReadiness}
           extraServicesEnabled={computed.extraServices.enabled}
           wifiName={wifiName}
           wifiPassword={wifiPassword}
           onCopyWifi={copyWifi}
           onCopyGuestUrl={copyGuestUrl}
+        />
+
+        <DashboardOnboardingChecklist
+          propertyName={propertyName}
+          selectedSlug={selectedSlug}
+          guestPageUrl={computed.guestPageUrl}
+          readiness={computed.readiness}
+          loadingReadiness={computed.loadingReadiness}
+          onOpenTab={setActiveTab}
         />
 
         <div className="grid lg:grid-cols-[280px_1fr] gap-8">
@@ -471,6 +633,17 @@ export default function Dashboard() {
               <AiTrainingSection
                 knowledgeBase={knowledgeBase}
                 onUpdateAiTraining={updateAiTraining}
+              />
+            )}
+
+            {activeTab === "smartsetup" && (
+              <SmartSetupAssistantSection
+                propertyName={propertyName}
+                city={city}
+                country={country}
+                checkinNotes={checkinNotes}
+                knowledgeBase={knowledgeBase}
+                onApplyDraft={applyAutofillDraft}
               />
             )}
           </div>

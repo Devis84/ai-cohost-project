@@ -33,6 +33,7 @@ type BookingsData = {
 
 export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<BookingsData | null>(null);
   const [activeTab, setActiveTab] = useState<
@@ -44,21 +45,30 @@ export default function BookingsPage() {
 
   async function loadBookings() {
     try {
-      setLoading(true);
+      if (bookings) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       const response = await fetch(
         "/api/dashboard-bookings"
       );
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (!data.success) {
-        throw new Error(
-          data.error || "Failed to load bookings"
-        );
+      if (!response.ok || !data.success) {
+        throw new Error("Unable to load bookings right now");
       }
 
-      setBookings(data.bookings);
+      setBookings(
+        data.bookings || {
+          upcomingBookings: [],
+          activeStays: [],
+          completedStays: [],
+          cancelledBookings: [],
+        }
+      );
 
       // Extract unique properties
       const allProps = new Set<string>();
@@ -84,14 +94,11 @@ export default function BookingsPage() {
       );
       setProperties(Array.from(allProps).sort());
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to load bookings";
-      setError(message);
+      setError("Unable to load bookings right now");
       console.error("Bookings error:", err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -270,9 +277,10 @@ export default function BookingsPage() {
             <button
               type="button"
               onClick={loadBookings}
-              className="bg-black text-white rounded-lg px-4 py-2 sm:px-5 sm:py-3 text-sm font-semibold hover:bg-black/90 transition active:scale-[0.98]"
+              disabled={refreshing}
+              className="bg-black text-white rounded-lg px-4 py-2 sm:px-5 sm:py-3 text-sm font-semibold hover:bg-black/90 transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Refresh
+              {refreshing ? "Refreshing..." : "Refresh"}
             </button>
           </div>
         </div>
@@ -425,7 +433,7 @@ export default function BookingsPage() {
                           href={`/dashboard/conversations/${encodeURIComponent(
                             booking.conversationId
                           )}`}
-                          className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2 sm:px-5 sm:py-3 font-semibold text-sm text-center hover:bg-blue-700 transition active:scale-[0.98]"
+                          className="flex-1 bg-black text-white rounded-lg px-4 py-2 sm:px-5 sm:py-3 font-semibold text-sm text-center hover:opacity-90 transition active:scale-[0.98]"
                         >
                           Open Conversation
                         </Link>
@@ -464,7 +472,7 @@ export default function BookingsPage() {
               <h2 className="text-2xl font-black mb-2">
                 No bookings found
               </h2>
-              <p className="text-gray-600 max-w-sm mx-auto">
+              <p className="text-gray-600 max-w-sm mx-auto mb-4">
                 {search || propertyFilter
                   ? "No bookings match your search criteria."
                   : activeTab === "upcoming"
@@ -475,6 +483,16 @@ export default function BookingsPage() {
                         ? "No completed stays yet."
                         : "No cancelled bookings."}
               </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setPropertyFilter("");
+                }}
+                className="inline-flex rounded-xl bg-black text-white px-4 py-2 text-sm font-semibold hover:opacity-90 transition"
+              >
+                Clear Filters
+              </button>
             </div>
           )}
         </div>

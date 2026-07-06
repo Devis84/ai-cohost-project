@@ -33,6 +33,7 @@ type CleaningTask = {
 
 export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [cleaningTasks, setCleaningTasks] = useState<CleaningTask[]>([]);
@@ -49,48 +50,66 @@ export default function CalendarPage() {
 
   async function loadData() {
     try {
-      setLoading(true);
+      if (bookings.length > 0 || cleaningTasks.length > 0) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
 
       // Fetch bookings
       const bookingsRes = await fetch("/api/dashboard-bookings");
-      const bookingsData = await bookingsRes.json();
+      const bookingsData = await bookingsRes.json().catch(() => ({}));
 
-      if (bookingsData.success) {
-        const allBookings = [
-          ...(bookingsData.bookings.upcomingBookings || []),
-          ...(bookingsData.bookings.activeStays || []),
-          ...(bookingsData.bookings.completedStays || []),
-        ];
-        setBookings(allBookings);
-
-        // Extract unique properties
-        const props = new Set<string>();
-        allBookings.forEach((b) => {
-          if (b.propertyName) props.add(b.propertyName);
-        });
-        setProperties(Array.from(props).sort());
+      if (!bookingsRes.ok || !bookingsData.success) {
+        throw new Error("Unable to load calendar data");
       }
+
+      const allBookings = [
+        ...(bookingsData.bookings?.upcomingBookings || []),
+        ...(bookingsData.bookings?.activeStays || []),
+        ...(bookingsData.bookings?.completedStays || []),
+      ];
+      setBookings(allBookings);
 
       // Fetch cleaning tasks
       const cleaningRes = await fetch("/api/cleaning-tasks");
-      const cleaningData = await cleaningRes.json();
+      const cleaningData = await cleaningRes.json().catch(() => ({}));
 
-      if (cleaningData.success && cleaningData.data) {
-        const tasks = cleaningData.data.map((task: any) => ({
+      if (!cleaningRes.ok || !cleaningData.success) {
+        throw new Error("Unable to load calendar data");
+      }
+
+      const rawTasks =
+        (cleaningData.tasks || cleaningData.data || []) as any[];
+
+      const tasks = rawTasks.map((task) => ({
           id: task.id,
           propertyId: task.property_id,
           propertyName: task.property_name,
           cleaningDate: task.cleaning_date,
           status: task.status,
-        }));
-        setCleaningTasks(tasks);
-      }
+      }));
+      setCleaningTasks(tasks);
+
+      const props = new Set<string>();
+      allBookings.forEach((booking) => {
+        if (booking.propertyName) {
+          props.add(booking.propertyName);
+        }
+      });
+      tasks.forEach((task) => {
+        if (task.propertyName) {
+          props.add(task.propertyName);
+        }
+      });
+      setProperties(Array.from(props).sort());
     } catch (err) {
       console.error("Failed to load calendar data:", err);
-      setError("Failed to load calendar data");
+      setError("Unable to load calendar data right now");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -203,6 +222,14 @@ export default function CalendarPage() {
           <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
             Manage bookings, track occupancy, and organize your cleaning schedule.
           </p>
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={refreshing}
+            className="mt-4 bg-black text-white rounded-lg px-4 py-2 text-sm font-semibold hover:bg-black/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? "Refreshing..." : "Refresh Calendar"}
+          </button>
         </div>
 
         {/* CONTROLS */}

@@ -226,6 +226,20 @@ export function DashboardSidebar({
 
         <TabButton
 
+          icon="🧠"
+
+          label="Smart Setup Assistant"
+
+          tab="smartsetup"
+
+          activeTab={activeTab}
+
+          onSelectTab={onSelectTab}
+
+        />
+
+        <TabButton
+
           icon="📘"
 
           label="Welcome Book"
@@ -368,6 +382,16 @@ export function DashboardSidebar({
 
         />
 
+        <SidebarLink
+
+          href="/dashboard/release-qa"
+
+          icon="🧪"
+
+          label="Release QA"
+
+        />
+
       </SidebarSection>
 
       <SidebarSection title="Business">
@@ -384,7 +408,7 @@ export function DashboardSidebar({
 
         <SidebarLink
 
-          href="/dashboard/billing"
+          href="/dashboard/channel-manager/billing"
 
           icon="💳"
 

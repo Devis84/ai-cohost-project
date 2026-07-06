@@ -1,5 +1,9 @@
  import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -274,6 +278,12 @@ async function writeSyncFailure({
 }
 
 export async function POST(request: Request) {
+  const accessContext = await getPartnerAccessContext(request);
+
+  if (!accessContext.isActive) {
+    return inactiveAccessResponse(accessContext);
+  }
+
   const supabase = getSupabaseAdminClient();
 
   let source: CalendarSource | null = null;

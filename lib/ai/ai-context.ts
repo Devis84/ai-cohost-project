@@ -4,6 +4,10 @@
 import {
   getConversationHistory,
 } from "@/lib/services/conversation-service"
+import {
+  buildPromptReadyKnowledge,
+  buildUnifiedKnowledgeModel,
+} from "@/lib/ai/engine/knowledge-engine"
 
 type LocalTip = {
   name?: string
@@ -47,6 +51,35 @@ export async function buildAIContext(
       .filter(Boolean)
       .join("\n") || ""
 
+  const model = buildUnifiedKnowledgeModel({
+    ...property,
+    checkin_time:
+      property?.checkin_time ||
+      propertyInfo?.check_in,
+    checkout_time:
+      property?.checkout_time ||
+      propertyInfo?.check_out,
+    wifi_name:
+      property?.wifi_name ||
+      propertyInfo?.wifi_name,
+    wifi_password:
+      property?.wifi_password ||
+      propertyInfo?.wifi_password,
+    house_rules:
+      property?.house_rules ||
+      propertyInfo?.house_rules,
+    knowledge_base: {
+      ...(property?.knowledge_base || {}),
+      local_guide: {
+        ...(property?.knowledge_base?.local_guide || {}),
+        host_recommendations: tipsText,
+      },
+    },
+  })
+
+  const promptKnowledge =
+    buildPromptReadyKnowledge(model)
+
   const systemPrompt = `
 You are an AI Airbnb co-host.
 
@@ -54,24 +87,24 @@ Always reply in the same language used by the guest.
 
 PROPERTY
 
-Name: ${property?.property_name || property?.name || ""}
-City: ${property?.city || ""}
+Name: ${model.meta.propertyName}
+City: ${model.meta.city}
 
 CHECK-IN
-${propertyInfo?.check_in || property?.checkin_time || ""}
+${model.stay.checkinTime}
 
 CHECK-OUT
-${propertyInfo?.check_out || property?.checkout_time || ""}
+${model.stay.checkoutTime}
 
 WIFI
-Name: ${propertyInfo?.wifi_name || property?.wifi_name || ""}
-Password: ${propertyInfo?.wifi_password || property?.wifi_password || ""}
+Name: ${model.stay.wifiName}
+Password: ${model.stay.wifiPassword}
 
 HOUSE RULES
-${propertyInfo?.house_rules || property?.house_rules || ""}
+${model.welcomeBook.houseRules}
 
-LOCAL TIPS
-${tipsText}
+KNOWLEDGE
+${promptKnowledge.compactContext}
 
 INSTRUCTIONS
 

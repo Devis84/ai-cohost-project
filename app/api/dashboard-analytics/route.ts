@@ -192,10 +192,17 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load analytics",
+        error: "Failed to load analytics",
+        metrics: {
+          totalProperties: 0,
+          totalConversations: 0,
+          totalMessages: 0,
+          guestMessages: 0,
+          aiMessages: 0,
+          mostActiveProperty: null,
+          recentActivity: [],
+          propertyStats: [],
+        },
       },
       { status: 500 }
     );

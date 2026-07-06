@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { getPropertyIdentifier } from "../_lib/dashboard-utils";
+import { usePropertyReadiness } from "./usePropertyReadiness";
 import type { KnowledgeBase, Property } from "../_types/dashboard";
+import type { PropertyReadiness } from "../_lib/property-readiness";
 
 interface UseDashboardComputedParams {
   properties: Property[];
@@ -8,18 +10,20 @@ interface UseDashboardComputedParams {
   propertyName: string;
   city: string;
   country: string;
+  address: string;
   wifiName?: string;
   wifiPassword?: string;
   checkin?: string;
   checkout?: string;
   checkinNotes?: string;
+  emergencyNumbers?: string;
+  lockboxCode?: string;
   knowledgeBase: KnowledgeBase;
   aiEnabled: boolean;
   welcomebookEnabled: boolean;
   saving: boolean;
   loadingSelectedProperty: boolean;
   isNewProperty: boolean;
-  canCreateProperty: boolean;
   loadedPropertyIdentifier: string;
   dashboardAccessIsPartner: boolean;
   dashboardAccessRole: string;
@@ -41,6 +45,8 @@ interface UseDashboardComputedReturn {
   commandAccessReady: boolean;
   commandExtraServicesReady: boolean;
   commandLocationLabel: string;
+  readiness: PropertyReadiness;
+  loadingReadiness: boolean;
   canSaveSelectedProperty: boolean;
   saveStatusMessage: string;
 }
@@ -54,18 +60,20 @@ export function useDashboardComputed(
     propertyName,
     city,
     country,
+    address,
     wifiName = "",
     wifiPassword = "",
     checkin = "",
     checkout = "",
     checkinNotes = "",
+    emergencyNumbers = "",
+    lockboxCode = "",
     knowledgeBase,
     aiEnabled,
     welcomebookEnabled,
     saving,
     loadingSelectedProperty,
     isNewProperty,
-    canCreateProperty,
     loadedPropertyIdentifier,
     dashboardAccessIsPartner,
     dashboardAccessRole,
@@ -194,6 +202,25 @@ export function useDashboardComputed(
     [city, country]
   );
 
+  const { readiness, loadingOperations: loadingReadiness } =
+    usePropertyReadiness({
+      selectedProperty,
+      propertyName,
+      city,
+      country,
+      address,
+      wifiName,
+      wifiPassword,
+      checkin,
+      checkout,
+      checkinNotes,
+      emergencyNumbers,
+      lockboxCode,
+      knowledgeBase,
+      aiEnabled,
+      welcomebookEnabled,
+    });
+
   const canSaveSelectedProperty = useMemo(
     () =>
       Boolean(
@@ -272,6 +299,8 @@ export function useDashboardComputed(
     commandAccessReady,
     commandExtraServicesReady,
     commandLocationLabel,
+    readiness,
+    loadingReadiness,
     canSaveSelectedProperty,
     saveStatusMessage,
   };

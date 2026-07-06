@@ -4,6 +4,10 @@ export const runtime = "nodejs";
  import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +24,12 @@ function getSupabaseAdminClient() {
 
 export async function POST(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const body = await request.json();
 
     const propertyId =

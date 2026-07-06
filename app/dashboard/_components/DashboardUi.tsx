@@ -32,13 +32,13 @@ export function SectionHeader({
   description?: string;
 }) {
   return (
-    <div className="mb-6">
-      <h2 className="text-2xl font-bold mb-2">
+    <div className="mb-7">
+      <h2 className="text-2xl md:text-[28px] font-black tracking-tight mb-2 text-gray-950">
         {icon} {title}
       </h2>
 
       {description && (
-        <p className="text-gray-500 leading-relaxed">
+        <p className="text-sm md:text-base text-gray-500 leading-relaxed max-w-3xl">
           {description}
         </p>
       )}
@@ -63,17 +63,17 @@ export function CommandCard({
   dark?: boolean;
   disabled?: boolean;
 }) {
-  const className = `block w-full text-left rounded-3xl p-5 transition border ${
+  const className = `block w-full text-left rounded-3xl p-5 transition border min-h-[180px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
     dark
       ? "bg-black text-white border-black hover:opacity-90"
       : "bg-white text-gray-950 border-gray-200 hover:border-black/20 hover:shadow-lg"
-  } ${disabled ? "opacity-50 pointer-events-none" : ""}`;
+  } ${disabled ? "opacity-50 pointer-events-none saturate-0" : ""}`;
 
   const content = (
     <>
       <div className="text-3xl mb-4">{icon}</div>
 
-      <div className="font-black text-lg mb-2">
+      <div className="font-black text-lg mb-2 leading-tight">
         {title}
       </div>
 
@@ -118,7 +118,7 @@ export function StatusPill({
 }) {
   return (
     <div
-      className={`rounded-3xl p-4 border ${
+      className={`rounded-3xl p-4 border shadow-sm ${
         active
           ? "bg-green-50 border-green-100 text-green-800"
           : "bg-gray-50 border-gray-100 text-gray-500"
@@ -175,7 +175,7 @@ export function TextArea({
       </div>
 
       <textarea
-        className={`w-full border border-gray-200 rounded-2xl p-4 text-gray-900 placeholder:text-gray-300 ${
+        className={`w-full border border-gray-200 rounded-2xl p-4 text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-black/20 ${
           large ? "min-h-[220px]" : "min-h-[150px]"
         }`}
         placeholder="Write the details here..."

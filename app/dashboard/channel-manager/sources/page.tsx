@@ -144,7 +144,7 @@ function Card({
             {title}
           </p>
 
-          <div className="text-3xl font-bold text-gray-950">
+          <div className="text-3xl font-black text-gray-950">
             {value}
           </div>
         </div>
@@ -173,13 +173,13 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="bg-white rounded-[32px] p-7 shadow-xl border border-black/5">
+    <section className="bg-white rounded-[32px] p-6 md:p-7 shadow-xl border border-black/5">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">
+        <h2 className="text-2xl md:text-3xl font-black tracking-tight mb-2">
           {icon} {title}
         </h2>
 
-        <p className="text-gray-500 leading-relaxed">
+        <p className="text-sm md:text-base text-gray-500 leading-relaxed max-w-3xl">
           {description}
         </p>
       </div>
@@ -241,6 +241,9 @@ export default function CalendarSourcesPage() {
   const [errorMessage, setErrorMessage] =
     useState("");
 
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -261,6 +264,7 @@ export default function CalendarSourcesPage() {
     try {
       setLoading(true);
       setErrorMessage("");
+      setSuccessMessage("");
 
       await Promise.all([
         loadProperties(),
@@ -373,22 +377,24 @@ export default function CalendarSourcesPage() {
 
   async function createCalendarSource() {
     if (!form.property_id) {
-      alert("Select a property first");
+      setErrorMessage("Select a property first.");
       return;
     }
 
     if (!form.source_name.trim()) {
-      alert("Source name is required");
+      setErrorMessage("Source name is required.");
       return;
     }
 
     if (!form.ics_url.trim()) {
-      alert("ICS URL is required");
+      setErrorMessage("ICS URL is required.");
       return;
     }
 
     try {
       setSaving(true);
+      setErrorMessage("");
+      setSuccessMessage("");
 
       const response = await fetch(
         "/api/calendar-sources",
@@ -427,14 +433,14 @@ export default function CalendarSourcesPage() {
         loadSyncLogs(),
       ]);
 
-      alert("Calendar source added");
+      setSuccessMessage("Calendar source added.");
     } catch (error) {
       console.error(
         "CREATE CALENDAR SOURCE UI ERROR:",
         error
       );
 
-      alert(
+      setErrorMessage(
         error instanceof Error
           ? error.message
           : "Unable to create calendar source"
@@ -454,6 +460,9 @@ export default function CalendarSourcesPage() {
     }
 
     try {
+      setErrorMessage("");
+      setSuccessMessage("");
+
       const response = await fetch(
         `/api/calendar-sources?id=${encodeURIComponent(id)}`,
         {
@@ -474,13 +483,15 @@ export default function CalendarSourcesPage() {
         loadCalendarSources(),
         loadSyncLogs(),
       ]);
+
+      setSuccessMessage("Calendar source deleted.");
     } catch (error) {
       console.error(
         "DELETE CALENDAR SOURCE UI ERROR:",
         error
       );
 
-      alert(
+      setErrorMessage(
         error instanceof Error
           ? error.message
           : "Unable to delete calendar source"
@@ -491,6 +502,8 @@ export default function CalendarSourcesPage() {
   async function syncCalendarSource(id: string) {
     try {
       setSyncingSourceId(id);
+      setErrorMessage("");
+      setSuccessMessage("");
 
       const response = await fetch(
         "/api/calendar-sources/sync",
@@ -519,8 +532,8 @@ export default function CalendarSourcesPage() {
         );
       }
 
-      alert(
-        `Calendar source synced. Events found: ${data.events_found}. Created: ${data.bookings_created}. Updated: ${data.bookings_updated}.`
+      setSuccessMessage(
+        `Calendar source synced. Events: ${data.events_found}. Created: ${data.bookings_created}. Updated: ${data.bookings_updated}.`
       );
     } catch (error) {
       console.error(
@@ -533,7 +546,7 @@ export default function CalendarSourcesPage() {
         loadSyncLogs(),
       ]);
 
-      alert(
+      setErrorMessage(
         error instanceof Error
           ? error.message
           : "Unable to sync calendar source"
@@ -564,7 +577,7 @@ export default function CalendarSourcesPage() {
                 AI CO-HOST LIGHT CHANNEL MANAGER
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
                 Calendar Sources
               </h1>
 
@@ -580,7 +593,7 @@ export default function CalendarSourcesPage() {
               </label>
 
               <select
-                className="w-full bg-white text-black rounded-2xl p-4"
+                className="w-full bg-white text-black rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-white/30"
                 value={selectedProperty}
                 onChange={(event) =>
                   setSelectedProperty(event.target.value)
@@ -630,6 +643,12 @@ export default function CalendarSourcesPage() {
         {errorMessage && (
           <div className="bg-red-50 text-red-700 rounded-3xl p-6 border border-red-100">
             {errorMessage}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-emerald-50 text-emerald-700 rounded-3xl p-6 border border-emerald-100">
+            {successMessage}
           </div>
         )}
 
@@ -683,7 +702,7 @@ export default function CalendarSourcesPage() {
               />
 
               <select
-                className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                className="w-full border border-gray-200 rounded-2xl p-4 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
                 value={form.property_id}
                 onChange={(event) =>
                   setForm((current) => ({
@@ -714,7 +733,7 @@ export default function CalendarSourcesPage() {
               />
 
               <select
-                className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                className="w-full border border-gray-200 rounded-2xl p-4 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
                 value={form.source_type}
                 onChange={(event) =>
                   setForm((current) => ({
@@ -738,7 +757,7 @@ export default function CalendarSourcesPage() {
               />
 
               <input
-                className="w-full border border-gray-200 rounded-2xl p-4"
+                className="w-full border border-gray-200 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-black/20"
                 placeholder="Example: Airbnb - Maltese Maisonette"
                 value={form.source_name}
                 onChange={(event) =>
@@ -757,7 +776,7 @@ export default function CalendarSourcesPage() {
               />
 
               <select
-                className="w-full border border-gray-200 rounded-2xl p-4 bg-white"
+                className="w-full border border-gray-200 rounded-2xl p-4 bg-white focus:outline-none focus:ring-2 focus:ring-black/20"
                 value={form.is_active ? "true" : "false"}
                 onChange={(event) =>
                   setForm((current) => ({
@@ -779,7 +798,7 @@ export default function CalendarSourcesPage() {
               />
 
               <input
-                className="w-full border border-gray-200 rounded-2xl p-4"
+                className="w-full border border-gray-200 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-black/20"
                 placeholder="https://www.airbnb.com/calendar/ical/..."
                 value={form.ics_url}
                 onChange={(event) =>
@@ -794,7 +813,7 @@ export default function CalendarSourcesPage() {
 
           <button
             onClick={createCalendarSource}
-            disabled={saving}
+            disabled={saving || loading}
             className="mt-5 bg-black text-white px-6 py-3 rounded-2xl font-semibold disabled:opacity-50"
           >
             {saving
@@ -811,7 +830,8 @@ export default function CalendarSourcesPage() {
           <div className="space-y-4">
             {filteredSources.length === 0 && (
               <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
-                No calendar sources saved yet.
+                <div className="font-semibold text-gray-900 mb-1">No calendar sources saved yet</div>
+                <div className="text-sm text-gray-600">Add your first iCal URL above to start importing bookings.</div>
               </div>
             )}
 
@@ -899,6 +919,7 @@ export default function CalendarSourcesPage() {
                       syncCalendarSource(source.id)
                     }
                     disabled={
+                      loading ||
                       syncingSourceId === source.id ||
                       !source.is_active
                     }
@@ -913,7 +934,11 @@ export default function CalendarSourcesPage() {
                     onClick={() =>
                       deleteCalendarSource(source.id)
                     }
-                    className="bg-red-50 text-red-700 px-5 py-3 rounded-2xl text-sm font-semibold border border-red-100"
+                    disabled={
+                      syncingSourceId === source.id ||
+                      loading
+                    }
+                    className="bg-red-50 text-red-700 px-5 py-3 rounded-2xl text-sm font-semibold border border-red-100 disabled:opacity-50"
                   >
                     Delete Source
                   </button>
@@ -931,7 +956,8 @@ export default function CalendarSourcesPage() {
           <div className="space-y-4">
             {filteredLogs.length === 0 && (
               <div className="bg-gray-50 border border-gray-100 rounded-3xl p-5 text-gray-500">
-                No sync logs yet.
+                <div className="font-semibold text-gray-900 mb-1">No sync logs yet</div>
+                <div className="text-sm text-gray-600">Run a manual sync on any active source to populate recent activity.</div>
               </div>
             )}
 

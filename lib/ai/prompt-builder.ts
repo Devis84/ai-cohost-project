@@ -1,62 +1,22 @@
- type WelcomeBook = {
-  description?: string
-  amenities?: string
-  house_rules?: string
-  parking?: string
-  trash?: string
-  ac?: string
-  boiler?: string
-  restaurants?: string
-  transport?: string
-  local_guide?: string
-  emergency?: string
-  checkout_notes?: string
-  extra_notes?: string
-}
+import {
+  buildPromptReadyKnowledge,
+  buildUnifiedKnowledgeModel,
+  type LegacyPromptProperty,
+} from "@/lib/ai/engine/knowledge-engine"
 
-type AiTraining = {
-  faq?: string
-  troubleshooting?: string
-  guest_style?: string
-  hidden_notes?: string
-  additional_notes?: string
-}
-
-type KnowledgeBase = {
-  welcome_book?: WelcomeBook
-  ai_training?: AiTraining
-}
-
-type PropertyPromptData = {
-  property_name?: string
-  address?: string
-  city?: string
-  country?: string
-  checkin_time?: string
-  checkout_time?: string
-  checkin_instructions?: string
-  lockbox_code?: string
-  wifi_name?: string
-  wifi_password?: string
-  emergency_numbers?: string
-  contacts?: string[]
-  knowledge_base?: KnowledgeBase
-}
+type PropertyPromptData = LegacyPromptProperty
 
 export function buildKnowledgePrompt(
   property: PropertyPromptData
 ) {
-  const knowledgeBase =
-    property?.knowledge_base || {}
+  const model = buildUnifiedKnowledgeModel(property || {})
+  const promptKnowledge = buildPromptReadyKnowledge(model)
 
-  const welcome =
-    knowledgeBase.welcome_book || {}
-
-  const ai =
-    knowledgeBase.ai_training || {}
-
-  const contacts =
-    property?.contacts || []
+  const lockboxCodeForPrompt = model.stay.lockboxCode
+  const italianComplianceSection =
+    model.italianCompliance.enabled && model.italianCompliance.guestFacingNotes
+      ? `\n\nITALIAN COMPLIANCE\n${model.italianCompliance.guestFacingNotes}`
+      : ""
 
   return `
 You are an AI concierge for a short-term rental property.
@@ -79,114 +39,60 @@ PROPERTY INFORMATION
 --------------------------------------------------
 
 PROPERTY NAME:
-${property?.property_name || ""}
+${model.meta.propertyName}
 
 ADDRESS:
-${property?.address || ""}
+${model.meta.address}
 
 CITY:
-${property?.city || ""}
+${model.meta.city}
 
 COUNTRY:
-${property?.country || ""}
+${model.meta.country}
 
 --------------------------------------------------
 CHECK-IN / CHECK-OUT
 --------------------------------------------------
 
 CHECK-IN TIME:
-${property?.checkin_time || ""}
+${model.stay.checkinTime}
 
 CHECK-OUT TIME:
-${property?.checkout_time || ""}
+${model.stay.checkoutTime}
 
 CHECK-IN INSTRUCTIONS:
-${property?.checkin_instructions || ""}
+${model.stay.checkinInstructions}
 
 LOCKBOX CODE:
-${property?.lockbox_code || ""}
+${lockboxCodeForPrompt}
 
 --------------------------------------------------
 WIFI
 --------------------------------------------------
 
 WIFI NAME:
-${property?.wifi_name || ""}
+${model.stay.wifiName}
 
 WIFI PASSWORD:
-${property?.wifi_password || ""}
+${model.stay.wifiPassword}
 
 --------------------------------------------------
 EMERGENCY CONTACTS
 --------------------------------------------------
 
-${property?.emergency_numbers || welcome.emergency || ""}
+${model.stay.emergencyNumbers || model.welcomeBook.emergency}
 
 --------------------------------------------------
-WELCOME BOOK
+UNIFIED KNOWLEDGE MODEL
 --------------------------------------------------
-
-PROPERTY DESCRIPTION:
-${welcome.description || ""}
-
-AMENITIES:
-${welcome.amenities || ""}
-
-HOUSE RULES:
-${welcome.house_rules || ""}
-
-PARKING:
-${welcome.parking || ""}
-
-TRASH AND RECYCLING:
-${welcome.trash || ""}
-
-AIR CONDITIONING:
-${welcome.ac || ""}
-
-BOILER / HOT WATER:
-${welcome.boiler || ""}
-
-RESTAURANTS:
-${welcome.restaurants || ""}
-
-TRANSPORT:
-${welcome.transport || ""}
-
-LOCAL GUIDE:
-${welcome.local_guide || ""}
-
-CHECKOUT NOTES:
-${welcome.checkout_notes || ""}
-
-EXTRA NOTES:
-${welcome.extra_notes || ""}
-
---------------------------------------------------
-AI TRAINING
---------------------------------------------------
-
-FAQ:
-${ai.faq || ""}
-
-TROUBLESHOOTING:
-${ai.troubleshooting || ""}
-
-GUEST COMMUNICATION STYLE:
-${ai.guest_style || ""}
-
-HIDDEN OPERATIONAL NOTES:
-${ai.hidden_notes || ""}
-
-ADDITIONAL AI NOTES:
-${ai.additional_notes || ""}
+${promptKnowledge.compactContext}${italianComplianceSection}
 
 --------------------------------------------------
 HOST / PROPERTY CONTACTS
 --------------------------------------------------
 
-${Array.isArray(contacts)
-  ? contacts.join("\n")
+${Array.isArray(model.stay.contacts)
+  ? model.stay.contacts.join("\n")
   : ""}
 
 --------------------------------------------------

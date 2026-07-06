@@ -218,10 +218,13 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to load bookings",
+        error: "Failed to load bookings",
+        bookings: {
+          upcomingBookings: [],
+          activeStays: [],
+          completedStays: [],
+          cancelledBookings: [],
+        },
       },
       { status: 500 }
     );
