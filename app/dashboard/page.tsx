@@ -1,4 +1,4 @@
-"use client";
+ "use client";
 
 import { useEffect, useState } from "react";
 
@@ -6,7 +6,6 @@ import { DashboardCommandCenter } from "./_components/DashboardCommandCenter";
 import { DashboardGeneralTab } from "./_components/DashboardGeneralTab";
 import { DashboardGuestPageTab } from "./_components/DashboardGuestPageTab";
 import { DashboardHeader } from "./_components/DashboardHeader";
-import { DashboardOnboardingChecklist } from "./_components/DashboardOnboardingChecklist";
 import { DashboardSaveBar } from "./_components/DashboardSaveBar";
 import { DashboardSidebar } from "./_components/DashboardSidebar";
 
@@ -328,6 +327,7 @@ export default function Dashboard() {
 
   function applyAutofillDraft(draft: SetupAssistantDraft) {
     const clean = (value: string) => value.trim();
+
     const fromDraft = (value: string, current: string) => {
       const next = clean(value);
       return next ? next : current;
@@ -350,7 +350,8 @@ export default function Dashboard() {
           current.guest_page.about_description
         ),
         about_highlights: fromDraft(
-          draft.property_highlights || draft.guest_page.about_highlights,
+          draft.property_highlights ||
+            draft.guest_page.about_highlights,
           current.guest_page.about_highlights
         ),
       },
@@ -465,7 +466,8 @@ export default function Dashboard() {
 
     setCheckinNotes(
       fromDraft(
-        draft.checkin_notes || draft.welcome_book.apartment_instructions,
+        draft.checkin_notes ||
+          draft.welcome_book.apartment_instructions,
         checkinNotes
       )
     );
@@ -474,9 +476,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-[#f5f5f5]">
       <DashboardHeader
-        propertiesCount={properties.length}
+        propertyName={propertyName}
+        commandLocationLabel={computed.commandLocationLabel}
         aiEnabled={aiEnabled}
         isPartnerMode={computed.isPartnerMode}
+        readiness={computed.readiness}
       />
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 pb-32">
@@ -500,14 +504,6 @@ export default function Dashboard() {
           wifiPassword={wifiPassword}
           onCopyWifi={copyWifi}
           onCopyGuestUrl={copyGuestUrl}
-        />
-
-        <DashboardOnboardingChecklist
-          propertyName={propertyName}
-          selectedSlug={selectedSlug}
-          guestPageUrl={computed.guestPageUrl}
-          readiness={computed.readiness}
-          loadingReadiness={computed.loadingReadiness}
           onOpenTab={setActiveTab}
         />
 
