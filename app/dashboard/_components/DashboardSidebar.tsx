@@ -226,6 +226,20 @@ export function DashboardSidebar({
 
         <TabButton
 
+          icon="🧠"
+
+          label="Smart Setup Assistant"
+
+          tab="smartsetup"
+
+          activeTab={activeTab}
+
+          onSelectTab={onSelectTab}
+
+        />
+
+        <TabButton
+
           icon="📘"
 
           label="Welcome Book"
@@ -286,6 +300,26 @@ export function DashboardSidebar({
 
         <SidebarLink
 
+          href="/dashboard/bookings"
+
+          icon="📅"
+
+          label="Bookings & Stays"
+
+        />
+
+        <SidebarLink
+
+          href="/dashboard/calendar"
+
+          icon="📆"
+
+          label="Calendar"
+
+        />
+
+        <SidebarLink
+
           href="/dashboard/inbox"
 
           icon="💬"
@@ -336,6 +370,30 @@ export function DashboardSidebar({
 
       </SidebarSection>
 
+      <SidebarSection title="Insights & Reports">
+
+        <SidebarLink
+
+          href="/dashboard/analytics"
+
+          icon="📊"
+
+          label="Analytics"
+
+        />
+
+        <SidebarLink
+
+          href="/dashboard/release-qa"
+
+          icon="🧪"
+
+          label="Release QA"
+
+        />
+
+      </SidebarSection>
+
       <SidebarSection title="Business">
 
         <SidebarLink
@@ -350,11 +408,25 @@ export function DashboardSidebar({
 
         <SidebarLink
 
-          href="/dashboard/billing"
+          href="/dashboard/channel-manager/billing"
 
           icon="💳"
 
           label="Billing"
+
+        />
+
+      </SidebarSection>
+
+      <SidebarSection title="Compliance & Legal">
+
+        <SidebarLink
+
+          href="/dashboard/italy-compliance"
+
+          icon="🇮🇹"
+
+          label="Italian Compliance"
 
         />
 

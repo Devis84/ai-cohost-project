@@ -3,6 +3,18 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 
+function sanitizeRedirectTarget(value: string | null) {
+  if (!value) {
+    return "/login";
+  }
+
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return "/login";
+  }
+
+  return value;
+}
+
 function clearAuthCookies(response: NextResponse) {
   const options = {
     path: "/",
@@ -29,8 +41,9 @@ function clearAuthCookies(response: NextResponse) {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const redirectUrl =
-    url.searchParams.get("redirect") || "/login";
+  const redirectUrl = sanitizeRedirectTarget(
+    url.searchParams.get("redirect")
+  );
 
   const response = NextResponse.redirect(
     new URL(redirectUrl, request.url)

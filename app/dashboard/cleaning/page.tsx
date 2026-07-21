@@ -877,73 +877,75 @@ export default function CleaningDashboard() {
   }, [periodTasks])
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] p-5 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-7 md:p-8 shadow-2xl">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-8">
+    <div className="min-h-screen bg-[#f5f5f5] p-4 sm:p-6">
+      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        {/* HERO */}
+        <div className="bg-gradient-to-br from-black via-zinc-900 to-zinc-800 text-white rounded-[32px] p-6 sm:p-8 shadow-2xl">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 sm:gap-8">
             <div>
-              <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-4">
-                AI CO-HOST OPERATIONS
+              <div className="uppercase tracking-[0.3em] text-xs text-white/50 mb-3 sm:mb-4">
+                Operations
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-black mb-4">
-                Cleaning Dashboard
+              <h1 className="text-3xl sm:text-4xl font-black mb-2 sm:mb-4">
+                Cleaning Management
               </h1>
 
-              <p className="text-white/60 max-w-2xl leading-relaxed">
-                Manage turnovers, assign cleaners, track checkout and next check-in windows, monitor checklist progress and estimate cleaner payments.
+              <p className="text-white/60 max-w-2xl leading-relaxed text-sm sm:text-base">
+                Manage turnovers, assign cleaners, track checkout and next check-in windows, monitor progress and estimate payments.
               </p>
 
-              <div className="flex flex-wrap gap-3 mt-6">
+              <div className="flex flex-wrap gap-2 sm:gap-3 mt-5 sm:mt-6">
                 <Link
                   href="/dashboard"
-                  className="bg-white text-black rounded-2xl px-5 py-3 text-sm font-semibold"
+                  className="bg-white text-black rounded-lg px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm font-semibold hover:bg-white/90 transition"
                 >
                   Back to Dashboard
                 </Link>
 
                 <Link
                   href="/dashboard/cleaning/mobile"
-                  className="bg-white/10 border border-white/10 text-white rounded-2xl px-5 py-3 text-sm font-semibold hover:bg-white/15 transition"
+                  className="bg-white/10 border border-white/10 text-white rounded-lg px-4 py-2 sm:px-5 sm:py-3 text-xs sm:text-sm font-semibold hover:bg-white/15 transition"
                 >
-                  Open Cleaner Mobile
+                  Cleaner Mobile App
                 </Link>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-                <div className="text-white/50 text-sm mb-2">
+            {/* STATS GRID */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full xl:w-auto">
+              <div className="bg-white/10 border border-white/10 rounded-2xl sm:rounded-3xl p-3 sm:p-5">
+                <div className="text-white/50 text-xs sm:text-sm mb-1 sm:mb-2">
                   Open
                 </div>
-                <div className="text-3xl font-bold">
+                <div className="text-2xl sm:text-3xl font-black">
                   {openTasks}
                 </div>
               </div>
 
-              <div className="bg-white/10 border border-white/10 rounded-3xl p-5">
-                <div className="text-white/50 text-sm mb-2">
+              <div className="bg-white/10 border border-white/10 rounded-2xl sm:rounded-3xl p-3 sm:p-5">
+                <div className="text-white/50 text-xs sm:text-sm mb-1 sm:mb-2">
                   Hours
                 </div>
-                <div className="text-3xl font-bold">
+                <div className="text-2xl sm:text-3xl font-black">
                   {totalWorkedHours.toFixed(1)}
                 </div>
               </div>
 
-              <div className="bg-green-500/15 border border-green-400/20 rounded-3xl p-5">
-                <div className="text-green-100 text-sm mb-2">
+              <div className="bg-green-500/15 border border-green-400/20 rounded-2xl sm:rounded-3xl p-3 sm:p-5">
+                <div className="text-green-100 text-xs sm:text-sm mb-1 sm:mb-2">
                   Payable
                 </div>
-                <div className="text-3xl font-bold text-green-100">
+                <div className="text-2xl sm:text-3xl font-black text-green-100">
                   €{totalPayable.toFixed(2)}
                 </div>
               </div>
 
-              <div className="bg-red-500/15 border border-red-400/20 rounded-3xl p-5">
-                <div className="text-red-100 text-sm mb-2">
+              <div className="bg-red-500/15 border border-red-400/20 rounded-2xl sm:rounded-3xl p-3 sm:p-5">
+                <div className="text-red-100 text-xs sm:text-sm mb-1 sm:mb-2">
                   Missing Data
                 </div>
-                <div className="text-3xl font-bold text-red-100">
+                <div className="text-2xl sm:text-3xl font-black text-red-100">
                   {missingTimeCount + missingRateCount}
                 </div>
               </div>
@@ -951,9 +953,11 @@ export default function CleaningDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-[32px] p-5 md:p-6 shadow-xl border border-black/5">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
-            <div className="flex flex-wrap gap-3">
+        {/* FILTERS & SEARCH */}
+        <div className="bg-white rounded-[24px] shadow-lg border border-black/5 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Period Filter */}
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {periodOptions.map((period) => (
                 <FilterButton
                   key={period}
@@ -964,41 +968,43 @@ export default function CleaningDashboard() {
               ))}
             </div>
 
-            <div className="flex-1 xl:max-w-md">
+            {/* Search Box */}
+            <div className="flex-1 sm:max-w-xs">
               <input
                 value={search}
                 onChange={(event) =>
                   setSearch(event.target.value)
                 }
-                placeholder="Search property, cleaner, notes or status..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-black"
+                placeholder="Search..."
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 sm:px-5 sm:py-3 text-sm outline-none focus:ring-2 focus:ring-black"
               />
             </div>
 
+            {/* Refresh Button */}
             <button
               type="button"
               onClick={fetchTasks}
-              className="bg-black text-white rounded-2xl px-5 py-4 font-semibold"
+              className="bg-black text-white rounded-lg px-4 py-2 sm:px-5 sm:py-3 text-sm font-semibold hover:bg-black/90 transition active:scale-[0.98]"
             >
               Refresh
             </button>
           </div>
         </div>
 
-        <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-8">
-          <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-xl border border-black/5">
-            <div className="mb-8">
-              <h2 className="text-3xl font-black mb-3">
-                ➕ Create Manual Cleaning Task
+        <div className="grid xl:grid-cols-[1.15fr_0.85fr] gap-6 sm:gap-8">
+          <div className="bg-white rounded-[24px] shadow-lg border border-black/5 p-5 sm:p-6 md:p-8">
+            <div className="mb-6 sm:mb-8">
+              <h2 className="text-2xl sm:text-3xl font-black mb-2 sm:mb-3">
+                ➕ Create Task
               </h2>
 
-              <p className="text-gray-500 leading-relaxed">
-                Create a manual turnover task. Use the checkout and next check-in fields to understand the available window, then assign a cleaner and planned cleaning time.
+              <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
+                Create a manual cleaning task for your properties.
               </p>
             </div>
 
-            <div className="space-y-8">
-              <section className="bg-gray-50 rounded-[28px] p-5 md:p-6 border border-gray-100">
+            <div className="space-y-6 sm:space-y-8">
+              <section className="bg-gray-50 rounded-[20px] p-4 sm:p-5 md:p-6 border border-gray-100">
                 <SectionTitle
                   number="1"
                   title="Property"

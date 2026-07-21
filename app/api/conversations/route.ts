@@ -9,6 +9,10 @@ import {
   markConversationRead,
 } from "@/lib/services/conversation-service";
 import { supabaseServer } from "@/lib/supabase/supabase-server";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 type ConversationRecord = {
   id?: string;
@@ -208,6 +212,12 @@ async function loadMessagesByPropertyId(propertyId: string) {
 
 export async function GET(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { searchParams } =
       new URL(request.url);
 
@@ -292,10 +302,7 @@ export async function GET(request: Request) {
         success: false,
         conversations: [],
         messages: [],
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load conversations",
+        error: "Unable to load conversations",
       },
       { status: 500 }
     );
@@ -304,7 +311,13 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const body = await request.json();
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
+    const body = await request.json().catch(() => ({}));
 
     const conversationId =
       body.conversationId ||
@@ -362,10 +375,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to update conversation",
+        error: "Unable to update conversation",
       },
       { status: 500 }
     );

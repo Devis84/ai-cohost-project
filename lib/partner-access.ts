@@ -76,14 +76,6 @@ function getEnvAdminEmails() {
     .filter(Boolean);
 }
 
-function normalizeHeaderValue(value: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  return value.trim();
-}
-
 export function normalizeEmail(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
 }
@@ -113,23 +105,25 @@ function parseCookieHeader(cookieHeader: string | null) {
   return cookies;
 }
 
+function hasAuthenticatedSession(request?: Request) {
+  if (!request) {
+    return false;
+  }
+
+  const cookies = parseCookieHeader(request.headers.get("cookie"));
+  return cookies.get("ai_cohost_auth") === "true";
+}
+
 export function getRequestUserEmail(request?: Request) {
   if (!request) {
     return null;
   }
 
-  const headerEmail =
-    normalizeHeaderValue(
-      request.headers.get("x-ai-cohost-user-email")
-    ) ||
-    normalizeHeaderValue(request.headers.get("x-user-email")) ||
-    normalizeHeaderValue(request.headers.get("x-vercel-user-email"));
-
-  if (headerEmail) {
-    return normalizeEmail(headerEmail);
-  }
-
   const cookies = parseCookieHeader(request.headers.get("cookie"));
+
+  if (cookies.get("ai_cohost_auth") !== "true") {
+    return null;
+  }
 
   const cookieEmail =
     cookies.get("ai_cohost_user_email") ||
@@ -207,19 +201,29 @@ function buildProfileContext(
 export async function getPartnerAccessContext(
   request?: Request
 ): Promise<PartnerAccessContext> {
+  if (!request) {
+    return buildInactiveContext(
+      null,
+      null,
+      "unauthenticated_request"
+    );
+  }
+
+  if (!hasAuthenticatedSession(request)) {
+    return buildInactiveContext(
+      null,
+      null,
+      "missing_auth_session"
+    );
+  }
+
   const email = getRequestUserEmail(request);
 
-  /*
-    Important for the current MVP:
-    If no user email is available, we keep the current dashboard behavior as admin.
-    This prevents breaking the existing simple auth flow before real multi-user login
-    is implemented in the next blocks.
-  */
   if (!email) {
-    return buildAdminContext(
+    return buildInactiveContext(
       null,
       null,
-      "no_email_fallback_admin_for_existing_mvp_auth"
+      "missing_authenticated_email"
     );
   }
 
@@ -515,7 +519,28 @@ export function forbiddenResponse(
 export function inactiveAccessResponse(
   accessContext: PartnerAccessContext
 ) {
-  return forbiddenResponse("Account is not active or not authorized", {
-    access: buildAccessMetadata(accessContext),
-  });
+  const unauthenticatedReasons = new Set([
+    "unauthenticated_request",
+    "missing_auth_session",
+    "missing_authenticated_email",
+  ]);
+
+  const isUnauthenticated = unauthenticatedReasons.has(
+    accessContext.reason
+  );
+
+  return NextResponse.json(
+    {
+      success: false,
+      error: isUnauthenticated
+        ? "Authentication required"
+        : "Account is not active or not authorized",
+      metadata: {
+        access: buildAccessMetadata(accessContext),
+      },
+    },
+    {
+      status: isUnauthenticated ? 401 : 403,
+    }
+  );
 }

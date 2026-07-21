@@ -2,6 +2,10 @@
 export const runtime = "nodejs";
 
  import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +29,12 @@ function getSupabaseAdminClient() {
 
 export async function POST(req: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(req);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const body = (await req.json()) as AddTipPayload;
 
     const propertyId = body.property_id?.trim();

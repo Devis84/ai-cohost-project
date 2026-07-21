@@ -3,6 +3,10 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 import { supabaseServer } from "@/lib/supabase/supabase-server";
 
 type RouteContext = {
@@ -158,6 +162,12 @@ export async function POST(
   context: RouteContext
 ) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const params = await context.params;
     const slug = safeString(params.slug).trim();
 

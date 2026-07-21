@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,6 +58,12 @@ function getSupabaseAdminClient() {
 
 export async function GET(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const { searchParams } =
@@ -130,6 +140,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const body =
@@ -279,6 +295,12 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const body =
@@ -409,6 +431,12 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const { searchParams } =

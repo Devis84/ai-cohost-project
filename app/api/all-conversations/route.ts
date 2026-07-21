@@ -3,6 +3,10 @@ export const runtime = "nodejs";
 
  import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 
@@ -108,8 +112,14 @@ function getMessageSender(record: MessageRecord | null) {
   return record.role || null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const {

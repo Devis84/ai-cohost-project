@@ -3,6 +3,10 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 type CreateGuestAccessBody = {
   property_slug?: string;
@@ -127,6 +131,12 @@ function buildGuestAccessUrl(token: string) {
 
 export async function GET(request: NextRequest) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const supabase = getSupabaseAdminClient();
 
     const { searchParams } = new URL(request.url);
@@ -184,6 +194,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const body = (await request.json()) as CreateGuestAccessBody;
 
     const propertySlug = cleanText(body.property_slug);

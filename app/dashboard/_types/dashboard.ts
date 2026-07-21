@@ -1,4 +1,16 @@
- export type GuestPageContent = {
+ export type DashboardAccess = {
+  email?: string | null;
+  role: string;
+  isAdmin: boolean;
+  isPartner: boolean;
+  isViewer?: boolean;
+  isActive?: boolean;
+  canCreateProperty: boolean;
+  canDeleteProperty: boolean;
+  reason?: string;
+};
+
+export type GuestPageContent = {
   hero_title: string;
   hero_intro: string;
   hero_image_url: string;
@@ -66,6 +78,61 @@ export type AiTraining = {
   additional_notes: string;
 };
 
+export type ItalianCompliance = {
+  enabled: boolean;
+  property_registration?: {
+    cin?: string;
+    regional_code?: string;
+    local_commune?: string;
+    scia_status?: "pending" | "submitted" | "approved" | "none";
+    scia_submission_date?: string;
+    notes?: string;
+  };
+  guest_identity?: {
+    collection_status?: "pending" | "collected" | "verified" | "none";
+    alloggiati_web_status?: "pending" | "submitted" | "confirmed" | "none";
+    submission_deadline?: string;
+    last_submitted_at?: string;
+    notes?: string;
+  };
+  tourist_tax?: {
+    municipality?: string;
+    rate_notes?: string;
+    guest_exemption_notes?: string;
+    collection_status?: "pending" | "collected" | "none";
+    reporting_status?: "pending" | "reported" | "none";
+    notes?: string;
+  };
+  istat_regional?: {
+    portal_name?: string;
+    reporting_status?: "pending" | "reported" | "none";
+    monthly_status?: string;
+    notes?: string;
+  };
+  safety_checklist?: {
+    smoke_detector?: boolean;
+    carbon_monoxide_detector?: boolean;
+    gas_detector?: boolean;
+    fire_extinguisher?: boolean;
+    emergency_numbers_posted?: boolean;
+    safety_notes?: string;
+  };
+  document_archive?: {
+    cin_certificate_available?: boolean;
+    property_documents_available?: boolean;
+    guest_documents_available?: boolean;
+    tax_receipts_available?: boolean;
+    notes?: string;
+  };
+  compliance_status?: {
+    completed_items?: number;
+    total_items?: number;
+    compliance_score?: number;
+    next_deadline?: string;
+    last_updated?: string;
+  };
+};
+
 export type KnowledgeBase = {
   guest_page: GuestPageContent;
   guest_support: GuestSupport;
@@ -82,6 +149,7 @@ export type StoredKnowledgeBase = {
   extra_services?: Partial<ExtraServices>;
   local_guide?: Partial<LocalGuide>;
   ai_training?: Partial<AiTraining>;
+  italian_compliance?: Partial<ItalianCompliance>;
 };
 
 export type Property = {

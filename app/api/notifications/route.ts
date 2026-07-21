@@ -5,9 +5,19 @@ export const runtime = "nodejs";
  import { NextResponse } from "next/server"
 
 import { supabaseServer } from "@/lib/supabase/supabase-server"
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access"
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request)
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext)
+    }
+
     const { data, error } = await supabaseServer
       .from("notifications")
       .select("*")
@@ -39,6 +49,12 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request)
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext)
+    }
+
     const body = await request.json()
 
     const id = body.id

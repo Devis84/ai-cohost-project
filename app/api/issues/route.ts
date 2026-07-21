@@ -5,6 +5,10 @@ export const runtime = "nodejs";
  import { NextResponse } from "next/server";
 
 import { supabaseServer } from "@/lib/supabase/supabase-server";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 type PropertyRecord = {
   id: string;
@@ -81,8 +85,14 @@ async function loadConversations() {
   return (data || []) as ConversationRecord[];
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(request);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { data: issuesData, error: issuesError } =
       await supabaseServer
         .from("issues")

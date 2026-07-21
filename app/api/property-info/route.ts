@@ -1,4 +1,8 @@
  import { createClient } from "@supabase/supabase-js";
+import {
+  getPartnerAccessContext,
+  inactiveAccessResponse,
+} from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,6 +20,12 @@ function getSupabaseAdminClient() {
 
 export async function GET(req: Request) {
   try {
+    const accessContext = await getPartnerAccessContext(req);
+
+    if (!accessContext.isActive) {
+      return inactiveAccessResponse(accessContext);
+    }
+
     const { searchParams } = new URL(req.url);
     const propertyId = searchParams.get("property_id");
 
