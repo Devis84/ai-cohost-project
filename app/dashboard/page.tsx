@@ -164,6 +164,15 @@ export default function Dashboard() {
     loadPropertyData(selectedSlug);
   }, [selectedSlug, isNewProperty]);
 
+  function handleSelectProperty(propertyIdentifier: string) {
+    if (!propertyIdentifier) {
+      return;
+    }
+
+    setIsNewProperty(false);
+    selectProperty(propertyIdentifier);
+  }
+
   function addProperty() {
     if (!dashboardAccess.canCreateProperty) {
       alert("This account cannot create new properties.");
@@ -268,6 +277,7 @@ export default function Dashboard() {
       await loadProperties();
     } catch (error) {
       console.error("SAVE PROPERTY ERROR:", error);
+
       alert(
         error instanceof Error
           ? error.message
@@ -318,6 +328,7 @@ export default function Dashboard() {
       setLoadedPropertyIdentifier("");
       setIsNewProperty(false);
       resetForm();
+
       await loadProperties();
     } catch (error) {
       console.error("DELETE PROPERTY ERROR:", error);
@@ -366,7 +377,8 @@ export default function Dashboard() {
           current.welcome_book.amenities
         ),
         house_rules: fromDraft(
-          draft.house_rules || draft.welcome_book.house_rules,
+          draft.house_rules ||
+            draft.welcome_book.house_rules,
           current.welcome_book.house_rules
         ),
         apartment_instructions: fromDraft(
@@ -378,7 +390,8 @@ export default function Dashboard() {
           current.welcome_book.checkout_notes
         ),
         parking: fromDraft(
-          draft.parking_notes || draft.welcome_book.parking,
+          draft.parking_notes ||
+            draft.welcome_book.parking,
           current.welcome_book.parking
         ),
         extra_notes: fromDraft(
@@ -481,6 +494,11 @@ export default function Dashboard() {
         aiEnabled={aiEnabled}
         isPartnerMode={computed.isPartnerMode}
         readiness={computed.readiness}
+        properties={properties}
+        selectedSlug={selectedSlug}
+        loadingProperties={loadingProperties}
+        loadingSelectedProperty={loadingSelectedProperty}
+        onSelectProperty={handleSelectProperty}
       />
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8 pb-32">
@@ -572,10 +590,7 @@ export default function Dashboard() {
                   dashboardAccess.canDeleteProperty
                 }
                 accessRole={dashboardAccess.role}
-                onSelectProperty={(value) => {
-                  setIsNewProperty(false);
-                  selectProperty(value);
-                }}
+                onSelectProperty={handleSelectProperty}
                 onDeleteProperty={deleteProperty}
                 onAddProperty={addProperty}
                 onCopyWifi={copyWifi}
@@ -595,7 +610,9 @@ export default function Dashboard() {
                 onSetAiEnabled={setAiEnabled}
                 onSetWhatsappEnabled={setWhatsappEnabled}
                 onSetTelegramEnabled={setTelegramEnabled}
-                onSetWelcomebookEnabled={setWelcomebookEnabled}
+                onSetWelcomebookEnabled={
+                  setWelcomebookEnabled
+                }
                 onUpdateGuestSupport={updateGuestSupport}
                 onUpdateWelcomeBook={updateWelcomeBook}
                 onUpdateLocalGuide={updateLocalGuide}

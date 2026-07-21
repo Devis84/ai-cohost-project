@@ -137,56 +137,69 @@ export function DashboardCommandCenter({
   return (
     <section className="mb-8 space-y-5">
       <div className="bg-white rounded-[32px] p-5 md:p-7 shadow-xl border border-black/5">
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
-          <div>
-            <div className="uppercase tracking-[0.28em] text-xs text-gray-400 mb-3">
-              AI CO-HOST DASHBOARD
-            </div>
+  <div className="uppercase tracking-[0.28em] text-xs text-gray-400 mb-3">
+    AI CO-HOST DASHBOARD
+  </div>
 
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-950 mb-3">
-              Today&apos;s Control Panel
-            </h2>
+  <h2 className="text-3xl md:text-4xl font-black tracking-tight text-gray-950 mb-3">
+    Today&apos;s Control Panel
+  </h2>
 
-            <p className="text-sm md:text-base text-gray-500 max-w-2xl leading-relaxed">
-              Open, check and manage the most important areas of your property in a few seconds.
-            </p>
-          </div>
+  <p className="text-sm md:text-base text-gray-500 max-w-2xl leading-relaxed">
+    Open, check and manage the most important areas of your
+    property in a few seconds.
+  </p>
 
-          <div className="bg-black text-white rounded-3xl p-5 min-w-full lg:min-w-[300px] shadow-lg">
-            <div className="text-white/50 text-xs uppercase tracking-[0.25em] mb-3">
-              Selected Property
-            </div>
+  <div className="mt-5 flex flex-wrap gap-3">
+    <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 border border-black/5 px-4 py-2 text-sm text-gray-700">
+      <span>{missingCount === 0 ? "🟢" : "🟡"}</span>
 
-            <div className="text-2xl font-black leading-tight">
-              {propertyName || "No property selected"}
-            </div>
+      <span className="font-semibold">
+        {missingCount === 0
+          ? "Ready for Guests"
+          : `${missingCount} actions remaining`}
+      </span>
+    </div>
 
-            <div className="text-white/50 text-sm mt-2">
-              {commandLocationLabel || "Location not set"}
-            </div>
+    <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 border border-black/5 px-4 py-2 text-sm text-gray-700">
+      <span>{aiEnabled ? "🤖" : "⏸️"}</span>
 
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-2 text-sm">
-              <span>{missingCount === 0 ? "🟢" : "🟡"}</span>
-              <span>
-                {missingCount === 0
-                  ? "Ready for Guests"
-                  : `${missingCount} actions remaining`}
-              </span>
-            </div>
+      <span className="font-semibold">
+        AI Concierge {aiEnabled ? "Active" : "Off"}
+      </span>
+    </div>
 
-            <div className="mt-3 text-sm text-white/60">
-              AI Concierge {aiEnabled ? "Active" : "Off"}
-            </div>
+    {propertyName && (
+      <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 border border-black/5 px-4 py-2 text-sm text-gray-700">
+        <span>🏠</span>
 
-            {loadingSelectedProperty && (
-              <div className="mt-4 text-xs text-yellow-200">
-                Loading selected property...
-              </div>
-            )}
-          </div>
-        </div>
+        <span className="font-semibold">
+          {propertyName}
+        </span>
       </div>
+    )}
 
+    {commandLocationLabel && (
+      <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 border border-black/5 px-4 py-2 text-sm text-gray-700">
+        <span>📍</span>
+
+        <span className="font-semibold">
+          {commandLocationLabel}
+        </span>
+      </div>
+    )}
+
+    {loadingSelectedProperty && (
+      <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-100 px-4 py-2 text-sm text-amber-700">
+        <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+
+        <span className="font-semibold">
+          Loading property...
+        </span>
+      </div>
+    )}
+  </div>
+  </div>
       <div className="bg-[#f4f1eb] rounded-[32px] p-5 md:p-7 shadow-xl border border-black/5">
         <div className="flex flex-col lg:flex-row lg:items-start gap-6">
           <div className="flex-1">
@@ -387,11 +400,11 @@ export function DashboardCommandCenter({
               disabled={!guestPageUrl}
             />
             <CommandCard
-              icon="📲"
-              title="QR / NFC"
-              description="Manage QR codes and NFC-ready links."
-              href="/dashboard/qr"
-            />
+  icon="🔑"
+  title="Guest Access"
+  description="Manage stay tokens, guest links, QR codes and NFC from one place."
+  href="/dashboard/guest-access"
+/>
             <CommandCard
               icon="📶"
               title="Copy Wi-Fi"
