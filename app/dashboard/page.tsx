@@ -1,12 +1,13 @@
  "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { DashboardCommandCenter } from "./_components/DashboardCommandCenter";
 import { DashboardGeneralTab } from "./_components/DashboardGeneralTab";
 import { DashboardGuestPageTab } from "./_components/DashboardGuestPageTab";
 import { DashboardHeader } from "./_components/DashboardHeader";
 import { DashboardSaveBar } from "./_components/DashboardSaveBar";
+import { DashboardSaveReadinessModal } from "./_components/DashboardSaveReadinessModal";
 import { DashboardSidebar } from "./_components/DashboardSidebar";
 
 import { ExtraServicesSection } from "./_sections/ExtraServicesSection";
@@ -19,6 +20,7 @@ import {
 } from "./_sections/SmartSetupAssistantSection";
 
 import { createSlug } from "./_lib/dashboard-utils";
+import { validateDashboardSave } from "./_lib/dashboard-save-validation";
 
 import { useDashboardProperties } from "./_hooks/useDashboardProperties";
 import { useDashboardFormState } from "./_hooks/useDashboardFormState";
@@ -35,6 +37,8 @@ import type { Property } from "./_types/dashboard";
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("general");
   const [saving, setSaving] = useState(false);
+  const [saveReadinessOpen, setSaveReadinessOpen] =
+    useState(false);
 
   const {
     propertyName,
@@ -75,6 +79,8 @@ export default function Dashboard() {
     setWelcomebookEnabled,
     fillForm,
     resetForm,
+    isDirty,
+    markFormClean,
   } = useDashboardFormState();
 
   const {
@@ -152,6 +158,42 @@ export default function Dashboard() {
     guestPageUrl: computed.guestPageUrl,
   });
 
+  const saveValidation = useMemo(
+    () =>
+      validateDashboardSave({
+        propertyName,
+        city,
+        country,
+        address,
+        wifiName,
+        wifiPassword,
+        checkin,
+        checkout,
+        checkinNotes,
+        lockboxCode,
+        emergencyNumbers,
+        knowledgeBase,
+        aiEnabled,
+        welcomebookEnabled,
+      }),
+    [
+      propertyName,
+      city,
+      country,
+      address,
+      wifiName,
+      wifiPassword,
+      checkin,
+      checkout,
+      checkinNotes,
+      lockboxCode,
+      emergencyNumbers,
+      knowledgeBase,
+      aiEnabled,
+      welcomebookEnabled,
+    ]
+  );
+
   useEffect(() => {
     loadProperties();
   }, []);
@@ -169,6 +211,7 @@ export default function Dashboard() {
       return;
     }
 
+    setSaveReadinessOpen(false);
     setIsNewProperty(false);
     selectProperty(propertyIdentifier);
   }
@@ -188,28 +231,29 @@ export default function Dashboard() {
 
     const slug = createSlug(cleanName);
 
+    setSaveReadinessOpen(false);
     selectProperty(slug);
     setIsNewProperty(true);
     resetForm(cleanName);
     setNewProperty("");
   }
 
-  async function save() {
+  function canAttemptSave() {
     if (!propertyName.trim()) {
       alert("Property name is required");
-      return;
+      return false;
     }
 
     if (isNewProperty && !dashboardAccess.canCreateProperty) {
       alert("This account cannot create new properties.");
-      return;
+      return false;
     }
 
     if (loadingSelectedProperty) {
       alert(
         "Please wait until the selected property has finished loading."
       );
-      return;
+      return false;
     }
 
     if (
@@ -221,6 +265,14 @@ export default function Dashboard() {
       alert(
         "The selected property is not fully loaded yet. Please wait before saving to avoid overwriting another property."
       );
+      return false;
+    }
+
+    return true;
+  }
+
+  async function performSave() {
+    if (!canAttemptSave()) {
       return;
     }
 
@@ -268,13 +320,15 @@ export default function Dashboard() {
       const savedIdentifier =
         savedProperty.slug || savedProperty.id || payload.slug;
 
-      alert("Property saved successfully");
-
+      markFormClean(savedProperty);
+      setSaveReadinessOpen(false);
       setIsNewProperty(false);
       selectProperty(savedIdentifier);
       setLoadedPropertyIdentifier(savedIdentifier);
 
       await loadProperties();
+
+      alert("Property saved successfully");
     } catch (error) {
       console.error("SAVE PROPERTY ERROR:", error);
 
@@ -286,6 +340,23 @@ export default function Dashboard() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function requestSave() {
+    if (!isDirty || saving) {
+      return;
+    }
+
+    if (!canAttemptSave()) {
+      return;
+    }
+
+    if (saveValidation.canSaveDirectly) {
+      void performSave();
+      return;
+    }
+
+    setSaveReadinessOpen(true);
   }
 
   async function deleteProperty() {
@@ -324,6 +395,7 @@ export default function Dashboard() {
 
       alert("Property deleted");
 
+      setSaveReadinessOpen(false);
       selectProperty("");
       setLoadedPropertyIdentifier("");
       setIsNewProperty(false);
@@ -485,8 +557,7 @@ export default function Dashboard() {
       )
     );
   }
-
-  return (
+    return (
     <div className="min-h-screen bg-[#f5f5f5]">
       <DashboardHeader
         propertyName={propertyName}
@@ -663,12 +734,29 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <DashboardSaveBar
+      {(isDirty || saving) && (
+        <DashboardSaveBar
+          propertyName={propertyName}
+          saveStatusMessage={computed.saveStatusMessage}
+          saving={saving}
+          canSave={
+            computed.canSaveSelectedProperty &&
+            isDirty
+          }
+          onSave={requestSave}
+        />
+      )}
+
+      <DashboardSaveReadinessModal
+        open={saveReadinessOpen}
         propertyName={propertyName}
-        saveStatusMessage={computed.saveStatusMessage}
+        validation={saveValidation}
         saving={saving}
-        canSave={computed.canSaveSelectedProperty}
-        onSave={save}
+        onClose={() => setSaveReadinessOpen(false)}
+        onSaveAnyway={() => {
+          void performSave();
+        }}
+        onOpenTab={setActiveTab}
       />
     </div>
   );
