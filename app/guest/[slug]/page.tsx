@@ -1088,7 +1088,7 @@ export default function GuestPage() {
       setLoadError("");
 
       const response = await fetch(
-        `/api/properties/${encodeURIComponent(slug)}`
+        `/api/guest-property/${encodeURIComponent(slug)}`
       );
 
       const data = await response.json();

@@ -9,7 +9,7 @@ const allowedEventTypes = [
   "issue_reported",
 ] as const;
 
-const whatsappNotificationEnabledSlugs = [
+const hostNotificationEnabledSlugs = [
   "maltese-maisonette",
 ];
 
@@ -36,25 +36,40 @@ type HostNotificationRecord = {
   id: string;
   title: string;
   message: string;
+  metadata: Record<string, unknown> | null;
+};
+
+type DeliveryResult = {
+  sent: boolean;
+  status: string;
+  data?: unknown;
 };
 
 function getSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
   const serviceRoleKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_SERVICE_KEY ||
     process.env.SUPABASE_SERVICE_ROLE;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase admin environment variables");
+    throw new Error(
+      "Missing Supabase admin environment variables"
+    );
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+  return createClient(
+    supabaseUrl,
+    serviceRoleKey,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  );
 }
 
 function cleanText(value: unknown) {
@@ -104,7 +119,9 @@ function isAllowedEventType(
 ): value is GuestEventType {
   return (
     typeof value === "string" &&
-    allowedEventTypes.includes(value as GuestEventType)
+    allowedEventTypes.includes(
+      value as GuestEventType
+    )
   );
 }
 
@@ -119,7 +136,17 @@ function normalizePropertySlug(value: string) {
   return value.trim().toLowerCase();
 }
 
-function shouldSendHostWhatsAppNotification({
+function normalizeWhatsAppPhone(
+  value?: string | null
+) {
+  if (!value) {
+    return "";
+  }
+
+  return value.replace(/[^\d]/g, "");
+}
+
+function shouldSendHostNotification({
   propertySlug,
   eventType,
   isFirstEvent,
@@ -128,7 +155,8 @@ function shouldSendHostWhatsAppNotification({
   eventType: GuestEventType;
   isFirstEvent: boolean;
 }) {
-  const normalizedSlug = normalizePropertySlug(propertySlug);
+  const normalizedSlug =
+    normalizePropertySlug(propertySlug);
 
   if (!isFirstEvent) {
     return false;
@@ -138,17 +166,26 @@ function shouldSendHostWhatsAppNotification({
     return false;
   }
 
-  return whatsappNotificationEnabledSlugs.includes(
+  return hostNotificationEnabledSlugs.includes(
     normalizedSlug
   );
 }
 
-function normalizeWhatsAppPhone(value?: string | null) {
-  if (!value) {
-    return "";
+function getPropertyName({
+  propertySlug,
+  metadata,
+}: {
+  propertySlug: string;
+  metadata: Record<string, unknown>;
+}) {
+  if (
+    typeof metadata.property_name === "string" &&
+    metadata.property_name.trim()
+  ) {
+    return metadata.property_name.trim();
   }
 
-  return value.replace(/[^\d]/g, "");
+  return propertySlug;
 }
 
 function getNotificationCopy({
@@ -160,11 +197,10 @@ function getNotificationCopy({
   propertySlug: string;
   metadata: Record<string, unknown>;
 }): HostNotificationCopy {
-  const propertyName =
-    typeof metadata.property_name === "string" &&
-    metadata.property_name.trim()
-      ? metadata.property_name.trim()
-      : propertySlug;
+  const propertyName = getPropertyName({
+    propertySlug,
+    metadata,
+  });
 
   if (eventType === "guest_page_opened") {
     return {
@@ -205,31 +241,80 @@ function getNotificationCopy({
   };
 }
 
-async function updateHostNotificationWhatsAppStatus({
-  supabase,
-  notificationId,
-  status,
+function buildHostMessage({
+  propertySlug,
+  eventType,
   metadata,
 }: {
-  supabase: ReturnType<typeof getSupabaseAdminClient>;
-  notificationId: string;
-  status: string;
+  propertySlug: string;
+  eventType: GuestEventType;
+  metadata: Record<string, unknown>;
+}) {
+  const propertyName = getPropertyName({
+    propertySlug,
+    metadata,
+  });
+
+  const openedAt = new Date().toLocaleString(
+    "en-GB",
+    {
+      timeZone: "Europe/Rome",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }
+  );
+
+  return `🏡 AI Co-Host notification
+
+Guest page opened
+
+Property: ${propertyName}
+Slug: ${propertySlug}
+Event: ${eventType}
+Time: ${openedAt}
+
+A guest opened the ${propertyName} guest page.`;
+}
+
+async function updateHostNotificationDelivery({
+  supabase,
+  notification,
+  patch,
+  metadata,
+}: {
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
+  notification: HostNotificationRecord;
+  patch: {
+    whatsapp_status?: string;
+    telegram_status?: string;
+    delivery_channel?: string;
+  };
   metadata?: Record<string, unknown>;
 }) {
+  const existingMetadata =
+    notification.metadata &&
+    typeof notification.metadata === "object"
+      ? notification.metadata
+      : {};
+
   const { error } = await supabase
     .from("host_notifications")
     .update({
-      whatsapp_status: status,
+      ...patch,
       metadata: {
+        ...existingMetadata,
         ...(metadata || {}),
-        whatsapp_status_updated_at: new Date().toISOString(),
+        delivery_status_updated_at:
+          new Date().toISOString(),
       },
     })
-    .eq("id", notificationId);
+    .eq("id", notification.id);
 
   if (error) {
     console.error(
-      "HOST NOTIFICATION WHATSAPP STATUS UPDATE FAILED:",
+      "HOST NOTIFICATION DELIVERY STATUS UPDATE FAILED:",
       error
     );
   }
@@ -242,25 +327,34 @@ async function sendHostWhatsAppNotification({
   eventType,
   metadata,
 }: {
-  supabase: ReturnType<typeof getSupabaseAdminClient>;
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
   notification: HostNotificationRecord;
   propertySlug: string;
   eventType: GuestEventType;
   metadata: Record<string, unknown>;
-}) {
+}): Promise<DeliveryResult> {
   const hostPhone = normalizeWhatsAppPhone(
     process.env.WHATSAPP_HOST_PHONE
   );
 
-  const phoneId = process.env.WHATSAPP_PHONE_ID;
-  const token = process.env.WHATSAPP_TOKEN;
-  const apiVersion = getWhatsAppApiVersion();
+  const phoneId =
+    process.env.WHATSAPP_PHONE_ID?.trim();
+
+  const token =
+    process.env.WHATSAPP_TOKEN?.trim();
+
+  const apiVersion =
+    getWhatsAppApiVersion();
 
   if (!hostPhone || !phoneId || !token) {
-    await updateHostNotificationWhatsAppStatus({
+    await updateHostNotificationDelivery({
       supabase,
-      notificationId: notification.id,
-      status: "not_configured",
+      notification,
+      patch: {
+        whatsapp_status: "not_configured",
+      },
       metadata: {
         whatsapp_error:
           "Missing WHATSAPP_HOST_PHONE, WHATSAPP_PHONE_ID or WHATSAPP_TOKEN",
@@ -273,88 +367,271 @@ async function sendHostWhatsAppNotification({
     };
   }
 
-  const propertyName =
-    typeof metadata.property_name === "string" &&
-    metadata.property_name.trim()
-      ? metadata.property_name.trim()
-      : propertySlug;
-
-  const openedAt = new Date().toLocaleString("en-GB", {
-    timeZone: "Europe/Rome",
-    dateStyle: "medium",
-    timeStyle: "short",
+  const message = buildHostMessage({
+    propertySlug,
+    eventType,
+    metadata,
   });
 
-  const message = `🏡 AI Co-Host notification
-
-Guest page opened
-
-Property: ${propertyName}
-Slug: ${propertySlug}
-Event: ${eventType}
-Time: ${openedAt}
-
-A guest opened the Maltese Maisonette guest page.`;
-
-  const response = await fetch(
-    `https://graph.facebook.com/${apiVersion}/${phoneId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: hostPhone,
-        type: "text",
-        text: {
-          preview_url: false,
-          body: message,
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${apiVersion}/${phoneId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-      }),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: hostPhone,
+          type: "text",
+          text: {
+            preview_url: false,
+            body: message,
+          },
+        }),
+      }
+    );
+
+    const data = await response
+      .json()
+      .catch(() => null);
+
+    if (!response.ok) {
+      console.error(
+        "HOST WHATSAPP NOTIFICATION FAILED:",
+        {
+          status: response.status,
+          data,
+        }
+      );
+
+      await updateHostNotificationDelivery({
+        supabase,
+        notification,
+        patch: {
+          whatsapp_status: "failed",
+        },
+        metadata: {
+          whatsapp_api_status: response.status,
+          whatsapp_api_response: data,
+        },
+      });
+
+      return {
+        sent: false,
+        status: "failed",
+        data,
+      };
     }
-  );
 
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    console.error("HOST WHATSAPP NOTIFICATION FAILED:", {
-      status: response.status,
-      data,
+    await updateHostNotificationDelivery({
+      supabase,
+      notification,
+      patch: {
+        whatsapp_status: "sent",
+        delivery_channel: "dashboard_whatsapp",
+      },
+      metadata: {
+        whatsapp_api_response: data,
+        whatsapp_sent_at:
+          new Date().toISOString(),
+      },
     });
 
-    await updateHostNotificationWhatsAppStatus({
+    return {
+      sent: true,
+      status: "sent",
+      data,
+    };
+  } catch (error) {
+    console.error(
+      "HOST WHATSAPP NOTIFICATION REQUEST ERROR:",
+      error
+    );
+
+    await updateHostNotificationDelivery({
       supabase,
-      notificationId: notification.id,
-      status: "failed",
+      notification,
+      patch: {
+        whatsapp_status: "failed",
+      },
       metadata: {
-        whatsapp_api_status: response.status,
-        whatsapp_api_response: data,
+        whatsapp_error:
+          error instanceof Error
+            ? error.message
+            : "WhatsApp request failed",
       },
     });
 
     return {
       sent: false,
       status: "failed",
-      data,
+    };
+  }
+}
+
+async function markTelegramNotNeeded({
+  supabase,
+  notification,
+}: {
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
+  notification: HostNotificationRecord;
+}) {
+  await updateHostNotificationDelivery({
+    supabase,
+    notification,
+    patch: {
+      telegram_status: "not_needed",
+    },
+    metadata: {
+      telegram_reason:
+        "WhatsApp notification delivered successfully",
+    },
+  });
+}
+
+async function sendHostTelegramNotification({
+  supabase,
+  notification,
+  propertySlug,
+  eventType,
+  metadata,
+}: {
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
+  notification: HostNotificationRecord;
+  propertySlug: string;
+  eventType: GuestEventType;
+  metadata: Record<string, unknown>;
+}): Promise<DeliveryResult> {
+  const botToken =
+    process.env.TELEGRAM_BOT_TOKEN?.trim();
+
+  const chatId =
+    process.env.TELEGRAM_CHAT_ID?.trim();
+
+  if (!botToken || !chatId) {
+    await updateHostNotificationDelivery({
+      supabase,
+      notification,
+      patch: {
+        telegram_status: "not_configured",
+      },
+      metadata: {
+        telegram_error:
+          "Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID",
+      },
+    });
+
+    return {
+      sent: false,
+      status: "not_configured",
     };
   }
 
-  await updateHostNotificationWhatsAppStatus({
-    supabase,
-    notificationId: notification.id,
-    status: "sent",
-    metadata: {
-      whatsapp_api_response: data,
-    },
+  const message = buildHostMessage({
+    propertySlug,
+    eventType,
+    metadata,
   });
 
-  return {
-    sent: true,
-    status: "sent",
-    data,
-  };
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: message,
+          disable_web_page_preview: true,
+        }),
+      }
+    );
+
+    const data = await response
+      .json()
+      .catch(() => null);
+
+    if (!response.ok) {
+      console.error(
+        "HOST TELEGRAM NOTIFICATION FAILED:",
+        {
+          status: response.status,
+          data,
+        }
+      );
+
+      await updateHostNotificationDelivery({
+        supabase,
+        notification,
+        patch: {
+          telegram_status: "failed",
+        },
+        metadata: {
+          telegram_api_status: response.status,
+          telegram_api_response: data,
+        },
+      });
+
+      return {
+        sent: false,
+        status: "failed",
+        data,
+      };
+    }
+
+    await updateHostNotificationDelivery({
+      supabase,
+      notification,
+      patch: {
+        telegram_status: "sent",
+        delivery_channel: "dashboard_telegram",
+      },
+      metadata: {
+        telegram_api_response: data,
+        telegram_sent_at:
+          new Date().toISOString(),
+      },
+    });
+
+    return {
+      sent: true,
+      status: "sent",
+      data,
+    };
+  } catch (error) {
+    console.error(
+      "HOST TELEGRAM NOTIFICATION REQUEST ERROR:",
+      error
+    );
+
+    await updateHostNotificationDelivery({
+      supabase,
+      notification,
+      patch: {
+        telegram_status: "failed",
+      },
+      metadata: {
+        telegram_error:
+          error instanceof Error
+            ? error.message
+            : "Telegram request failed",
+      },
+    });
+
+    return {
+      sent: false,
+      status: "failed",
+    };
+  }
 }
 
 async function createHostNotification({
@@ -364,7 +641,9 @@ async function createHostNotification({
   eventId,
   metadata,
 }: {
-  supabase: ReturnType<typeof getSupabaseAdminClient>;
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
   propertySlug: string;
   eventType: GuestEventType;
   eventId: string;
@@ -376,6 +655,15 @@ async function createHostNotification({
     metadata,
   });
 
+  const initialMetadata = {
+    ...metadata,
+    generated_from: "guest_events_api",
+    whatsapp_preferred: true,
+    telegram_fallback: true,
+    notification_scope:
+      "guest_page_opened_maltese_maisonette_only",
+  };
+
   const { data, error } = await supabase
     .from("host_notifications")
     .insert({
@@ -386,18 +674,16 @@ async function createHostNotification({
       priority: copy.priority,
       status: "unread",
       source_event_id: eventId,
-      delivery_channel: "dashboard_whatsapp",
+      delivery_channel:
+        "dashboard_whatsapp_telegram",
       whatsapp_status: "pending_provider",
-      telegram_status: "not_configured",
+      telegram_status: "pending_fallback",
       email_status: "not_configured",
-      metadata: {
-        ...metadata,
-        generated_from: "guest_events_api",
-        whatsapp_preferred: true,
-        whatsapp_notification_scope: "maltese_maisonette_only",
-      },
+      metadata: initialMetadata,
     })
-    .select("id, title, message")
+    .select(
+      "id, title, message, metadata"
+    )
     .single();
 
   if (error) {
@@ -407,11 +693,16 @@ async function createHostNotification({
   return data as HostNotificationRecord;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+  request: NextRequest
+) {
   try {
-    const payload = (await request.json()) as GuestEventPayload;
+    const payload =
+      (await request.json()) as GuestEventPayload;
 
-    const propertySlug = cleanText(payload.property_slug);
+    const propertySlug = cleanText(
+      payload.property_slug
+    );
 
     if (!propertySlug) {
       return NextResponse.json(
@@ -419,26 +710,40 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "property_slug is required",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    if (!isAllowedEventType(payload.event_type)) {
+    if (
+      !isAllowedEventType(payload.event_type)
+    ) {
       return NextResponse.json(
         {
           success: false,
           error: "Invalid event_type",
-          allowed_event_types: allowedEventTypes,
+          allowed_event_types:
+            allowedEventTypes,
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
     const eventType = payload.event_type;
-    const guestToken = cleanText(payload.guest_token);
-    const metadata = cleanMetadata(payload.event_metadata);
 
-    const supabase = getSupabaseAdminClient();
+    const guestToken = cleanText(
+      payload.guest_token
+    );
+
+    const metadata = cleanMetadata(
+      payload.event_metadata
+    );
+
+    const supabase =
+      getSupabaseAdminClient();
 
     let previousEventQuery = supabase
       .from("guest_page_events")
@@ -448,70 +753,96 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (guestToken) {
-      previousEventQuery = previousEventQuery.eq(
-        "guest_token",
-        guestToken
-      );
+      previousEventQuery =
+        previousEventQuery.eq(
+          "guest_token",
+          guestToken
+        );
     }
 
-    const { data: previousEvents, error: previousEventError } =
-      await previousEventQuery;
+    const {
+      data: previousEvents,
+      error: previousEventError,
+    } = await previousEventQuery;
 
     if (previousEventError) {
       throw previousEventError;
     }
 
     const isFirstEvent =
-      !previousEvents || previousEvents.length === 0;
+      !previousEvents ||
+      previousEvents.length === 0;
 
     const userAgent =
-      request.headers.get("user-agent") || null;
+      request.headers.get("user-agent") ||
+      null;
 
-    const ipAddress = getClientIp(request);
+    const ipAddress =
+      getClientIp(request);
 
     const shouldNotifyHost =
-      shouldSendHostWhatsAppNotification({
+      shouldSendHostNotification({
         propertySlug,
         eventType,
         isFirstEvent,
       });
 
-    const { data: insertedEvent, error: insertError } =
-      await supabase
-        .from("guest_page_events")
-        .insert({
-          property_slug: propertySlug,
-          event_type: eventType,
-          event_source:
-            cleanText(payload.event_source) || "guest_page",
-          event_label: cleanText(payload.event_label),
-          event_metadata: metadata,
-          guest_token: guestToken,
-          guest_name: cleanText(payload.guest_name),
-          guest_language: cleanText(payload.guest_language),
-          user_agent: userAgent,
-          ip_address: ipAddress,
-          is_first_event: isFirstEvent,
-          host_notified: false,
-        })
-        .select("*")
-        .single();
+    const {
+      data: insertedEvent,
+      error: insertError,
+    } = await supabase
+      .from("guest_page_events")
+      .insert({
+        property_slug: propertySlug,
+        event_type: eventType,
+        event_source:
+          cleanText(payload.event_source) ||
+          "guest_page",
+        event_label: cleanText(
+          payload.event_label
+        ),
+        event_metadata: metadata,
+        guest_token: guestToken,
+        guest_name: cleanText(
+          payload.guest_name
+        ),
+        guest_language: cleanText(
+          payload.guest_language
+        ),
+        user_agent: userAgent,
+        ip_address: ipAddress,
+        is_first_event: isFirstEvent,
+        host_notified: false,
+      })
+      .select("*")
+      .single();
 
     if (insertError) {
       throw insertError;
     }
 
     let hostNotificationCreated = false;
-    let hostWhatsAppNotification = null;
 
-    if (shouldNotifyHost && insertedEvent?.id) {
-      const notification = await createHostNotification({
-        supabase,
-        propertySlug,
-        eventType,
-        eventId: insertedEvent.id,
-        metadata,
-      });
+    let hostWhatsAppNotification:
+      | DeliveryResult
+      | null = null;
+
+    let hostTelegramNotification:
+      | DeliveryResult
+      | null = null;
+
+    if (
+      shouldNotifyHost &&
+      insertedEvent?.id
+    ) {
+      const notification =
+        await createHostNotification({
+          supabase,
+          propertySlug,
+          eventType,
+          eventId: insertedEvent.id,
+          metadata,
+        });
 
       hostNotificationCreated = true;
 
@@ -524,10 +855,40 @@ export async function POST(request: NextRequest) {
           metadata,
         });
 
-      const { error: updateEventError } = await supabase
+      if (
+        hostWhatsAppNotification.sent
+      ) {
+        await markTelegramNotNeeded({
+          supabase,
+          notification,
+        });
+
+        hostTelegramNotification = {
+          sent: false,
+          status: "not_needed",
+        };
+      } else {
+        hostTelegramNotification =
+          await sendHostTelegramNotification({
+            supabase,
+            notification,
+            propertySlug,
+            eventType,
+            metadata,
+          });
+      }
+
+      const externalNotificationSent =
+        hostWhatsAppNotification.sent ||
+        hostTelegramNotification.sent;
+
+      const {
+        error: updateEventError,
+      } = await supabase
         .from("guest_page_events")
         .update({
-          host_notified: true,
+          host_notified:
+            externalNotificationSent,
         })
         .eq("id", insertedEvent.id);
 
@@ -535,19 +896,27 @@ export async function POST(request: NextRequest) {
         throw updateEventError;
       }
 
-      insertedEvent.host_notified = true;
+      insertedEvent.host_notified =
+        externalNotificationSent;
     }
 
     return NextResponse.json({
       success: true,
       event: insertedEvent,
-      host_notification_created: hostNotificationCreated,
-      host_whatsapp_notification: hostWhatsAppNotification,
-      whatsapp_notification_scope:
+      host_notification_created:
+        hostNotificationCreated,
+      host_whatsapp_notification:
+        hostWhatsAppNotification,
+      host_telegram_notification:
+        hostTelegramNotification,
+      notification_scope:
         "guest_page_opened_maltese_maisonette_only",
     });
   } catch (error) {
-    console.error("GUEST EVENT ERROR:", error);
+    console.error(
+      "GUEST EVENT ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
@@ -557,7 +926,9 @@ export async function POST(request: NextRequest) {
             ? error.message
             : "Unable to record guest event",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
