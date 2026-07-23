@@ -22,11 +22,16 @@ export function createEmptyKnowledgeBase(): KnowledgeBase {
     },
 
     guest_support: {
-      whatsapp_enabled: false,
-      whatsapp_number: "",
-      whatsapp_label: "Host",
-      whatsapp_message_template: "",
-    },
+  whatsapp_enabled: false,
+  whatsapp_number: "",
+  whatsapp_label: "Host",
+  whatsapp_message_template: "",
+
+  telegram_enabled: false,
+  telegram_username: "",
+  telegram_label: "Host",
+  telegram_message_template: "",
+},
 
     welcome_book: {
       description: "",

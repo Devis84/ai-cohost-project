@@ -26,6 +26,11 @@ type GuestSupport = {
   whatsapp_number?: string;
   whatsapp_label?: string;
   whatsapp_message_template?: string;
+
+  telegram_enabled?: boolean;
+  telegram_username?: string;
+  telegram_label?: string;
+  telegram_message_template?: string;
 };
 
 type WelcomeBook = {
@@ -219,6 +224,29 @@ function getWhatsAppHref({
   return encodedMessage
     ? `https://wa.me/${cleanNumber}?text=${encodedMessage}`
     : `https://wa.me/${cleanNumber}`;
+}
+
+function getTelegramHref({
+  username,
+  message,
+}: {
+  username?: string;
+  message: string;
+}) {
+  const cleanUsername = safeText(username)
+    .replace(/^https?:\/\/t\.me\//i, "")
+    .replace(/^@/, "")
+    .replace(/\/+$/, "");
+
+  if (!cleanUsername) {
+    return "";
+  }
+
+  const encodedMessage = encodeURIComponent(message);
+
+  return encodedMessage
+    ? `https://t.me/${cleanUsername}?text=${encodedMessage}`
+    : `https://t.me/${cleanUsername}`;
 }
 
 function getMapsHref(property?: Property | null) {
@@ -867,10 +895,31 @@ export default function GuestPage() {
   });
 
   const showWhatsAppContact = Boolean(
-    guestSupport.whatsapp_enabled && whatsappHref
-  );
+  guestSupport.whatsapp_enabled && whatsappHref
+);
 
-  const houseRules =
+const telegramLabel =
+  safeText(guestSupport.telegram_label) ||
+  "the host";
+
+const telegramDefaultMessage = `Hi, I’m staying at ${getPropertyName(
+  property
+)} and I need some help.`;
+
+const telegramMessage =
+  safeText(guestSupport.telegram_message_template) ||
+  telegramDefaultMessage;
+
+const telegramHref = getTelegramHref({
+  username: guestSupport.telegram_username,
+  message: telegramMessage,
+});
+
+const showTelegramContact = Boolean(
+  guestSupport.telegram_enabled && telegramHref
+);
+
+const houseRules =
     safeText(welcomeBook.house_rules) ||
     safeText(property?.house_rules);
 
@@ -1502,26 +1551,37 @@ export default function GuestPage() {
           </p>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => openView("ai")}
-              className="rounded-2xl bg-black px-5 py-3 font-semibold text-white"
-            >
-              Ask AI
-            </button>
+  <button
+    type="button"
+    onClick={() => openView("ai")}
+    className="rounded-2xl bg-black px-5 py-3 font-semibold text-white"
+  >
+    Ask AI
+  </button>
 
-            {showWhatsAppContact && (
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white"
-              >
-                Message on WhatsApp
-              </a>
-            )}
+  {showWhatsAppContact && (
+    <a
+      href={whatsappHref}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white"
+    >
+      Message on WhatsApp
+    </a>
+  )}
 
-            {hostPhoneHref && (
+  {showTelegramContact && (
+    <a
+      href={telegramHref}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-2xl bg-sky-500 px-5 py-3 font-semibold text-white"
+    >
+      Message on Telegram
+    </a>
+  )}
+
+  {hostPhoneHref && (
               <a
                 href={hostPhoneHref}
                 className="rounded-2xl border border-gray-200 bg-white px-5 py-3 font-semibold text-black"
@@ -1568,18 +1628,29 @@ export default function GuestPage() {
           </p>
 
           <div className="flex flex-wrap gap-3">
-            {showWhatsAppContact && (
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white"
-              >
-                Message on WhatsApp
-              </a>
-            )}
+  {showWhatsAppContact && (
+    <a
+      href={whatsappHref}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white"
+    >
+      Message on WhatsApp
+    </a>
+  )}
 
-            {hostPhoneHref && (
+  {showTelegramContact && (
+    <a
+      href={telegramHref}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex rounded-2xl bg-sky-500 px-5 py-3 font-semibold text-white"
+    >
+      Message on Telegram
+    </a>
+  )}
+
+  {hostPhoneHref && (
               <a
                 href={hostPhoneHref}
                 className="inline-flex rounded-2xl bg-black px-5 py-3 font-semibold text-white"
@@ -1713,15 +1784,26 @@ export default function GuestPage() {
                     </button>
 
                     {showWhatsAppContact && (
-                      <a
-                        href={whatsappHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-emerald-500 text-white rounded-2xl px-5 py-4 font-black shadow-xl hover:bg-emerald-600 transition"
-                      >
-                        WhatsApp {whatsappLabel}
-                      </a>
-                    )}
+  <a
+    href={whatsappHref}
+    target="_blank"
+    rel="noreferrer"
+    className="bg-emerald-500 text-white rounded-2xl px-5 py-4 font-black shadow-xl hover:bg-emerald-600 transition"
+  >
+    WhatsApp {whatsappLabel}
+  </a>
+)}
+
+{showTelegramContact && (
+  <a
+    href={telegramHref}
+    target="_blank"
+    rel="noreferrer"
+    className="bg-sky-500 text-white rounded-2xl px-5 py-4 font-black shadow-xl hover:bg-sky-600 transition"
+  >
+    Telegram {telegramLabel}
+  </a>
+)}
                   </div>
                 </div>
 
@@ -1802,14 +1884,43 @@ export default function GuestPage() {
             </section>
 
             {showWhatsAppContact && (
-              <WhatsAppContactCard
-                label={whatsappLabel}
-                href={whatsappHref}
-              />
-            )}
+  <WhatsAppContactCard
+    label={whatsappLabel}
+    href={whatsappHref}
+  />
+)}
 
-            <section
-              id="wifi-home"
+{showTelegramContact && (
+  <section className="rounded-[36px] border border-sky-100 bg-sky-50 p-6 shadow-xl">
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-sky-600">
+          Telegram Support
+        </div>
+
+        <h2 className="text-2xl font-black text-gray-950">
+          Contact {telegramLabel}
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-600">
+          Open Telegram to contact the host or property team.
+        </p>
+      </div>
+
+      <a
+        href={telegramHref}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex justify-center rounded-2xl bg-sky-500 px-5 py-4 font-bold text-white"
+      >
+        Message on Telegram
+      </a>
+    </div>
+  </section>
+)}
+
+<section
+  id="wifi-home"
               className="bg-white rounded-[36px] p-6 md:p-8 shadow-xl border border-black/5"
             >
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">

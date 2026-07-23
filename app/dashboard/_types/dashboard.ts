@@ -25,6 +25,11 @@ export type GuestSupport = {
   whatsapp_number: string;
   whatsapp_label: string;
   whatsapp_message_template: string;
+
+  telegram_enabled: boolean;
+  telegram_username: string;
+  telegram_label: string;
+  telegram_message_template: string;
 };
 
 export type WelcomeBook = {

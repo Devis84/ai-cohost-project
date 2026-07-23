@@ -8,7 +8,7 @@ import {
   TextArea,
 } from "./DashboardUi";
 
-import GuestWhatsAppContactSection from "./GuestWhatsAppContactSection";
+import GuestContactChannelsSection from "./GuestContactChannelsSection";
 
 import {
   createSlug,
@@ -676,10 +676,10 @@ export function DashboardGeneralTab({
         >
           <div className="flex items-start justify-between gap-4">
             <SectionHeader
-              icon="💬"
-              title="WhatsApp Contact"
-              description="Configure WhatsApp messaging settings for guests."
-            />
+  icon="💬"
+  title="Guest Contact Channels"
+  description="Enable and configure WhatsApp and Telegram contact options for guests."
+/>
             <div className="mt-1 text-2xl text-gray-400">
               {expandedSections.whatsapp ? "−" : "+"}
             </div>
@@ -688,11 +688,11 @@ export function DashboardGeneralTab({
 
         {expandedSections.whatsapp && (
           <div className="mt-6">
-            <GuestWhatsAppContactSection
-              guestSupport={knowledgeBase.guest_support}
-              propertyName={propertyName}
-              onUpdateGuestSupport={onUpdateGuestSupport}
-            />
+            <GuestContactChannelsSection
+  guestSupport={knowledgeBase.guest_support}
+  propertyName={propertyName}
+  onUpdateGuestSupport={onUpdateGuestSupport}
+/>
           </div>
         )}
       </section>
