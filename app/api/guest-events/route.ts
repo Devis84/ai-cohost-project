@@ -13,7 +13,8 @@ const hostNotificationEnabledSlugs = [
   "maltese-maisonette",
 ];
 
-type GuestEventType = (typeof allowedEventTypes)[number];
+type GuestEventType =
+  (typeof allowedEventTypes)[number];
 
 type GuestEventPayload = {
   property_slug?: unknown;
@@ -43,6 +44,12 @@ type DeliveryResult = {
   sent: boolean;
   status: string;
   data?: unknown;
+};
+
+type NotificationDeliveryPatch = {
+  whatsapp_status?: string;
+  telegram_status?: string;
+  delivery_channel?: string;
 };
 
 function getSupabaseAdminClient() {
@@ -276,6 +283,53 @@ Time: ${openedAt}
 A guest opened the ${propertyName} guest page.`;
 }
 
+async function getCurrentNotificationMetadata({
+  supabase,
+  notificationId,
+  fallbackMetadata,
+}: {
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
+  notificationId: string;
+  fallbackMetadata:
+    | Record<string, unknown>
+    | null;
+}) {
+  const { data, error } = await supabase
+    .from("host_notifications")
+    .select("metadata")
+    .eq("id", notificationId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "HOST NOTIFICATION METADATA LOAD FAILED:",
+      error
+    );
+  }
+
+  if (
+    data?.metadata &&
+    typeof data.metadata === "object" &&
+    !Array.isArray(data.metadata)
+  ) {
+    return data.metadata as Record<
+      string,
+      unknown
+    >;
+  }
+
+  if (
+    fallbackMetadata &&
+    typeof fallbackMetadata === "object"
+  ) {
+    return fallbackMetadata;
+  }
+
+  return {};
+}
+
 async function updateHostNotificationDelivery({
   supabase,
   notification,
@@ -286,18 +340,15 @@ async function updateHostNotificationDelivery({
     typeof getSupabaseAdminClient
   >;
   notification: HostNotificationRecord;
-  patch: {
-    whatsapp_status?: string;
-    telegram_status?: string;
-    delivery_channel?: string;
-  };
+  patch: NotificationDeliveryPatch;
   metadata?: Record<string, unknown>;
 }) {
   const existingMetadata =
-    notification.metadata &&
-    typeof notification.metadata === "object"
-      ? notification.metadata
-      : {};
+    await getCurrentNotificationMetadata({
+      supabase,
+      notificationId: notification.id,
+      fallbackMetadata: notification.metadata,
+    });
 
   const { error } = await supabase
     .from("host_notifications")
@@ -414,7 +465,8 @@ async function sendHostWhatsAppNotification({
           whatsapp_status: "failed",
         },
         metadata: {
-          whatsapp_api_status: response.status,
+          whatsapp_api_status:
+            response.status,
           whatsapp_api_response: data,
         },
       });
@@ -430,19 +482,22 @@ async function sendHostWhatsAppNotification({
       supabase,
       notification,
       patch: {
-        whatsapp_status: "sent",
-        delivery_channel: "dashboard_whatsapp",
+        whatsapp_status: "accepted",
       },
       metadata: {
+        whatsapp_api_status:
+          response.status,
         whatsapp_api_response: data,
-        whatsapp_sent_at:
+        whatsapp_accepted_at:
           new Date().toISOString(),
+        whatsapp_delivery_note:
+          "Meta accepted the request. Final delivery is not confirmed without webhook delivery status.",
       },
     });
 
     return {
       sent: true,
-      status: "sent",
+      status: "accepted",
       data,
     };
   } catch (error) {
@@ -470,28 +525,6 @@ async function sendHostWhatsAppNotification({
       status: "failed",
     };
   }
-}
-
-async function markTelegramNotNeeded({
-  supabase,
-  notification,
-}: {
-  supabase: ReturnType<
-    typeof getSupabaseAdminClient
-  >;
-  notification: HostNotificationRecord;
-}) {
-  await updateHostNotificationDelivery({
-    supabase,
-    notification,
-    patch: {
-      telegram_status: "not_needed",
-    },
-    metadata: {
-      telegram_reason:
-        "WhatsApp notification delivered successfully",
-    },
-  });
 }
 
 async function sendHostTelegramNotification({
@@ -576,7 +609,8 @@ async function sendHostTelegramNotification({
           telegram_status: "failed",
         },
         metadata: {
-          telegram_api_status: response.status,
+          telegram_api_status:
+            response.status,
           telegram_api_response: data,
         },
       });
@@ -593,9 +627,10 @@ async function sendHostTelegramNotification({
       notification,
       patch: {
         telegram_status: "sent",
-        delivery_channel: "dashboard_telegram",
       },
       metadata: {
+        telegram_api_status:
+          response.status,
         telegram_api_response: data,
         telegram_sent_at:
           new Date().toISOString(),
@@ -634,6 +669,70 @@ async function sendHostTelegramNotification({
   }
 }
 
+function getFinalDeliveryChannel({
+  whatsappResult,
+  telegramResult,
+}: {
+  whatsappResult: DeliveryResult;
+  telegramResult: DeliveryResult;
+}) {
+  if (
+    whatsappResult.sent &&
+    telegramResult.sent
+  ) {
+    return "dashboard_whatsapp_telegram";
+  }
+
+  if (telegramResult.sent) {
+    return "dashboard_telegram";
+  }
+
+  if (whatsappResult.sent) {
+    return "dashboard_whatsapp";
+  }
+
+  return "dashboard_only";
+}
+
+async function updateFinalNotificationDelivery({
+  supabase,
+  notification,
+  whatsappResult,
+  telegramResult,
+}: {
+  supabase: ReturnType<
+    typeof getSupabaseAdminClient
+  >;
+  notification: HostNotificationRecord;
+  whatsappResult: DeliveryResult;
+  telegramResult: DeliveryResult;
+}) {
+  const deliveryChannel =
+    getFinalDeliveryChannel({
+      whatsappResult,
+      telegramResult,
+    });
+
+  await updateHostNotificationDelivery({
+    supabase,
+    notification,
+    patch: {
+      delivery_channel: deliveryChannel,
+    },
+    metadata: {
+      external_notification_sent:
+        whatsappResult.sent ||
+        telegramResult.sent,
+      whatsapp_attempt_status:
+        whatsappResult.status,
+      telegram_attempt_status:
+        telegramResult.status,
+      final_delivery_channel:
+        deliveryChannel,
+    },
+  });
+}
+
 async function createHostNotification({
   supabase,
   propertySlug,
@@ -658,8 +757,9 @@ async function createHostNotification({
   const initialMetadata = {
     ...metadata,
     generated_from: "guest_events_api",
-    whatsapp_preferred: true,
-    telegram_fallback: true,
+    whatsapp_enabled: true,
+    telegram_enabled: true,
+    telegram_always_send: true,
     notification_scope:
       "guest_page_opened_maltese_maisonette_only",
   };
@@ -677,7 +777,7 @@ async function createHostNotification({
       delivery_channel:
         "dashboard_whatsapp_telegram",
       whatsapp_status: "pending_provider",
-      telegram_status: "pending_fallback",
+      telegram_status: "pending_provider",
       email_status: "not_configured",
       metadata: initialMetadata,
     })
@@ -855,28 +955,23 @@ export async function POST(
           metadata,
         });
 
-      if (
-        hostWhatsAppNotification.sent
-      ) {
-        await markTelegramNotNeeded({
+      hostTelegramNotification =
+        await sendHostTelegramNotification({
           supabase,
           notification,
+          propertySlug,
+          eventType,
+          metadata,
         });
 
-        hostTelegramNotification = {
-          sent: false,
-          status: "not_needed",
-        };
-      } else {
-        hostTelegramNotification =
-          await sendHostTelegramNotification({
-            supabase,
-            notification,
-            propertySlug,
-            eventType,
-            metadata,
-          });
-      }
+      await updateFinalNotificationDelivery({
+        supabase,
+        notification,
+        whatsappResult:
+          hostWhatsAppNotification,
+        telegramResult:
+          hostTelegramNotification,
+      });
 
       const externalNotificationSent =
         hostWhatsAppNotification.sent ||
